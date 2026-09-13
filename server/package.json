@@ -1,0 +1,15 @@
+{
+  "name": "forgefit-ai-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Secure AI backend for ForgeFit. Holds the model provider key server-side and returns validated, structured JSON. The mobile app never contains a provider key.",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs",
+    "dev": "node --watch index.mjs"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

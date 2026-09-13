@@ -1,0 +1,65 @@
+{
+  "name": "forgefit",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "jest",
+    "test:ci": "jest --ci --runInBand"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@shopify/flash-list": "1.7.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "date-fns": "^3.6.0",
+    "expo": "~52.0.11",
+    "expo-asset": "~11.0.5",
+    "expo-blur": "~14.0.1",
+    "expo-camera": "~16.0.7",
+    "expo-constants": "~17.0.3",
+    "expo-crypto": "~14.0.1",
+    "expo-file-system": "~18.0.12",
+    "expo-font": "~13.0.1",
+    "expo-haptics": "~14.0.0",
+    "expo-image": "~2.0.3",
+    "expo-image-picker": "~16.0.3",
+    "expo-linear-gradient": "~14.0.1",
+    "expo-linking": "~7.0.3",
+    "expo-notifications": "~0.29.11",
+    "expo-router": "~4.0.9",
+    "expo-secure-store": "~14.0.0",
+    "expo-splash-screen": "~0.29.13",
+    "expo-status-bar": "~2.0.0",
+    "expo-system-ui": "~4.0.4",
+    "react": "18.3.1",
+    "react-native": "0.76.3",
+    "react-native-gesture-handler": "~2.20.2",
+    "react-native-reanimated": "~3.16.1",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.1.0",
+    "react-native-svg": "15.8.0",
+    "react-native-url-polyfill": "^2.0.0",
+    "zustand": "^4.5.5"
+  },
+  "overrides": {
+    "ajv-keywords": {
+      "ajv": "^8.17.1"
+    }
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/jest": "^29.5.13",
+    "@types/react": "~18.3.12",
+    "eslint": "^8.57.0",
+    "eslint-config-expo": "~8.0.1",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.3.3"
+  }
+}

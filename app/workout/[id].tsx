@@ -1,0 +1,112 @@
+import React from 'react';
+import { View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Button, Card, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
+import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { colors, spacing } from '../../src/theme';
+import { formatDuration } from '../../src/domain/date';
+import { workoutStats } from '../../src/domain/strength';
+import { displayWeight } from '../../src/domain/units';
+import type { MuscleGroup } from '../../src/domain/types';
+import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
+import { useProfileStore } from '../../src/stores/useProfileStore';
+
+export default function WorkoutDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const workout = useWorkoutStore((s) => s.workouts.find((w) => w.id === id));
+  const units = useProfileStore((s) => s.profile.units);
+
+  if (!workout) {
+    return (
+      <Screen gradient>
+        <ScreenHeader title="Workout" />
+        <Text variant="body" color={colors.textDim}>
+          This workout could not be found.
+        </Text>
+      </Screen>
+    );
+  }
+
+  const stats = workoutStats(workout);
+  const vol = displayWeight(stats.totalVolumeKg, units);
+  const e1rm = displayWeight(stats.bestE1RM, units);
+  const prCount = workout.exercises.reduce((a, e) => a + e.sets.filter((s) => s.isPr).length, 0);
+
+  return (
+    <Screen gradient footer={<Button title="Done" onPress={() => router.replace('/(tabs)/workout')} size="lg" />}>
+      <ScreenHeader title={workout.name} />
+
+      <Card style={{ alignItems: 'center', gap: spacing.xs, marginBottom: spacing.lg }}>
+        <Text variant="overline" color={colors.textDim}>
+          {workout.status === 'completed' ? 'COMPLETED' : 'SUMMARY'}
+        </Text>
+        <Text variant="display" color={colors.primary}>
+          {Math.round(vol.value).toLocaleString()}
+        </Text>
+        <Text variant="caption" color={colors.textDim}>
+          total volume ({vol.unit}) · {formatDuration(workout.durationSeconds ?? 0)}
+        </Text>
+      </Card>
+
+      <Card style={{ flexDirection: 'row', marginBottom: spacing.lg }}>
+        <StatTile value={`${stats.totalSets}`} label="Sets" />
+        <StatTile value={`${stats.totalReps}`} label="Reps" />
+        <StatTile value={`${Math.round(e1rm.value)}`} label={`Top e1RM (${e1rm.unit})`} accent={colors.protein} />
+        <StatTile value={`${prCount}`} label="PRs" accent={colors.amber} />
+      </Card>
+
+      <SectionHeader title="Exercises" />
+      {workout.exercises.map((ex) => {
+        const completedSets = ex.sets.filter((s) => s.completed);
+        return (
+          <Card key={ex.id} style={{ marginBottom: spacing.md }}>
+            <Text variant="bodyStrong">{ex.name}</Text>
+            <View style={{ marginTop: spacing.sm, gap: 4 }}>
+              {completedSets.map((s, i) => {
+                const w = s.weightKg != null ? displayWeight(s.weightKg, units) : null;
+                return (
+                  <View key={s.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text variant="caption" color={colors.textDim}>
+                      Set {i + 1} {s.isPr ? '★' : ''}
+                    </Text>
+                    <Text variant="label">
+                      {w ? `${Math.round(w.value * 10) / 10} ${w.unit}` : '—'} × {s.reps ?? '—'}
+                      {s.rpe ? ` @ RPE ${s.rpe}` : ''}
+                    </Text>
+                  </View>
+                );
+              })}
+              {completedSets.length === 0 && (
+                <Text variant="caption" color={colors.textFaint}>
+                  No completed sets
+                </Text>
+              )}
+            </View>
+          </Card>
+        );
+      })}
+
+      <SectionHeader title="Muscle volume" />
+      <Card>
+        {Object.entries(stats.muscleVolume).map(([m, v]) => {
+          const d = displayWeight(v as number, units);
+          return (
+            <View key={m} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm }}>
+              <Text variant="body">{label(m as MuscleGroup)}</Text>
+              <Text variant="label" color={colors.textDim}>
+                {Math.round(d.value).toLocaleString()} {d.unit}
+              </Text>
+            </View>
+          );
+        })}
+        {Object.keys(stats.muscleVolume).length === 0 && (
+          <Text variant="caption" color={colors.textFaint}>
+            Complete sets to see muscle breakdown.
+          </Text>
+        )}
+      </Card>
+    </Screen>
+  );
+}
+
+const label = (m: MuscleGroup) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
