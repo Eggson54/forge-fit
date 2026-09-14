@@ -73,6 +73,18 @@ npx expo start           # then press i / a, or scan the QR with Expo Go
 The app runs **fully offline** out of the box (local accounts, mock AI, mock subscriptions,
 placeholder ads). No environment variables are required for development.
 
+### Run in a browser (no simulator)
+
+ForgeFit also builds for the web via react-native-web, so it can be previewed in any browser:
+
+```bash
+npm run web                       # dev server
+npx expo export --platform web    # static build in dist/ (host anywhere)
+```
+
+Native-only features (secure keychain, notifications, camera, Apple Health) degrade gracefully
+on web; the core onboarding, dashboard, workout, nutrition, coach and progress flows all work.
+
 ### Scripts
 
 | Command | What it does |

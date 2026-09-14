@@ -14,6 +14,7 @@
     "test:ci": "jest --ci --runInBand"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~4.0.1",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@shopify/flash-list": "1.7.1",
     "@supabase/supabase-js": "^2.45.4",
@@ -38,6 +39,7 @@
     "expo-status-bar": "~2.0.0",
     "expo-system-ui": "~4.0.4",
     "react": "18.3.1",
+    "react-dom": "^18.3.1",
     "react-native": "0.76.3",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-reanimated": "~3.16.1",
@@ -45,6 +47,7 @@
     "react-native-screens": "~4.1.0",
     "react-native-svg": "15.8.0",
     "react-native-url-polyfill": "^2.0.0",
+    "react-native-web": "^0.19.13",
     "zustand": "^4.5.5"
   },
   "overrides": {
