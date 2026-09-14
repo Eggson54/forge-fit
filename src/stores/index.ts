@@ -1,9 +1,11 @@
 import { useAuthStore } from './useAuthStore';
 import { useGamificationStore } from './useGamificationStore';
+import { useIntegrationStore } from './useIntegrationStore';
 import { useLogStore } from './useLogStore';
 import { useProfileStore } from './useProfileStore';
 import { useProtocolStore } from './useProtocolStore';
 import { useReminderStore } from './useReminderStore';
+import { useRoutineStore } from './useRoutineStore';
 import { useWorkoutStore } from './useWorkoutStore';
 
 export {
@@ -14,6 +16,8 @@ export {
   useGamificationStore,
   useReminderStore,
   useProtocolStore,
+  useIntegrationStore,
+  useRoutineStore,
 };
 export * from './useDailySummary';
 
@@ -25,4 +29,6 @@ export function resetAllStores(): void {
   useGamificationStore.getState().reset();
   useReminderStore.getState().reset();
   useProtocolStore.getState().reset();
+  useIntegrationStore.getState().reset();
+  useRoutineStore.getState().reset();
 }

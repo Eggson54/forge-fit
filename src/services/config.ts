@@ -38,6 +38,14 @@ export const config = {
       return Boolean(this.key);
     },
   },
+  strava: {
+    clientId: process.env.EXPO_PUBLIC_STRAVA_CLIENT_ID ?? '',
+    // Token exchange happens on YOUR backend (never ship the client secret).
+    exchangeUrl: process.env.EXPO_PUBLIC_STRAVA_EXCHANGE_URL ?? '',
+    get enabled() {
+      return Boolean(this.clientId && this.exchangeUrl);
+    },
+  },
   isDev: process.env.NODE_ENV !== 'production',
 };
 

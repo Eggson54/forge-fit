@@ -11,11 +11,14 @@ import { displayWeight } from '../../src/domain/units';
 import type { MuscleGroup } from '../../src/domain/types';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { useRoutineStore } from '../../src/stores/useRoutineStore';
+import { Alert } from 'react-native';
 
 export default function WorkoutDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const workout = useWorkoutStore((s) => s.workouts.find((w) => w.id === id));
   const units = useProfileStore((s) => s.profile.units);
+  const saveRoutine = useRoutineStore((s) => s.saveFromWorkout);
 
   if (!workout) {
     return (
@@ -34,7 +37,15 @@ export default function WorkoutDetail() {
   const prCount = workout.exercises.reduce((a, e) => a + e.sets.filter((s) => s.isPr).length, 0);
 
   return (
-    <Screen gradient footer={<Button title="Done" onPress={() => router.replace('/(tabs)/workout')} size="lg" />}>
+    <Screen
+      gradient
+      footer={
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <Button title="Save as Routine" variant="secondary" onPress={() => { saveRoutine(workout); Alert.alert('Saved', `"${workout.name}" saved as a routine you can reuse.`); }} style={{ flex: 1 }} />
+          <Button title="Done" onPress={() => router.replace('/(tabs)/workout')} style={{ flex: 1 }} />
+        </View>
+      }
+    >
       {workout.status === 'completed' && <Celebration />}
       <ScreenHeader title={workout.name} />
 

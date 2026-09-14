@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, ListRow, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
@@ -60,7 +60,12 @@ export default function Profile() {
       </Card>
 
       <FadeIn delay={60} style={{ marginTop: spacing.lg }}>
-        <RankCard rank={rank} />
+        <Pressable onPress={() => router.push('/leaderboard')}>
+          <RankCard rank={rank} />
+          <Text variant="caption" color={colors.textDim} center style={{ marginTop: spacing.sm }}>
+            Tap to see the leaderboard ›
+          </Text>
+        </Pressable>
       </FadeIn>
 
       {!isPro && (

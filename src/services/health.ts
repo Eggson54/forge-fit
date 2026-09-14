@@ -20,6 +20,9 @@ export interface HealthProvider {
   getSteps(date: string): Promise<number | null>;
   getLatestWeightKg(): Promise<number | null>;
   getSleepMinutes(date: string): Promise<number | null>;
+  /** Apple Watch metrics. */
+  getHeartRateAvg(date: string): Promise<number | null>;
+  getActiveEnergyKcal(date: string): Promise<number | null>;
 }
 
 class UnavailableHealthProvider implements HealthProvider {
@@ -36,6 +39,12 @@ class UnavailableHealthProvider implements HealthProvider {
     return null;
   }
   async getSleepMinutes() {
+    return null;
+  }
+  async getHeartRateAvg() {
+    return null;
+  }
+  async getActiveEnergyKcal() {
     return null;
   }
 }
@@ -58,4 +67,6 @@ export const health = {
   getSteps: (date: string) => provider.getSteps(date),
   getLatestWeightKg: () => provider.getLatestWeightKg(),
   getSleepMinutes: (date: string) => provider.getSleepMinutes(date),
+  getHeartRateAvg: (date: string) => provider.getHeartRateAvg(date),
+  getActiveEnergyKcal: (date: string) => provider.getActiveEnergyKcal(date),
 };

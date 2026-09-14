@@ -76,7 +76,7 @@ export default function Settings() {
       <SectionHeader title="Privacy & Integrations" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
         <ListRow icon="🔒" title="Privacy & Data" subtitle="What's stored & where" onPress={() => router.push('/settings/privacy')} />
-        <ListRow icon="❤️" title="Apple Health" subtitle="Steps, weight, sleep" onPress={() => router.push('/settings/privacy')} />
+        <ListRow icon="⌚" title="Integrations" subtitle="Apple Watch, Strava, Apple Health" onPress={() => router.push('/settings/integrations')} />
         <ListRow icon="💳" title="Subscription" onPress={() => router.push('/settings/subscription')} />
       </Card>
 

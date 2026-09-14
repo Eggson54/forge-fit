@@ -57,7 +57,12 @@ export default function WorkoutTab() {
       </View>
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+        <StartCard icon="progress" title="Routines" subtitle="Saved templates" onPress={() => router.push('/workout/routines')} />
         <StartCard icon="dumbbell" title="Exercises" subtitle="Browse library" onPress={() => router.push('/workout/library')} />
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+        <StartCard icon="flame" title="Leaderboard" subtitle="Ranked rivals" onPress={() => router.push('/leaderboard')} />
         <StartCard icon="progress" title="History" subtitle="Past sessions" onPress={() => router.push('/workout/history')} />
       </View>
 

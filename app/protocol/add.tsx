@@ -3,6 +3,7 @@ import { Switch, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, Chip, Input, Screen, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { Syringe } from '../../src/components/Syringe';
 import { colors, spacing } from '../../src/theme';
 import type { ProtocolFrequency } from '../../src/domain/types';
 import { useProtocolStore } from '../../src/stores/useProtocolStore';
@@ -22,8 +23,9 @@ export default function AddProtocol() {
   const addReminder = useReminderStore((s) => s.add);
 
   const [name, setName] = useState('');
-  const [dose, setDose] = useState('');
+  const [dose, setDose] = useState(0);
   const [unit, setUnit] = useState('mg');
+  const [useSyringe, setUseSyringe] = useState(true);
   const [frequency, setFrequency] = useState<ProtocolFrequency>('daily');
   const [time, setTime] = useState('09:00');
   const [notes, setNotes] = useState('');
@@ -32,7 +34,7 @@ export default function AddProtocol() {
   const save = async () => {
     addProtocol({
       name: name.trim() || 'Protocol',
-      dose: dose ? parseFloat(dose) : null,
+      dose: dose > 0 ? dose : null,
       unit: unit.trim(),
       frequency,
       timeOfDay: time,
@@ -58,13 +60,26 @@ export default function AddProtocol() {
 
       <View style={{ gap: spacing.md }}>
         <Input label="Name" value={name} onChangeText={setName} placeholder="e.g. Vitamin D, or your own label" />
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <View style={{ flex: 2 }}>
-            <Input label="Amount" value={dose} onChangeText={setDose} keyboardType="decimal-pad" placeholder="Optional" />
+
+        <View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+            <Text variant="label" color={colors.textDim}>Amount</Text>
+            <Text variant="label" color={colors.primary} onPress={() => setUseSyringe((v) => !v)}>
+              {useSyringe ? 'Enter manually' : 'Use syringe'}
+            </Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Input label="Unit" value={unit} onChangeText={setUnit} placeholder="mg" autoCapitalize="none" />
-          </View>
+          <Card padded style={{ gap: spacing.md }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              {(['mg', 'mcg', 'iu', 'ml'] as const).map((u) => (
+                <Chip key={u} label={u} selected={unit === u} onPress={() => setUnit(u)} />
+              ))}
+            </View>
+            {useSyringe ? (
+              <Syringe value={dose} max={maxForUnit(unit)} step={stepForUnit(unit)} unit={unit} onChange={setDose} />
+            ) : (
+              <Input label="Amount" value={dose ? String(dose) : ''} onChangeText={(t) => setDose(parseFloat(t) || 0)} keyboardType="decimal-pad" suffix={unit} placeholder="0" />
+            )}
+          </Card>
         </View>
 
         <Text variant="label" color={colors.textDim}>
@@ -86,4 +101,22 @@ export default function AddProtocol() {
       </View>
     </Screen>
   );
+}
+
+// Reasonable syringe ranges per unit — a display range only, never a recommendation.
+function maxForUnit(unit: string): number {
+  switch (unit) {
+    case 'mcg': return 1000;
+    case 'iu': return 50;
+    case 'ml': return 5;
+    default: return 100; // mg
+  }
+}
+function stepForUnit(unit: string): number {
+  switch (unit) {
+    case 'mcg': return 5;
+    case 'iu': return 1;
+    case 'ml': return 0.05;
+    default: return 0.5; // mg
+  }
 }
