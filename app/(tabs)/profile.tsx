@@ -2,13 +2,18 @@ import React from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, ListRow, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { FadeIn } from '../../src/components/anim';
+import { RankCard } from '../../src/components/RankCard';
 import { colors, gradients, spacing } from '../../src/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { displayWeight } from '../../src/domain/units';
+import { computeRank } from '../../src/domain/rank';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
+
+const BIG3 = ['barbell_bench_press', 'barbell_squat', 'deadlift'];
 
 export default function Profile() {
   const user = useAuthStore((s) => s.user);
@@ -16,9 +21,20 @@ export default function Profile() {
   const isPro = useProfileStore((s) => s.isPro());
   const protocolEnabled = useProfileStore((s) => s.protocolFeatureEnabled);
   const workouts = useWorkoutStore((s) => s.completedWorkouts().length);
+  const prs = useWorkoutStore((s) => s.prs);
   const streak = useGamificationStore((s) => s.streaks.daily);
+  const longestStreak = useGamificationStore((s) => s.streaks.longestDaily);
+  const bestDiscipline = useGamificationStore((s) => s.bestDisciplineScore);
 
   const weight = profile.weightKg ? displayWeight(profile.weightKg, profile.units) : null;
+
+  const rank = computeRank({
+    completedWorkouts: workouts,
+    longestDailyStreak: longestStreak,
+    bestBig3E1RMKg: BIG3.reduce((sum, id) => sum + (prs[id] ?? 0), 0),
+    bodyweightKg: profile.weightKg,
+    bestDisciplineScore: bestDiscipline,
+  });
 
   return (
     <Screen gradient>
@@ -42,6 +58,10 @@ export default function Profile() {
           <Stat label="Weight" value={weight ? `${weight.value}${weight.unit}` : '—'} />
         </View>
       </Card>
+
+      <FadeIn delay={60} style={{ marginTop: spacing.lg }}>
+        <RankCard rank={rank} />
+      </FadeIn>
 
       {!isPro && (
         <LinearGradient colors={gradients.forge} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: spacing.xl, marginTop: spacing.lg }}>

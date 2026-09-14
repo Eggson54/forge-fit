@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Screen, Text, Input, Button } from '../../src/components/ui';
+import { SocialAuthButtons } from '../../src/components/SocialAuthButtons';
 import { Wordmark } from '../../src/components/BrandMark';
 import { colors, spacing } from '../../src/theme';
 import { useAuthStore } from '../../src/stores/useAuthStore';
@@ -62,6 +63,7 @@ export default function SignIn() {
                 Forgot password?
               </Text>
             </Link>
+            <SocialAuthButtons />
           </View>
 
           <View style={{ alignItems: 'center', gap: spacing.sm }}>

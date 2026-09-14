@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { getSupabase, isCloudEnabled } from './supabase';
 import { secureStore, storage } from './storage';
@@ -70,12 +71,75 @@ export const auth = {
     return user;
   },
 
+  /** Google OAuth via Supabase (browser redirect). Falls back to a local demo account offline. */
+  async signInWithGoogle(): Promise<AuthUser> {
+    const supa = getSupabase();
+    if (!supa) return this.demoAccount('google');
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const WebBrowser = require('expo-web-browser');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { makeRedirectUri } = require('expo-auth-session');
+      const redirectTo = makeRedirectUri({ scheme: 'forgefit', path: 'auth-callback' });
+      const { data, error } = await supa.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error || !data?.url) throw new Error(error?.message ?? 'Could not start Google sign in.');
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (result.type !== 'success' || !result.url) throw new Error('Google sign in was cancelled.');
+      // Exchange the returned code/tokens for a session.
+      const url = new URL(result.url);
+      const code = url.searchParams.get('code');
+      if (code) {
+        const { error: exErr } = await supa.auth.exchangeCodeForSession(code);
+        if (exErr) throw new Error(exErr.message);
+      }
+      const { data: u } = await supa.auth.getUser();
+      if (!u.user) throw new Error('Google sign in failed.');
+      return { id: u.user.id, email: u.user.email ?? null, isLocal: false };
+    } catch (e) {
+      throw new Error((e as Error).message || 'Google sign in failed.');
+    }
+  },
+
+  /** Apple Sign In (iOS native identity token → Supabase). Local demo fallback otherwise. */
   async signInWithApple(): Promise<AuthUser> {
     const supa = getSupabase();
-    if (!supa) throw new Error('Apple Sign In requires cloud sync to be configured.');
-    // In a dev build: use expo-apple-authentication to get an identityToken,
-    // then supa.auth.signInWithIdToken({ provider: 'apple', token }).
-    throw new Error('Apple Sign In is available in a native build.');
+    // Web / no cloud: offer a local demo account so the flow is still usable.
+    if (Platform.OS !== 'ios' || !supa) {
+      if (!supa) return this.demoAccount('apple');
+      throw new Error('Apple Sign In runs on iOS. Use email or Google here.');
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const AppleAuthentication = require('expo-apple-authentication');
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) throw new Error('No identity token from Apple.');
+      const { data, error } = await supa.auth.signInWithIdToken({ provider: 'apple', token: credential.identityToken });
+      if (error) throw new Error(error.message);
+      return { id: data.user.id, email: data.user.email ?? null, isLocal: false };
+    } catch (e) {
+      const err = e as { code?: string; message?: string };
+      if (err.code === 'ERR_REQUEST_CANCELED') throw new Error('Apple sign in was cancelled.');
+      throw new Error(err.message || 'Apple sign in failed.');
+    }
+  },
+
+  /** Provision a local demo account (offline mode) tagged by provider. */
+  async demoAccount(provider: 'google' | 'apple'): Promise<AuthUser> {
+    const user: AuthUser = {
+      id: `local:${await Crypto.randomUUID()}`,
+      email: `${provider}-user@forgefit.local`,
+      isLocal: true,
+    };
+    await storage.set(LOCAL_USER_KEY, user);
+    return user;
   },
 
   async resetPassword(email: string): Promise<void> {

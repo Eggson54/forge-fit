@@ -8,3 +8,5 @@ export * from './discipline';
 export * from './streaks';
 export * from './coach';
 export * from './achievements';
+export * from './rank';
+export * from './volume';

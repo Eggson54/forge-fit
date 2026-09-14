@@ -1,5 +1,5 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import React, { useRef } from 'react';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, gradients, radius, spacing } from '../../theme';
@@ -37,6 +37,11 @@ export function Button({
 }: Props) {
   const isDisabled = disabled || loading;
   const height = HEIGHTS[size];
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const spring = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: false, speed: 40, bounciness: 6 }).start();
+  const onPressIn = () => !isDisabled && spring(0.96);
+  const onPressOut = () => spring(1);
 
   const handlePress = () => {
     if (isDisabled) return;
@@ -74,10 +79,12 @@ export function Button({
 
   if (variant === 'primary') {
     return (
-      <Pressable onPress={handlePress} disabled={isDisabled} style={[fullWidth && { alignSelf: 'stretch' }, style]}>
-        <LinearGradient colors={gradients.ember} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={base}>
-          {content}
-        </LinearGradient>
+      <Pressable onPress={handlePress} onPressIn={onPressIn} onPressOut={onPressOut} disabled={isDisabled} style={[fullWidth && { alignSelf: 'stretch' }, style]}>
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <LinearGradient colors={gradients.ember} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={base}>
+            {content}
+          </LinearGradient>
+        </Animated.View>
       </Pressable>
     );
   }
@@ -89,10 +96,14 @@ export function Button({
   return (
     <Pressable
       onPress={handlePress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       disabled={isDisabled}
-      style={({ pressed }) => [base, { backgroundColor: bg, borderWidth: variant === 'ghost' ? StyleSheet.hairlineWidth : 0, borderColor: border }, pressed && { opacity: 0.7 }, style]}
+      style={[fullWidth && { alignSelf: 'stretch' }, style]}
     >
-      {content}
+      <Animated.View style={[base, { backgroundColor: bg, borderWidth: variant === 'ghost' ? StyleSheet.hairlineWidth : 0, borderColor: border, transform: [{ scale }] }]}>
+        {content}
+      </Animated.View>
     </Pressable>
   );
 }

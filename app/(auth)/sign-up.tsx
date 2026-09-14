@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Screen, Text, Input, Button } from '../../src/components/ui';
+import { SocialAuthButtons } from '../../src/components/SocialAuthButtons';
 import { Wordmark } from '../../src/components/BrandMark';
 import { colors, spacing } from '../../src/theme';
 import { useAuthStore } from '../../src/stores/useAuthStore';
@@ -53,6 +54,7 @@ export default function SignUp() {
               </Text>
             )}
             <Button title="Create Account" onPress={onSubmit} loading={loading} size="lg" />
+            <SocialAuthButtons onDone={() => router.replace('/onboarding')} />
           </View>
 
           <Link href="/(auth)/sign-in" asChild>

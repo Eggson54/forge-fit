@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { Animated, Easing, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
-import { AdSlot, Button, Card, ProgressRing, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AdSlot, Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AnimatedNumber, AnimatedProgressRing, FadeIn } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { CoachCard } from '../../src/components/CoachCard';
 import { colors, gradients, spacing } from '../../src/theme';
@@ -107,19 +108,21 @@ export default function Home() {
       </View>
 
       {/* Coach */}
-      <CoachCard message={coachMsg} personality={coachSettings.personality} loading={coachLoading} onPress={() => router.push('/coach')} />
+      <FadeIn delay={40}>
+        <CoachCard message={coachMsg} personality={coachSettings.personality} loading={coachLoading} onPress={() => router.push('/coach')} />
+      </FadeIn>
 
       {/* Discipline + Workout */}
-      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+      <FadeIn delay={120} style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
         <Card style={{ flex: 1, alignItems: 'center', gap: spacing.sm }}>
-          <ProgressRing progress={summary.discipline.score / 100} size={120} stroke={12} gradientColors={gradients.discipline}>
+          <AnimatedProgressRing progress={summary.discipline.score / 100} size={120} stroke={12} gradientColors={gradients.discipline}>
             <View style={{ alignItems: 'center' }}>
-              <Text variant="metricLg">{summary.discipline.score}</Text>
+              <AnimatedNumber value={summary.discipline.score} variant="metricLg" />
               <Text variant="caption" color={colors.textDim}>
                 DISCIPLINE
               </Text>
             </View>
-          </ProgressRing>
+          </AnimatedProgressRing>
           <Text variant="caption" color={colors.textDim} center>
             {disciplineWord(summary.discipline.score)}
           </Text>
@@ -139,7 +142,7 @@ export default function Home() {
             </Text>
           </View>
         </Card>
-      </View>
+      </FadeIn>
 
       {/* Metrics */}
       <SectionHeader title="Today" />
@@ -247,6 +250,13 @@ function MetricRow({
   onPress?: () => void;
 }) {
   const pct = Math.max(0, Math.min(1, isFinite(progress) ? progress : 0));
+  const fill = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    const a = Animated.timing(fill, { toValue: pct, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    a.start();
+    return () => a.stop();
+  }, [pct, fill]);
+  const widthPct = fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   return (
     <View onTouchEnd={onPress} style={{ paddingVertical: spacing.md, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
@@ -262,7 +272,7 @@ function MetricRow({
         </Text>
       </View>
       <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceHigh, overflow: 'hidden' }}>
-        <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} />
+        <Animated.View style={{ width: widthPct, height: '100%', backgroundColor: color, borderRadius: 3 }} />
       </View>
     </View>
   );

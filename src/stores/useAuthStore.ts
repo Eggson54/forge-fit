@@ -11,6 +11,8 @@ interface AuthState {
   hydrate: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   clearError: () => void;
@@ -47,6 +49,28 @@ export const useAuthStore = create<AuthState>()(
         set({ error: null });
         try {
           const user = await auth.signUp(email.trim(), password);
+          set({ user, status: 'authenticated' });
+        } catch (e) {
+          set({ error: (e as Error).message });
+          throw e;
+        }
+      },
+
+      signInWithGoogle: async () => {
+        set({ error: null });
+        try {
+          const user = await auth.signInWithGoogle();
+          set({ user, status: 'authenticated' });
+        } catch (e) {
+          set({ error: (e as Error).message });
+          throw e;
+        }
+      },
+
+      signInWithApple: async () => {
+        set({ error: null });
+        try {
+          const user = await auth.signInWithApple();
           set({ user, status: 'authenticated' });
         } catch (e) {
           set({ error: (e as Error).message });

@@ -2,9 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { BarChart, Card, LineChart, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
+import { FadeIn } from '../../src/components/anim';
+import { BodyMap } from '../../src/components/BodyMap';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
-import { lastNDays } from '../../src/domain/date';
+import { addDaysISO, lastNDays, todayISO } from '../../src/domain/date';
+import { VOLUME_LANDMARKS, volumeStatus, weeklySetsPerMuscle } from '../../src/domain/volume';
+import type { MuscleGroup } from '../../src/domain/types';
 import { displayWeight, kgToLb } from '../../src/domain/units';
 import { epley1RM } from '../../src/domain/strength';
 import { useLogStore } from '../../src/stores/useLogStore';
@@ -68,6 +72,15 @@ export default function Progress() {
   });
   const nutritionHitCount = nutritionDays.filter((d) => d.value === 1).length;
 
+  // Weekly training volume per muscle (last 7 days) for the body map.
+  const weekVolume = useMemo(() => {
+    const since = addDaysISO(todayISO(), -6);
+    return weeklySetsPerMuscle(workouts.filter((w) => w.date >= since));
+  }, [workouts]);
+  const trackedMuscles = (Object.keys(VOLUME_LANDMARKS) as MuscleGroup[])
+    .map((m) => ({ m, sets: weekVolume[m] ?? 0, status: volumeStatus(m, weekVolume[m] ?? 0) }))
+    .sort((a, b) => b.sets - a.sets);
+
   const latest = weightLogs[0]?.weightKg ?? profile.weightKg ?? null;
   const startWeight = weightLogs[weightLogs.length - 1]?.weightKg ?? latest;
   const change = latest != null && startWeight != null ? latest - startWeight : 0;
@@ -108,6 +121,33 @@ export default function Progress() {
           <Text variant="body">{analysis.summary}</Text>
         </Card>
       )}
+
+      <SectionHeader title="Body Map · weekly volume" />
+      <FadeIn>
+        <Card>
+          <BodyMap volume={weekVolume} />
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            {trackedMuscles.slice(0, 6).map(({ m, sets, status }) => {
+              const lm = VOLUME_LANDMARKS[m]!;
+              const barColor = status === 'optimal' ? colors.success : status === 'high' ? colors.warning : status === 'low' ? colors.primary : colors.surfaceHigh;
+              return (
+                <View key={m}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <Text variant="caption" style={{ textTransform: 'capitalize' }}>{m.replace('_', ' ')}</Text>
+                    <Text variant="caption" color={colors.textDim}>{sets} / {lm.min}-{lm.max} sets</Text>
+                  </View>
+                  <View style={{ height: 5, borderRadius: 3, backgroundColor: colors.surfaceHigh, overflow: 'hidden' }}>
+                    <View style={{ width: `${Math.min(100, (sets / lm.max) * 100)}%`, height: '100%', backgroundColor: barColor, borderRadius: 3 }} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+          <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.sm }}>
+            Working sets per muscle this week vs. general hypertrophy ranges. Not medical advice.
+          </Text>
+        </Card>
+      </FadeIn>
 
       <SectionHeader title="Weight" action="Log" onAction={() => router.push('/progress/weight')} />
       <Card>

@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.forgefit.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "ForgeFit uses the camera to estimate the nutrition of your meals and to capture progress photos.",
         "NSPhotoLibraryUsageDescription": "ForgeFit lets you attach progress photos and meal photos from your library.",

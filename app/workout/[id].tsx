@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
+import { AnimatedNumber, Celebration, FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
@@ -34,19 +35,25 @@ export default function WorkoutDetail() {
 
   return (
     <Screen gradient footer={<Button title="Done" onPress={() => router.replace('/(tabs)/workout')} size="lg" />}>
+      {workout.status === 'completed' && <Celebration />}
       <ScreenHeader title={workout.name} />
 
-      <Card style={{ alignItems: 'center', gap: spacing.xs, marginBottom: spacing.lg }}>
-        <Text variant="overline" color={colors.textDim}>
-          {workout.status === 'completed' ? 'COMPLETED' : 'SUMMARY'}
-        </Text>
-        <Text variant="display" color={colors.primary}>
-          {Math.round(vol.value).toLocaleString()}
-        </Text>
-        <Text variant="caption" color={colors.textDim}>
-          total volume ({vol.unit}) · {formatDuration(workout.durationSeconds ?? 0)}
-        </Text>
-      </Card>
+      <FadeIn>
+        <Card style={{ alignItems: 'center', gap: spacing.xs, marginBottom: spacing.lg }}>
+          <Text variant="overline" color={colors.textDim}>
+            {workout.status === 'completed' ? 'COMPLETED' : 'SUMMARY'}
+          </Text>
+          <AnimatedNumber value={Math.round(vol.value)} variant="display" color={colors.primary} format={(n) => n.toLocaleString()} />
+          <Text variant="caption" color={colors.textDim}>
+            total volume ({vol.unit}) · {formatDuration(workout.durationSeconds ?? 0)}
+          </Text>
+          {prCount > 0 && (
+            <Text variant="bodyStrong" color={colors.amber}>
+              ★ {prCount} new personal record{prCount > 1 ? 's' : ''}!
+            </Text>
+          )}
+        </Card>
+      </FadeIn>
 
       <Card style={{ flexDirection: 'row', marginBottom: spacing.lg }}>
         <StatTile value={`${stats.totalSets}`} label="Sets" />
