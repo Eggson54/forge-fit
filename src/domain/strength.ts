@@ -75,3 +75,49 @@ export function bestE1RMForExercise(workouts: Workout[], exerciseId: string): nu
   }
   return round(best, 1);
 }
+
+/**
+ * Average change in estimated 1RM, per lift, between the earlier and later half
+ * of the history.
+ *
+ * Only lifts trained in both halves count. Taking the best e1RM of each
+ * *session* instead compares a deadlift day against an arm day, so the number
+ * swings with which muscle group came up in the rotation rather than with
+ * whether the athlete got stronger.
+ *
+ * Returns null when nothing was trained on both sides of the split, which is
+ * not the same as no change and should not be shown as 0%.
+ */
+export function strengthChangePct(workouts: Workout[]): number | null {
+  const completed = [...workouts]
+    .filter((w) => w.status === 'completed')
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  if (completed.length < 2) return null;
+
+  const mid = Math.floor(completed.length / 2);
+  const bestByExercise = (window: Workout[]) => {
+    const best = new Map<string, number>();
+    for (const w of window) {
+      for (const ex of w.exercises) {
+        for (const s of ex.sets) {
+          if (!s.completed || isWarmupSet(s) || !s.weightKg || !s.reps) continue;
+          const e1rm = epley1RM(s.weightKg, s.reps);
+          if (e1rm > (best.get(ex.exerciseId) ?? 0)) best.set(ex.exerciseId, e1rm);
+        }
+      }
+    }
+    return best;
+  };
+
+  const early = bestByExercise(completed.slice(0, mid));
+  const late = bestByExercise(completed.slice(mid));
+
+  const changes: number[] = [];
+  for (const [id, before] of early) {
+    const after = late.get(id);
+    if (after == null || before <= 0) continue;
+    changes.push(((after - before) / before) * 100);
+  }
+  if (changes.length === 0) return null;
+  return round(changes.reduce((a, b) => a + b, 0) / changes.length, 1);
+}

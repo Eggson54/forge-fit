@@ -29,6 +29,7 @@ import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries 
 import { formatDateLong, formatDateWithWeekday, formatDayMonth } from '../domain/date';
 import { groupExercises, restAfterSet, toggleSupersetAt } from '../domain/superset';
 import { recentExerciseIds } from '../domain/history';
+import { strengthChangePct } from '../domain/strength';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -599,5 +600,74 @@ describe('recentExerciseIds', () => {
 
   it('is empty with no history', () => {
     expect(recentExerciseIds([])).toEqual([]);
+  });
+});
+
+describe('strengthChangePct', () => {
+  const session = (date: string, lifts: Record<string, [number, number]>) =>
+    ({
+      date,
+      status: 'completed',
+      exercises: Object.entries(lifts).map(([exerciseId, [weightKg, reps]]) => ({
+        exerciseId,
+        sets: [{ id: `${date}-${exerciseId}`, weightKg, reps, rpe: null, completed: true }],
+      })),
+    }) as never;
+
+  it('averages the per-lift change between the halves', () => {
+    const history = [
+      session('2026-09-01', { bench: [100, 5] }),
+      session('2026-09-15', { bench: [110, 5] }),
+    ];
+    expect(strengthChangePct(history)).toBeCloseTo(10, 0);
+  });
+
+  it('is not fooled by which muscle group came up in the rotation', () => {
+    // Heavy deadlift day early, light arm day late: session-best e1RM would
+    // read as a huge regression even though bench went up.
+    const history = [
+      session('2026-09-01', { deadlift: [200, 3], bench: [100, 5] }),
+      session('2026-09-15', { curl: [20, 10], bench: [110, 5] }),
+    ];
+    expect(strengthChangePct(history)!).toBeGreaterThan(0);
+  });
+
+  it('reads the history in date order, not storage order', () => {
+    // Workouts are stored newest-first; a naive first-vs-last flips the sign.
+    const newestFirst = [
+      session('2026-09-15', { bench: [110, 5] }),
+      session('2026-09-01', { bench: [100, 5] }),
+    ];
+    expect(strengthChangePct(newestFirst)).toBeCloseTo(10, 0);
+  });
+
+  it('returns null when no lift appears on both sides', () => {
+    const history = [session('2026-09-01', { squat: [100, 5] }), session('2026-09-15', { bench: [100, 5] })];
+    expect(strengthChangePct(history)).toBeNull();
+  });
+
+  it('returns null with too little history', () => {
+    expect(strengthChangePct([])).toBeNull();
+    expect(strengthChangePct([session('2026-09-01', { bench: [100, 5] })])).toBeNull();
+  });
+
+  it('ignores warm-up sets', () => {
+    const history = [
+      session('2026-09-01', { bench: [100, 5] }),
+      {
+        date: '2026-09-15',
+        status: 'completed',
+        exercises: [
+          {
+            exerciseId: 'bench',
+            sets: [
+              { id: 'w', weightKg: 300, reps: 5, rpe: null, completed: true, kind: 'warmup' },
+              { id: 'x', weightKg: 110, reps: 5, rpe: null, completed: true },
+            ],
+          },
+        ],
+      } as never,
+    ];
+    expect(strengthChangePct(history)).toBeCloseTo(10, 0);
   });
 });

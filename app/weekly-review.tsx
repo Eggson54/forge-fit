@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Card, Screen, SectionHeader, StatTile, Text } from '../src/components/ui';
 import { ScreenHeader } from '../src/components/ScreenHeader';
@@ -6,7 +6,7 @@ import { Icon } from '../src/components/Icon';
 import { colors, spacing } from '../src/theme';
 import { lastNDays } from '../src/domain/date';
 import { kgToLb } from '../src/domain/units';
-import { epley1RM } from '../src/domain/strength';
+import { strengthChangePct } from '../src/domain/strength';
 import type { WeeklyStats } from '../src/domain/coach';
 import { useLogStore } from '../src/stores/useLogStore';
 import { useProfileStore } from '../src/stores/useProfileStore';
@@ -25,6 +25,10 @@ export default function WeeklyReview() {
   const [review, setReview] = useState<WeeklyReviewResult | null>(null);
   const [stats, setStats] = useState<WeeklyStats | null>(null);
 
+  // null means "no lift was trained on both sides of the split", which is not
+  // the same as no change and must not render as 0%.
+  const strengthChange = useMemo(() => strengthChangePct(workouts), [workouts]);
+
   useEffect(() => {
     analytics.track('weekly_review_viewed');
     const days = lastNDays(7);
@@ -35,16 +39,6 @@ export default function WeeklyReview() {
 
     const weekWorkouts = workouts.filter((w) => days.includes(w.date));
 
-    // Strength change: compare best e1RM first half vs second half of history
-    const e1rms = workouts
-      .map((w) => {
-        let best = 0;
-        for (const ex of w.exercises) for (const s of ex.sets) if (s.completed && s.weightKg && s.reps) best = Math.max(best, epley1RM(s.weightKg, s.reps));
-        return best;
-      })
-      .filter((v) => v > 0);
-    const strengthChangePct =
-      e1rms.length >= 2 && e1rms[0] ? ((e1rms[e1rms.length - 1]! - e1rms[0]!) / e1rms[0]!) * 100 : 0;
 
     const weightLogs = [...logStore.weight].sort((a, b) => (a.date < b.date ? -1 : 1));
     const weightChangeKg = weightLogs.length >= 2 ? weightLogs[weightLogs.length - 1]!.weightKg - weightLogs[0]!.weightKg : 0;
@@ -59,7 +53,7 @@ export default function WeeklyReview() {
       avgCalories: avg(calorieVals),
       avgSteps: avg(stepVals),
       weightChangeKg,
-      strengthChangePct,
+      strengthChangePct: strengthChangePct(workouts) ?? 0,
       avgWaterOz: avg(waterVals.filter((w) => w > 0)),
       waterTargetOz: targets.waterOz,
     };
@@ -89,7 +83,11 @@ export default function WeeklyReview() {
           <Card style={{ flexDirection: 'row', marginBottom: spacing.lg }}>
             <StatTile value={`${Math.round(stats.avgSteps).toLocaleString()}`} label="Avg steps" accent={colors.steps} />
             <StatTile value={weightChangeDisplay} label="Weight" accent={colors.water} />
-            <StatTile value={`${stats.strengthChangePct >= 0 ? '+' : ''}${stats.strengthChangePct.toFixed(1)}%`} label="Strength" accent={colors.lime} />
+            <StatTile
+              value={strengthChange == null ? '—' : `${strengthChange >= 0 ? '+' : ''}${strengthChange.toFixed(1)}%`}
+              label="Strength"
+              accent={colors.lime}
+            />
           </Card>
         </>
       )}
