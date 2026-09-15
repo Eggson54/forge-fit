@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { Button, Card, Text } from '../../src/components/ui';
 import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
+import { PrBanner } from '../../src/components/PrBanner';
 import { RestTimer } from '../../src/components/RestTimer';
 import { colors, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
@@ -22,8 +23,11 @@ export default function ActiveWorkout() {
   const finishActive = useWorkoutStore((s) => s.finishActive);
   const discardActive = useWorkoutStore((s) => s.discardActive);
 
+  const units = useProfileStore((s) => s.profile.units);
+
   const [elapsed, setElapsed] = useState(0);
   const [restKey, setRestKey] = useState<{ seconds: number; id: number } | null>(null);
+  const [pr, setPr] = useState<{ name: string; kg: number; id: number } | null>(null);
 
   useEffect(() => {
     if (!active) return;
@@ -87,7 +91,7 @@ export default function ActiveWorkout() {
         <View style={{ alignItems: 'center' }}>
           <Text variant="metric">{formatDuration(elapsed)}</Text>
           <Text variant="caption" color={colors.textDim}>
-            {stats?.totalVolumeKg ? `${Math.round(displayWeight(stats.totalVolumeKg, useProfileStore.getState().profile.units).value).toLocaleString()} vol` : 'elapsed'}
+            {stats?.totalVolumeKg ? `${Math.round(displayWeight(stats.totalVolumeKg, units).value).toLocaleString()} vol` : 'elapsed'}
           </Text>
         </View>
         <Pressable onPress={onDiscard} hitSlop={10}>
@@ -102,7 +106,12 @@ export default function ActiveWorkout() {
           {active.name}
         </Text>
         {active.exercises.map((ex) => (
-          <ExerciseBlock key={ex.id} exercise={ex} onRest={(sec) => setRestKey({ seconds: sec, id: Date.now() })} />
+          <ExerciseBlock
+            key={ex.id}
+            exercise={ex}
+            onRest={(sec) => setRestKey({ seconds: sec, id: Date.now() })}
+            onPr={(name, kg) => setPr({ name, kg, id: Date.now() })}
+          />
         ))}
         {active.exercises.length === 0 && (
           <Text variant="body" color={colors.textDim} center style={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.xl }}>
@@ -114,6 +123,15 @@ export default function ActiveWorkout() {
         </View>
       </ScrollView>
 
+      {pr && (
+        <PrBanner
+          key={pr.id}
+          exerciseName={pr.name}
+          value={displayWeight(pr.kg, units).value}
+          unit={displayWeight(pr.kg, units).unit}
+          onDone={() => setPr(null)}
+        />
+      )}
       {restKey && <RestTimer key={restKey.id} seconds={restKey.seconds} onDone={() => setRestKey(null)} onDismiss={() => setRestKey(null)} />}
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}>
@@ -123,7 +141,15 @@ export default function ActiveWorkout() {
   );
 }
 
-function ExerciseBlock({ exercise, onRest }: { exercise: WorkoutExercise; onRest: (seconds: number) => void }) {
+function ExerciseBlock({
+  exercise,
+  onRest,
+  onPr,
+}: {
+  exercise: WorkoutExercise;
+  onRest: (seconds: number) => void;
+  onPr: (name: string, e1RMKg: number) => void;
+}) {
   const experience = useProfileStore((s) => s.profile.experience);
   const units = useProfileStore((s) => s.profile.units);
   const previousFor = useWorkoutStore((s) => s.previousFor);
@@ -176,7 +202,16 @@ function ExerciseBlock({ exercise, onRest }: { exercise: WorkoutExercise; onRest
       </View>
 
       {exercise.sets.map((set, i) => (
-        <SetRow key={set.id} weId={exercise.id} set={set} index={i + 1} units={units} restSeconds={exercise.restSeconds} onRest={onRest} />
+        <SetRow
+          key={set.id}
+          weId={exercise.id}
+          set={set}
+          index={i + 1}
+          units={units}
+          restSeconds={exercise.restSeconds}
+          onRest={onRest}
+          onPr={onPr}
+        />
       ))}
 
       <Pressable onPress={() => addSet(exercise.id)} style={styles.addSet}>
@@ -194,6 +229,7 @@ function SetRow({
   units,
   restSeconds,
   onRest,
+  onPr,
 }: {
   weId: string;
   set: SetEntry;
@@ -201,6 +237,7 @@ function SetRow({
   units: 'imperial' | 'metric';
   restSeconds: number;
   onRest: (seconds: number) => void;
+  onPr: (name: string, e1RMKg: number) => void;
 }) {
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const removeSet = useWorkoutStore((s) => s.removeSet);
@@ -227,9 +264,14 @@ function SetRow({
   };
 
   const onToggle = () => {
-    Haptics.selectionAsync().catch(() => {});
     const wasComplete = set.completed;
-    toggle(weId, set.id);
+    const newPr = toggle(weId, set.id);
+    if (newPr) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      onPr(newPr.exerciseName, newPr.e1RMKg);
+    } else {
+      Haptics.selectionAsync().catch(() => {});
+    }
     if (!wasComplete) onRest(restSeconds);
   };
 

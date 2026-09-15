@@ -17,6 +17,11 @@ import { uid } from '../lib/uid';
 import { analytics } from '../services/analytics';
 import { jsonStorage, STORE_KEYS } from './persist';
 
+export interface NewPr {
+  exerciseName: string;
+  e1RMKg: number;
+}
+
 interface WorkoutState {
   workouts: Workout[]; // history (completed) + planned
   activeId: string | null;
@@ -35,7 +40,8 @@ interface WorkoutState {
   addSet: (workoutExerciseId: string) => void;
   updateSet: (workoutExerciseId: string, setId: string, patch: Partial<SetEntry>) => void;
   removeSet: (workoutExerciseId: string, setId: string) => void;
-  toggleSetComplete: (workoutExerciseId: string, setId: string) => void;
+  /** Returns the new personal record this completion set, if any. */
+  toggleSetComplete: (workoutExerciseId: string, setId: string) => NewPr | null;
 
   finishActive: () => Workout | null;
   discardActive: () => void;
@@ -176,6 +182,9 @@ export const useWorkoutStore = create<WorkoutState>()(
 
       toggleSetComplete: (weId, setId) => {
         const prs = { ...get().prs };
+        // Reported back so the screen can celebrate the moment it happens rather
+        // than only on the summary after the session ends.
+        let newPr: { exerciseName: string; e1RMKg: number } | null = null;
         mutateActive((w) => ({
           ...w,
           exercises: w.exercises.map((e) => {
@@ -191,6 +200,7 @@ export const useWorkoutStore = create<WorkoutState>()(
                   if (e1rm > (prs[e.exerciseId] ?? 0)) {
                     prs[e.exerciseId] = e1rm;
                     isPr = true;
+                    newPr = { exerciseName: e.name, e1RMKg: e1rm };
                   }
                 }
                 return { ...s, completed, isPr };
@@ -199,6 +209,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           }),
         }));
         set({ prs });
+        return newPr;
       },
 
       finishActive: () => {
