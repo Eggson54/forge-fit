@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import React, { useState } from 'react';
+import { Platform, StyleSheet, TextInput, View, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
 import { Text } from './Text';
 
@@ -9,7 +9,12 @@ interface Props extends TextInputProps {
   error?: string;
 }
 
-export function Input({ label, suffix, error, style, ...rest }: Props) {
+export function Input({ label, suffix, error, style, onFocus, onBlur, ...rest }: Props) {
+  const [focused, setFocused] = useState(false);
+
+  const borderColor = error ? colors.danger : focused ? colors.primary : colors.border;
+  const focusRing: ViewStyle | null = focused && !error ? { backgroundColor: 'rgba(255,90,31,0.06)' } : null;
+
   return (
     <View style={{ gap: spacing.xs }}>
       {label && (
@@ -17,11 +22,21 @@ export function Input({ label, suffix, error, style, ...rest }: Props) {
           {label}
         </Text>
       )}
-      <View style={[styles.wrap, error ? { borderColor: colors.danger } : null]}>
+      <View style={[styles.wrap, { borderColor, borderWidth: focused || error ? 1 : StyleSheet.hairlineWidth }, focusRing]}>
         <TextInput
           placeholderTextColor={colors.textFaint}
-          style={[styles.input, style]}
+          // The field itself draws the focus state, so suppress the browser's
+          // own outline on web rather than stacking two rings.
+          style={[styles.input, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as TextStyle) : null, style]}
           selectionColor={colors.primary}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
           {...rest}
         />
         {suffix && (
@@ -45,8 +60,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },

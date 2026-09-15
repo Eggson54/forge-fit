@@ -10,12 +10,179 @@ import { FadeIn, useCountUp } from './anim';
 /**
  * Original anatomical muscle "body map": front + back figures whose muscle
  * groups are tinted by weekly training volume. Untrained reads cool graphite,
- * trained glows ember, over-target tints amber. Hand-built SVG — nobody's art.
+ * trained glows ember, over-target tints amber.
+ *
+ * The figure is generated rather than hand-drawn: every segment is a centreline
+ * with a half-width at each sample, swept into a smooth closed outline. Editing
+ * anatomy then means changing a number ("widen the shoulders") instead of
+ * nudging bezier control points, and muscles built from the same centrelines are
+ * guaranteed to sit inside the limb they belong to.
  */
 
-const UNTRAINED = '#2f3244';
-const GROOVE = '#12131c';
-const BASE = '#272a3a';
+const UNTRAINED = '#2F3244';
+const GROOVE = '#171924';
+const BASE = '#262939';
+
+type Sample = readonly [x: number, y: number, halfWidth: number];
+
+/** Catmull-Rom through the points, emitted as cubic beziers. */
+function smoothClosed(pts: [number, number][]): string {
+  const n = pts.length;
+  const at = (i: number) => pts[(i + n) % n]!;
+  let d = `M${at(0)[0].toFixed(1)},${at(0)[1].toFixed(1)}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = at(i - 1);
+    const p1 = at(i);
+    const p2 = at(i + 1);
+    const p3 = at(i + 2);
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += `C${c1[0]!.toFixed(1)},${c1[1]!.toFixed(1)} ${c2[0]!.toFixed(1)},${c2[1]!.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return `${d}Z`;
+}
+
+/** Sweep a centreline with half-widths into a closed outline. */
+function sweep(samples: readonly Sample[]): string {
+  const right = samples.map(([x, y, w]) => [x + w, y] as [number, number]);
+  const left = samples.map(([x, y, w]) => [x - w, y] as [number, number]).reverse();
+  return smoothClosed([...right, ...left]);
+}
+
+// ---------------------------------------------------------------------------
+// Silhouette. Canvas is 150 x 330; the figure faces the viewer, centred on x=75,
+// and the left half is mirrored for the right.
+// ---------------------------------------------------------------------------
+
+const TORSO = sweep([
+  [75, 46, 9], // base of neck
+  [75, 54, 19], // trap slope
+  [75, 63, 29], // deltoid shelf
+  [75, 78, 27.5], // chest
+  [75, 96, 23], // lower ribs
+  [75, 118, 19.2], // waist
+  [75, 136, 23], // iliac crest
+  [75, 154, 25], // hips
+  [75, 164, 23.5], // seat
+]);
+
+const ARM = sweep([
+  [50, 62, 10.5], // deltoid cap, tucked under the shoulder shelf
+  [45.5, 82, 9.8], // biceps belly
+  [41.5, 103, 7.4], // above elbow
+  [39.5, 116, 6.2], // elbow
+  [36.5, 134, 7], // forearm belly
+  [33.5, 158, 4.4], // wrist
+  [32, 170, 5.2], // hand
+  [31, 181, 3.2], // fingertips
+]);
+
+const LEG = sweep([
+  [62.5, 152, 14], // glute / hip
+  [61.5, 176, 14.2], // upper thigh
+  [60.5, 206, 12.2], // mid thigh
+  [59.5, 232, 8.6], // above knee
+  [59, 244, 8.2], // knee
+  [58.5, 262, 9.6], // calf belly
+  [58, 288, 5.4], // lower calf
+  [57.5, 304, 4.2], // ankle
+]);
+
+const FOOT =
+  'M53.3,300 c-0.6,4.4-1.4,7.6-3.4,9.6 -2.4,2.4-6,3.6-7.6,5.4 -1.6,1.8-0.8,3.8 1.8,4 4.4,0.4 11.4,0.4 14.8,0 2.2-0.3 3.1-1.8 3.1-4 v-15 Z';
+
+// Head and neck as one shape: a seam across the jaw read as a collar.
+const HEAD =
+  'M75,7 c-8.4,0-15.2,4.4-17.2,11.8 -1.8,6.8-0.2,14.6 3.1,19.8 1.5,2.4 2.8,3.6 3.3,6.2 0.5,2.6 0.2,4.6-0.6,6.2 -0.7,1.4-1.8,2.4-3.1,3.2 h29 c-1.3-0.8-2.4-1.8-3.1-3.2 -0.8-1.6-1.1-3.6-0.6-6.2 0.5-2.6 1.8-3.8 3.3-6.2 3.3-5.2 4.9-13 3.1-19.8 C90.2,11.4 83.4,7 75,7 Z';
+
+/** Shapes drawn once, un-mirrored, then mirrored for the other side. */
+const SIL_CENTRE = [HEAD, TORSO];
+const SIL_MIRROR = [ARM, LEG, FOOT];
+
+// ---------------------------------------------------------------------------
+// Muscle overlays. Arm and leg groups reuse the limb centrelines at reduced
+// width so they can never spill outside the silhouette.
+// ---------------------------------------------------------------------------
+
+const DELT = sweep([
+  [50.5, 60, 9.4],
+  [47.5, 72, 9.4],
+  [45.6, 84, 8],
+]);
+const UPPER_ARM = sweep([
+  [46, 86, 8],
+  [43.5, 96, 7.4],
+  [41.6, 107, 5.8],
+]);
+const FOREARM = sweep([
+  [39.2, 120, 5.2],
+  [37, 133, 6],
+  [34.8, 149, 5],
+  [33.6, 158, 3.6],
+]);
+const QUADS = sweep([
+  [63, 168, 10.4],
+  [62, 190, 10.8],
+  [61, 211, 9.4],
+  [60, 231, 6.6],
+]);
+const CALVES = sweep([
+  [59, 250, 7.4],
+  [58.5, 265, 8.2],
+  [58, 281, 6],
+  [57.8, 293, 4],
+]);
+const GLUTES = sweep([
+  [63.4, 152, 10.4],
+  [62.8, 164, 12.6],
+  [62.2, 178, 10.6],
+]);
+const HAMSTRINGS = sweep([
+  [62, 186, 11],
+  [61.2, 204, 10.8],
+  [60.4, 226, 7.6],
+]);
+
+// Torso groups are drawn directly: they follow the ribcage, not a limb. Each
+// keeps ~2 units clear of the midline so the mirrored pair reads as a pair.
+const PEC = 'M73,70 C63,66.5 55,68 50.8,74 C47.4,79.8 48.8,91 53,98 C57.4,105 67,106.5 73,103.5 Z';
+const OBLIQUE = 'M63.8,104 C58.8,108 56,117.5 56.8,128.5 C57.6,138 60.8,144 65,146.5 L66.6,106 Z';
+const ABS = 'M64.6,101 C64.6,98.6 85.4,98.6 85.4,101 L83.8,136 C81.6,144.5 68.4,144.5 66.2,136 Z';
+// Back: a lat wing from the armpit tapering to the waist, leaving a spine gap.
+const LAT = 'M72.8,66 C63.5,64 55.5,68.5 51.6,77 C48.4,84.5 49.6,97.5 54,107.5 C58,116.5 65,124.5 71,128.5 L72.8,118 Z';
+const TRAPS = 'M75,47 C67,47 62,51 59.5,57.5 L55.5,70 C61,64 68,61 73,61 L77,61 C82,61 89,64 94.5,70 L90.5,57.5 C88,51 83,47 75,47 Z';
+const ERECTORS = 'M68.6,130 C68.6,127.6 81.4,127.6 81.4,130 L79.8,164 C77.6,155.5 72.4,155.5 70.2,164 Z';
+
+/** [muscle, path] pairs for the mirrored half of each view. */
+const FRONT_SIDE: [MuscleGroup, string][] = [
+  ['shoulders', DELT],
+  ['chest', PEC],
+  ['biceps', UPPER_ARM],
+  ['forearms', FOREARM],
+  ['core', OBLIQUE],
+  ['quads', QUADS],
+  ['calves', CALVES],
+];
+const BACK_SIDE: [MuscleGroup, string][] = [
+  ['shoulders', DELT],
+  ['back', LAT],
+  ['triceps', UPPER_ARM],
+  ['forearms', FOREARM],
+  ['glutes', GLUTES],
+  ['hamstrings', HAMSTRINGS],
+  ['calves', CALVES],
+];
+const FRONT_CENTRE: [MuscleGroup, string][] = [['core', ABS]];
+const BACK_CENTRE: [MuscleGroup, string][] = [
+  ['back', TRAPS],
+  ['back', ERECTORS],
+];
+
+// Heat ramp: deep ember -> ember -> hot amber. Never mixes through grey, which
+// would read as muddy brown at mid intensities.
+const HEAT_LOW = '#5C2612';
+const HEAT_MID = '#E7430C';
+const HEAT_HIGH = '#FF9A3D';
 
 function hexLerp(a: string, b: string, t: number): string {
   const pa = [parseInt(a.slice(1, 3), 16), parseInt(a.slice(3, 5), 16), parseInt(a.slice(5, 7), 16)];
@@ -23,12 +190,6 @@ function hexLerp(a: string, b: string, t: number): string {
   const c = pa.map((x, i) => Math.round(x + (pb[i]! - x) * Math.max(0, Math.min(1, t))));
   return `#${c.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 }
-
-// Heat ramp: deep ember -> ember -> hot amber. Never mixes through grey, which
-// would read as muddy brown at mid intensities.
-const HEAT_LOW = '#5C2612';
-const HEAT_MID = '#E7430C';
-const HEAT_HIGH = '#FF9A3D';
 
 function fillFor(muscle: MuscleGroup, volume: MuscleVolume, charge = 1): string {
   const sets = (volume[muscle] ?? 0) * charge;
@@ -41,122 +202,80 @@ function fillFor(muscle: MuscleGroup, volume: MuscleVolume, charge = 1): string 
   return t < 0.5 ? hexLerp(HEAT_LOW, HEAT_MID, t / 0.5) : hexLerp(HEAT_MID, HEAT_HIGH, (t - 0.5) / 0.5);
 }
 
-const HEAD = 'M75,12 m-17,18 a17,18 0 1,0 34,0 a17,18 0 1,0 -34,0';
-const BASE_PATHS = [
-  'M68,46 C69,55 81,55 82,46 L82,62 C79,65 71,65 68,62 Z',
-  'M48,62 C40,70 36,100 35,128 C34,156 33,176 35,194 L50,194 C50,174 51,152 52,128 C53,100 55,74 57,64 Z',
-  'M102,62 C110,70 114,100 115,128 C116,156 117,176 115,194 L100,194 C100,174 99,152 98,128 C97,100 95,74 93,64 Z',
-  'M48,62 C44,86 57,112 59,140 C60,158 57,172 57,186 L93,186 C93,172 90,158 91,140 C93,112 106,86 102,62 C88,55 62,55 48,62 Z',
-  'M57,184 C53,212 56,240 59,264 C57,288 61,308 63,330 L73,330 C74,302 74,282 74,264 C75,232 75,206 75,186 Z',
-  'M93,184 C97,212 94,240 91,264 C93,288 89,308 87,330 L77,330 C76,302 76,282 76,264 C75,232 75,206 75,186 Z',
-];
-
-const ARM = {
-  upper: 'M52,100 C41,100 34,116 35,136 C37,148 47,150 53,142 L55,104 Z',
-  fore: 'M35,140 C31,152 31,170 34,188 C40,193 48,190 49,180 L52,144 Z',
-  delt: 'M56,62 C44,60 35,72 34,90 C34,100 44,104 52,99 C58,90 60,68 56,62 Z',
-  calf: 'M75,266 C61,268 55,288 58,308 C61,324 70,327 75,320 Z',
-};
-
-const FRONT_LEFT: Partial<Record<MuscleGroup, string>> = {
-  shoulders: ARM.delt,
-  chest: 'M74,62 L74,102 C62,104 51,96 50,82 C49,69 59,58 74,62 Z',
-  biceps: ARM.upper,
-  forearms: ARM.fore,
-  core: 'M73,103 C62,106 56,120 57,138 C58,150 64,158 71,156 L73,150 Z',
-  quads: 'M75,186 C60,186 54,208 56,238 C58,258 68,264 75,259 Z',
-  calves: ARM.calf,
-};
-const FRONT_CENTER: Partial<Record<MuscleGroup, string>> = {
-  shoulders: 'M60,52 C67,44 83,44 90,52 L86,63 C80,56 70,56 64,63 Z',
-  core: 'M64,99 C64,95 86,95 86,99 L84,156 C82,163 68,163 66,156 Z',
-};
-const BACK_LEFT: Partial<Record<MuscleGroup, string>> = {
-  shoulders: ARM.delt,
-  triceps: ARM.upper,
-  forearms: ARM.fore,
-  back: 'M74,70 L74,138 C59,135 50,118 50,96 C50,80 60,68 74,70 Z',
-  glutes: 'M75,182 C61,182 54,194 55,210 C57,224 68,227 75,218 Z',
-  hamstrings: 'M75,220 C61,220 54,240 56,262 C58,278 68,282 75,276 Z',
-  calves: ARM.calf,
-};
-// Back centre pieces are both "back" (traps + erectors) so they share a tint.
-const BACK_CENTER = [
-  'M58,50 C67,42 83,42 92,50 L85,80 C79,67 71,67 65,80 Z',
-  'M67,140 C67,136 83,136 83,140 L81,172 C78,162 72,162 69,172 Z',
-];
-
 function Figure({ volume, front, charge }: { volume: MuscleVolume; front: boolean; charge: number }) {
   const id = front ? 'f' : 'b';
-  const left = front ? FRONT_LEFT : BACK_LEFT;
-  const muscles = Object.entries(left) as [MuscleGroup, string][];
-  const paint = (mirror: boolean) =>
-    muscles.map(([m, d]) => (
-      <Path
-        key={m + (mirror ? 'r' : 'l')}
-        d={d}
-        fill={fillFor(m, volume, charge)}
-        stroke={GROOVE}
-        strokeWidth={1.1}
-        strokeLinejoin="round"
-        transform={mirror ? 'translate(150,0) scale(-1,1)' : undefined}
-      />
-    ));
+  const side = front ? FRONT_SIDE : BACK_SIDE;
+  const centre = front ? FRONT_CENTRE : BACK_CENTRE;
+
+  const muscle = (m: MuscleGroup, d: string, key: string, mirror: boolean) => (
+    <Path
+      key={key}
+      d={d}
+      fill={fillFor(m, volume, charge)}
+      stroke={GROOVE}
+      strokeWidth={0.9}
+      strokeLinejoin="round"
+      transform={mirror ? 'translate(150,0) scale(-1,1)' : undefined}
+    />
+  );
 
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 150 345">
+    <Svg width="100%" height="100%" viewBox="0 0 150 330">
       <Defs>
         <LinearGradient id={`sh${id}`} x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor="#000" stopOpacity="0.30" />
-          <Stop offset="0.14" stopColor="#000" stopOpacity="0" />
-          <Stop offset="0.86" stopColor="#000" stopOpacity="0" />
-          <Stop offset="1" stopColor="#000" stopOpacity="0.30" />
+          <Stop offset="0" stopColor="#000" stopOpacity="0.34" />
+          <Stop offset="0.2" stopColor="#000" stopOpacity="0" />
+          <Stop offset="0.8" stopColor="#000" stopOpacity="0" />
+          <Stop offset="1" stopColor="#000" stopOpacity="0.34" />
         </LinearGradient>
         <LinearGradient id={`hi${id}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#fff" stopOpacity="0.13" />
-          <Stop offset="0.4" stopColor="#fff" stopOpacity="0" />
+          <Stop offset="0" stopColor="#fff" stopOpacity="0.12" />
+          <Stop offset="0.45" stopColor="#fff" stopOpacity="0" />
         </LinearGradient>
         <ClipPath id={`cl${id}`}>
-          <Path d={HEAD} />
-          {BASE_PATHS.map((d, i) => (
-            <Path key={i} d={d} />
+          {SIL_CENTRE.map((d, i) => (
+            <Path key={`c${i}`} d={d} />
+          ))}
+          {SIL_MIRROR.map((d, i) => (
+            <Path key={`m${i}`} d={d} />
+          ))}
+          {SIL_MIRROR.map((d, i) => (
+            <Path key={`r${i}`} d={d} transform="translate(150,0) scale(-1,1)" />
           ))}
         </ClipPath>
       </Defs>
 
-      {/* body base */}
-      <G fill={BASE}>
-        <Path d={HEAD} />
-        {BASE_PATHS.map((d, i) => (
-          <Path key={i} d={d} />
+      {/* Silhouette. A dark hairline keeps the arm readable against the ribcage. */}
+      <G fill={BASE} stroke={GROOVE} strokeWidth={0.9} strokeLinejoin="round">
+        {SIL_CENTRE.map((d, i) => (
+          <Path key={`c${i}`} d={d} />
+        ))}
+        {SIL_MIRROR.map((d, i) => (
+          <Path key={`m${i}`} d={d} />
+        ))}
+        {SIL_MIRROR.map((d, i) => (
+          <Path key={`r${i}`} d={d} transform="translate(150,0) scale(-1,1)" />
         ))}
       </G>
 
-      {/* muscles, mirrored for the right side */}
-      {paint(false)}
-      {paint(true)}
+      {/* Muscles: centre pieces first, then both mirrored halves over them. */}
+      {centre.map(([m, d], i) => muscle(m, d, `k${i}`, false))}
+      {side.map(([m, d], i) => muscle(m, d, `l${i}`, false))}
+      {side.map(([m, d], i) => muscle(m, d, `r${i}`, true))}
 
-      {front ? (
-        <>
-          {(Object.entries(FRONT_CENTER) as [MuscleGroup, string][]).map(([m, d]) => (
-            <Path key={m} d={d} fill={fillFor(m, volume, charge)} stroke={GROOVE} strokeWidth={1.1} strokeLinejoin="round" />
-          ))}
-          <G stroke={GROOVE} strokeWidth={1.1} strokeLinecap="round" opacity={0.85}>
-            <Line x1={75} y1={102} x2={75} y2={152} />
-            <Line x1={65} y1={118} x2={85} y2={118} />
-            <Line x1={66} y1={135} x2={84} y2={135} />
-          </G>
-        </>
-      ) : (
-        BACK_CENTER.map((d, i) => (
-          <Path key={i} d={d} fill={fillFor('back', volume, charge)} stroke={GROOVE} strokeWidth={1.1} strokeLinejoin="round" />
-        ))
+      {/* Abdominal separations, drawn only on the front. */}
+      {front && (
+        <G stroke={GROOVE} strokeWidth={0.9} strokeLinecap="round" opacity={0.8}>
+          <Line x1={75} y1={102} x2={75} y2={138} />
+          <Line x1={66} y1={113} x2={84} y2={113} />
+          <Line x1={66.6} y1={125} x2={83.4} y2={125} />
+        </G>
       )}
 
-      {/* roundness: edge falloff + top light, clipped to the body */}
-      <G clipPath={`url(#cl${id})`}>
-        <Rect width="150" height="345" fill={`url(#sh${id})`} />
-        <Rect width="150" height="345" fill={`url(#hi${id})`} />
+      {/* Roundness: edge falloff + top light, clipped to the body. */}
+      <G clipPath={`url(#cl${id})`} pointerEvents="none">
+        <Rect width="150" height="330" fill={`url(#sh${id})`} />
+        <Rect width="150" height="330" fill={`url(#hi${id})`} />
       </G>
     </Svg>
   );
@@ -168,14 +287,18 @@ export function BodyMap({ volume }: { volume: MuscleVolume }) {
   return (
     <FadeIn from="none">
       <View>
-        <View style={{ flexDirection: 'row', height: 250 }}>
+        <View style={{ flexDirection: 'row', height: 260 }}>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Figure volume={volume} front charge={charge} />
-            <Text variant="caption" color={colors.textDim}>Front</Text>
+            <Text variant="caption" color={colors.textDim}>
+              Front
+            </Text>
           </View>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Figure volume={volume} front={false} charge={charge} />
-            <Text variant="caption" color={colors.textDim}>Back</Text>
+            <Text variant="caption" color={colors.textDim}>
+              Back
+            </Text>
           </View>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 }}>
@@ -192,7 +315,9 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }} />
-      <Text variant="caption" color={colors.textDim}>{label}</Text>
+      <Text variant="caption" color={colors.textDim}>
+        {label}
+      </Text>
     </View>
   );
 }

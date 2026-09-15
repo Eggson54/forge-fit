@@ -43,7 +43,7 @@ export default function Reminders() {
       )}
 
       {reminders.length === 0 ? (
-        <EmptyState icon="⏰" title="No reminders yet" subtitle="Add reminders to stay accountable — your coach nudges you at the right time." />
+        <EmptyState icon="bell" title="No reminders yet" subtitle="Add reminders to stay accountable — your coach nudges you at the right time." />
       ) : (
         <View style={{ gap: spacing.md }}>
           {reminders.map((r) => (

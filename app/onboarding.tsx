@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Chip, Input, LinearProgress, SegmentedControl, Text } from '../src/components/ui';
-import { colors, spacing } from '../src/theme';
+import { colors, radius, spacing } from '../src/theme';
+import { Icon, type IconName } from '../src/components/Icon';
+import { AmbientBackdrop } from '../src/components/AmbientBackdrop';
 import { DEFAULT_PROFILE, useProfileStore } from '../src/stores/useProfileStore';
 import { recommendedTargets } from '../src/domain/nutrition';
 import { ftInToCm, round, toKg } from '../src/domain/units';
@@ -131,6 +133,7 @@ export default function Onboarding() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + spacing.md }}>
+      <AmbientBackdrop />
       <View style={{ paddingHorizontal: spacing.xl, gap: spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text variant="caption" color={colors.textDim}>
@@ -147,13 +150,13 @@ export default function Onboarding() {
 
       <ScrollView contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {step === 0 && (
-          <StepShell title="What should we call you?" subtitle="Your coach keeps it personal.">
+          <StepShell title="What should we call you?" icon="profile" subtitle="Your coach keeps it personal.">
             <Input label="First name" value={draft.name} onChangeText={(name) => set({ name })} placeholder="Alex" autoFocus />
           </StepShell>
         )}
 
         {step === 1 && (
-          <StepShell title="The basics" subtitle="Used to personalize your targets. Optional.">
+          <StepShell title="The basics" icon="scale" subtitle="Used to personalize your targets. Optional.">
             <Text variant="label" color={colors.textDim}>Sex</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {(['male', 'female', 'other', 'prefer_not_say'] as Sex[]).map((s) => (
@@ -165,7 +168,7 @@ export default function Onboarding() {
         )}
 
         {step === 2 && (
-          <StepShell title="Height & weight" subtitle="You can change units any time.">
+          <StepShell title="Height & weight" icon="scale" subtitle="You can change units any time.">
             <SegmentedControl
               options={[
                 { label: 'Imperial (lb/ft)', value: 'imperial' },
@@ -198,7 +201,7 @@ export default function Onboarding() {
         )}
 
         {step === 3 && (
-          <StepShell title="What's your goal?" subtitle="This shapes your calories, macros and training.">
+          <StepShell title="What's your goal?" icon="target" subtitle="This shapes your calories, macros and training.">
             <View style={{ gap: spacing.sm }}>
               {GOALS.map((g) => (
                 <GoalRow key={g.value} label={g.label} sub={g.sub} selected={draft.goal === g.value} onPress={() => set({ goal: g.value })} />
@@ -208,7 +211,7 @@ export default function Onboarding() {
         )}
 
         {step === 4 && (
-          <StepShell title="Target weight" subtitle="Optional — a direction, not a deadline.">
+          <StepShell title="Target weight" icon="target" subtitle="Optional — a direction, not a deadline.">
             <Input
               label="Target weight"
               value={targetInput}
@@ -221,7 +224,7 @@ export default function Onboarding() {
         )}
 
         {step === 5 && (
-          <StepShell title="How active are you?" subtitle="Outside of training.">
+          <StepShell title="How active are you?" icon="steps" subtitle="Outside of training.">
             <View style={{ gap: spacing.sm }}>
               {ACTIVITY.map((a) => (
                 <GoalRow key={a.value} label={a.label} selected={draft.activityLevel === a.value} onPress={() => set({ activityLevel: a.value })} />
@@ -231,7 +234,7 @@ export default function Onboarding() {
         )}
 
         {step === 6 && (
-          <StepShell title="Training experience">
+          <StepShell title="Training experience" icon="dumbbell">
             <View style={{ gap: spacing.sm }}>
               {(['beginner', 'intermediate', 'advanced'] as Experience[]).map((e) => (
                 <GoalRow key={e} label={cap(e)} selected={draft.experience === e} onPress={() => set({ experience: e })} />
@@ -241,7 +244,7 @@ export default function Onboarding() {
         )}
 
         {step === 7 && (
-          <StepShell title="Weekly commitment">
+          <StepShell title="Weekly commitment" icon="clock">
             <Text variant="label" color={colors.textDim}>Training days per week: {draft.trainingDaysPerWeek}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {[2, 3, 4, 5, 6].map((n) => (
@@ -258,7 +261,7 @@ export default function Onboarding() {
         )}
 
         {step === 8 && (
-          <StepShell title="What can you train with?" subtitle="Select all that apply.">
+          <StepShell title="What can you train with?" icon="dumbbell" subtitle="Select all that apply.">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {EQUIPMENT.map((e) => (
                 <Chip key={e.value} label={e.label} selected={draft.equipment.includes(e.value)} onPress={() => toggleEquipment(e.value)} />
@@ -268,7 +271,7 @@ export default function Onboarding() {
         )}
 
         {step === 9 && (
-          <StepShell title="Any dietary preferences?" subtitle="Optional. Select all that apply.">
+          <StepShell title="Any dietary preferences?" icon="nutrition" subtitle="Optional. Select all that apply.">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {DIETS.map((d) => (
                 <Chip key={d.value} label={d.label} selected={draft.dietaryPreferences.includes(d.value)} onPress={() => toggleDiet(d.value)} />
@@ -278,7 +281,7 @@ export default function Onboarding() {
         )}
 
         {step === 10 && (
-          <StepShell title="Your starting targets" subtitle="Estimates you can fine-tune any time. Not medical advice.">
+          <StepShell title="Your starting targets" icon="trophy" subtitle="Estimates you can fine-tune any time. Not medical advice.">
             <TargetRow label="Daily calories" value={`${previewTargets.calories}`} unit="kcal" />
             <TargetRow label="Protein" value={`${previewTargets.proteinG}`} unit="g" />
             <TargetRow label="Carbs" value={`${previewTargets.carbsG}`} unit="g" />
@@ -298,9 +301,22 @@ export default function Onboarding() {
   );
 }
 
-function StepShell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function StepShell({
+  title,
+  subtitle,
+  icon,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  icon: IconName;
+  children: React.ReactNode;
+}) {
   return (
     <View style={{ gap: spacing.lg }}>
+      <View style={styles.medallion}>
+        <Icon name={icon} size={28} color={colors.primary} strokeWidth={1.8} />
+      </View>
       <View style={{ gap: spacing.xs }}>
         <Text variant="h2">{title}</Text>
         {subtitle && (
@@ -359,3 +375,16 @@ function TargetRow({ label, value, unit }: { label: string; value: string; unit:
 const isOptional = (step: number) => [1, 4, 9].includes(step);
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const sexLabel = (s: Sex) => ({ male: 'Male', female: 'Female', other: 'Other', prefer_not_say: 'Prefer not to say' })[s];
+
+const styles = StyleSheet.create({
+  medallion: {
+    width: 58,
+    height: 58,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,90,31,0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,122,61,0.30)',
+  },
+});

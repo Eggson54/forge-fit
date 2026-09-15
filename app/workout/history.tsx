@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Card, EmptyState, Screen, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
-import { formatDuration } from '../../src/domain/date';
+import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayWeight } from '../../src/domain/units';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -18,7 +18,13 @@ export default function History() {
     <Screen gradient>
       <ScreenHeader title="Workout History" />
       {completed.length === 0 ? (
-        <EmptyState icon="📆" title="No history yet" subtitle="Completed workouts show up here." />
+        <EmptyState
+          icon="clock"
+          title="No history yet"
+          subtitle="Completed workouts show up here."
+          action="Start a workout"
+          onAction={() => router.replace('/(tabs)/workout')}
+        />
       ) : (
         <View style={{ gap: spacing.md }}>
           {completed.map((wk) => {
@@ -30,7 +36,7 @@ export default function History() {
                   <View>
                     <Text variant="bodyStrong">{wk.name}</Text>
                     <Text variant="caption" color={colors.textDim}>
-                      {new Date(wk.completedAt ?? wk.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {formatDuration(wk.durationSeconds ?? 0)}
+                      {new Date(wk.completedAt ?? wk.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {formatDurationShort(wk.durationSeconds ?? 0)}
                     </Text>
                   </View>
                   <Text variant="bodyStrong" color={colors.primary}>

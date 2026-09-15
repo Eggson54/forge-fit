@@ -40,8 +40,21 @@ export function formatDuration(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+/**
+ * Duration for summaries, where trailing seconds are noise: a finished session
+ * reads "52m", not "52m 0s". Live timers keep using formatDuration.
+ */
+export function formatDurationShort(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  if (m > 0) return `${m}m`;
+  return `${Math.max(0, Math.round(seconds))}s`;
+}
+
 export function formatSleep(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return `${h}h ${String(m).padStart(2, '0')}m`;
+  if (h > 0) return m > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${h}h`;
+  return `${m}m`;
 }

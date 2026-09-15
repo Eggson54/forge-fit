@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Button, Card, EmptyState, Screen, SectionHeader, Text, Pill } from '../../src/components/ui';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
-import { formatDuration } from '../../src/domain/date';
+import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayWeight } from '../../src/domain/units';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -57,18 +57,24 @@ export default function WorkoutTab() {
       </View>
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-        <StartCard icon="progress" title="Routines" subtitle="Saved templates" onPress={() => router.push('/workout/routines')} />
-        <StartCard icon="dumbbell" title="Exercises" subtitle="Browse library" onPress={() => router.push('/workout/library')} />
+        <StartCard icon="list" title="Routines" subtitle="Saved templates" onPress={() => router.push('/workout/routines')} />
+        <StartCard icon="search" title="Exercises" subtitle="Browse library" onPress={() => router.push('/workout/library')} />
       </View>
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-        <StartCard icon="flame" title="Leaderboard" subtitle="Ranked rivals" onPress={() => router.push('/leaderboard')} />
-        <StartCard icon="progress" title="History" subtitle="Past sessions" onPress={() => router.push('/workout/history')} />
+        <StartCard icon="trophy" title="Leaderboard" subtitle="Ranked rivals" onPress={() => router.push('/leaderboard')} />
+        <StartCard icon="clock" title="History" subtitle="Past sessions" onPress={() => router.push('/workout/history')} />
       </View>
 
       <SectionHeader title="Recent workouts" action={completed.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />
       {completed.length === 0 ? (
-        <EmptyState icon="🏋️" title="No workouts yet" subtitle="Start your first session and your coach starts tracking." />
+        <EmptyState
+          icon="dumbbell"
+          title="No workouts yet"
+          subtitle="Start your first session and your coach starts tracking."
+          action="Start an empty workout"
+          onAction={startBlank}
+        />
       ) : (
         <View style={{ gap: spacing.md }}>
           {completed.map((wk) => {
@@ -81,7 +87,7 @@ export default function WorkoutTab() {
                     <Text variant="bodyStrong">{wk.name}</Text>
                     <Text variant="caption" color={colors.textDim}>
                       {new Date(wk.completedAt ?? wk.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ·{' '}
-                      {formatDuration(wk.durationSeconds ?? 0)}
+                      {formatDurationShort(wk.durationSeconds ?? 0)}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>

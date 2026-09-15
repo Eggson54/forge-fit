@@ -3,24 +3,38 @@ import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, layout, spacing } from '../../theme';
+import { AmbientBackdrop } from '../AmbientBackdrop';
 
 interface Props {
   children: React.ReactNode;
   scroll?: boolean;
   padded?: boolean;
   gradient?: boolean;
+  /** Ember glow + forge hexagons behind the content, for text-light screens. */
+  ambient?: boolean;
   contentStyle?: ViewStyle;
   footer?: React.ReactNode;
   refreshControl?: React.ReactElement;
 }
 
 /** Standard screen wrapper: safe-area aware, dark ground, optional scroll. */
-export function Screen({ children, scroll = true, padded = true, gradient = false, contentStyle, footer, refreshControl }: Props) {
+export function Screen({ children, scroll = true, padded = true, gradient = false, ambient = false, contentStyle, footer, refreshControl }: Props) {
   const insets = useSafeAreaInsets();
   const pad: ViewStyle = padded ? { paddingHorizontal: layout.screenPadding } : {};
 
+  // Without scroll the content view has to stretch, or children that expect to
+  // fill the screen (a chat thread above a composer) collapse to their own height.
   const inner = (
-    <View style={[{ paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xxxl }, pad, contentStyle]}>{children}</View>
+    <View
+      style={[
+        { paddingTop: insets.top + spacing.sm, paddingBottom: scroll ? spacing.xxxl : 0 },
+        scroll ? null : { flex: 1 },
+        pad,
+        contentStyle,
+      ]}
+    >
+      {children}
+    </View>
   );
 
   return (
@@ -28,6 +42,7 @@ export function Screen({ children, scroll = true, padded = true, gradient = fals
       {gradient && (
         <LinearGradient colors={['#16131C', colors.background]} style={StyleSheet.absoluteFill} pointerEvents="none" />
       )}
+      {ambient && <AmbientBackdrop />}
       {scroll ? (
         <ScrollView
           showsVerticalScrollIndicator={false}

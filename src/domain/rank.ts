@@ -40,14 +40,19 @@ export interface RankResult {
   parts: { consistency: number; streak: number; strength: number; discipline: number };
 }
 
+/** Coerce a possibly missing/NaN persisted value to a usable number. */
+const num = (v: number | null | undefined, fallback = 0): number =>
+  typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+
 export function forgeScore(i: RankInputs): RankResult['parts'] & { total: number } {
-  const consistency = Math.min(400, i.completedWorkouts * 8);
-  const streak = Math.min(200, i.longestDailyStreak * 8);
+  const consistency = Math.min(400, num(i.completedWorkouts) * 8);
+  const streak = Math.min(200, num(i.longestDailyStreak) * 8);
   // Relative strength: big-3 e1RM total vs bodyweight. ~4x bodyweight => full points.
-  const bw = i.bodyweightKg && i.bodyweightKg > 0 ? i.bodyweightKg : 75;
-  const ratio = i.bestBig3E1RMKg / bw; // e.g. 4.0 is strong for combined big lifts
+  const bwRaw = num(i.bodyweightKg);
+  const bw = bwRaw > 0 ? bwRaw : 75;
+  const ratio = num(i.bestBig3E1RMKg) / bw; // e.g. 4.0 is strong for combined big lifts
   const strength = Math.min(300, Math.round((ratio / 4) * 300));
-  const discipline = Math.min(100, Math.round(i.bestDisciplineScore));
+  const discipline = Math.min(100, Math.round(num(i.bestDisciplineScore)));
   const total = clamp(consistency + streak + strength + discipline, 0, 1000);
   return { consistency, streak, strength, discipline, total };
 }

@@ -31,7 +31,7 @@ export default function Routines() {
       </Text>
 
       {routines.length === 0 ? (
-        <EmptyState icon="📋" title="No routines yet" subtitle="Save a completed workout below as a routine to reuse it." />
+        <EmptyState icon="list" title="No routines yet" subtitle="Save a completed workout below as a routine to reuse it." />
       ) : (
         <View style={{ gap: spacing.md }}>
           {routines.map((r) => (

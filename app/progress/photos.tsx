@@ -62,7 +62,13 @@ export default function Photos() {
 
       <SectionHeader title={`${cap(pose)} timeline`} />
       {posePhotos.length === 0 ? (
-        <EmptyState icon="📸" title="No photos yet" subtitle={`Add your first ${pose} photo to start a timeline.`} />
+        <EmptyState
+          icon="camera"
+          title="No photos yet"
+          subtitle={`Add your first ${pose} photo to start a timeline.`}
+          action="Add a photo"
+          onAction={() => pick(true)}
+        />
       ) : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
           {posePhotos.map((p) => (

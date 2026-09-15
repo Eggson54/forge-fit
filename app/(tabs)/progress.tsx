@@ -27,14 +27,20 @@ export default function Progress() {
   const workouts = useWorkoutStore((s) => s.completedWorkouts());
   const streaks = useGamificationStore((s) => s.streaks);
 
+  // Sorted by date rather than insertion order: persisted logs can come back in
+  // either direction after a rehydrate, and oldest/newest drive the delta below.
+  const weightByDate = useMemo(
+    () => [...weightLogs].sort((a, b) => (a.date < b.date ? -1 : 1)),
+    [weightLogs],
+  );
+
   // Weight series (chronological)
   const weightSeries: Point[] = useMemo(
     () =>
-      [...weightLogs]
-        .sort((a, b) => (a.date < b.date ? -1 : 1))
+      weightByDate
         .slice(-14)
         .map((w) => ({ label: w.date.slice(5), value: profile.units === 'imperial' ? Math.round(kgToLb(w.weightKg) * 10) / 10 : w.weightKg })),
-    [weightLogs, profile.units],
+    [weightByDate, profile.units],
   );
 
   // Strength: best e1RM per completed workout over time
@@ -81,20 +87,20 @@ export default function Progress() {
     .map((m) => ({ m, sets: weekVolume[m] ?? 0, status: volumeStatus(m, weekVolume[m] ?? 0) }))
     .sort((a, b) => b.sets - a.sets);
 
-  const latest = weightLogs[0]?.weightKg ?? profile.weightKg ?? null;
-  const startWeight = weightLogs[weightLogs.length - 1]?.weightKg ?? latest;
+  const latest = weightByDate[weightByDate.length - 1]?.weightKg ?? profile.weightKg ?? null;
+  const startWeight = weightByDate[0]?.weightKg ?? latest;
   const change = latest != null && startWeight != null ? latest - startWeight : 0;
   const changeDisp = displayWeight(Math.abs(change), profile.units);
 
   const [analysis, setAnalysis] = useState<ProgressAnalysisResult | null>(null);
   useEffect(() => {
-    if (weightLogs.length < 2) return;
+    if (weightByDate.length < 2) return;
     ai.analyzeProgress({
-      weightSeriesKg: [...weightLogs].sort((a, b) => (a.date < b.date ? -1 : 1)).map((w) => ({ date: w.date, value: w.weightKg })),
+      weightSeriesKg: weightByDate.map((w) => ({ date: w.date, value: w.weightKg })),
       goal: profile.goal,
       targetWeightKg: profile.targetWeightKg,
     }).then(setAnalysis);
-  }, [weightLogs, profile.goal, profile.targetWeightKg]);
+  }, [weightByDate, profile.goal, profile.targetWeightKg]);
 
   return (
     <Screen gradient>

@@ -67,30 +67,30 @@ export default function Settings() {
 
       <SectionHeader title="Coaching & Goals" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="🔥" title="AI Coach" subtitle="Personality & aggression" onPress={() => router.push('/settings/coach')} />
-        <ListRow icon="🎯" title="Goals & Targets" onPress={() => router.push('/settings/goals')} />
-        <ListRow icon="⏰" title="Notifications & Reminders" onPress={() => router.push('/settings/notifications')} />
-        <ListRow icon="🔁" title="Recompute targets from profile" onPress={() => { recompute(); Alert.alert('Updated', 'Targets recalculated from your profile.'); }} />
+        <ListRow icon="flame" tint={colors.primary} title="AI Coach" subtitle="Personality & aggression" onPress={() => router.push('/settings/coach')} />
+        <ListRow icon="target" tint={colors.protein} title="Goals & Targets" onPress={() => router.push('/settings/goals')} />
+        <ListRow icon="bell" tint={colors.amber} title="Notifications & Reminders" onPress={() => router.push('/settings/notifications')} />
+        <ListRow icon="repeat" tint={colors.steps} title="Recompute targets from profile" onPress={() => { recompute(); Alert.alert('Updated', 'Targets recalculated from your profile.'); }} />
       </Card>
 
       <SectionHeader title="Privacy & Integrations" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="🔒" title="Privacy & Data" subtitle="What's stored & where" onPress={() => router.push('/settings/privacy')} />
-        <ListRow icon="⌚" title="Integrations" subtitle="Apple Watch, Strava, Apple Health" onPress={() => router.push('/settings/integrations')} />
-        <ListRow icon="💳" title="Subscription" onPress={() => router.push('/settings/subscription')} />
+        <ListRow icon="lock" tint={colors.water} title="Privacy & Data" subtitle="What's stored & where" onPress={() => router.push('/settings/privacy')} />
+        <ListRow icon="watch" tint={colors.carbs} title="Integrations" subtitle="Apple Watch, Strava, Apple Health" onPress={() => router.push('/settings/integrations')} />
+        <ListRow icon="card" tint={colors.success} title="Subscription" onPress={() => router.push('/settings/subscription')} />
       </Card>
 
       <SectionHeader title="Your Data" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="⬇️" title="Export my data" subtitle="Download a copy" onPress={onExport} />
-        <ListRow icon="🗑️" title="Delete account & data" onPress={onDelete} />
+        <ListRow icon="download" tint={colors.protein} title="Export my data" subtitle="Download a copy" onPress={onExport} />
+        <ListRow icon="trash" danger title="Delete account & data" onPress={onDelete} />
       </Card>
 
       <SectionHeader title="Support" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="📄" title="Terms of Service" onPress={() => Linking.openURL('https://forgefit.app/terms').catch(() => {})} />
-        <ListRow icon="🛡️" title="Privacy Policy" onPress={() => Linking.openURL('https://forgefit.app/privacy').catch(() => {})} />
-        <ListRow icon="❓" title="Help & Feedback" onPress={() => Linking.openURL('mailto:support@forgefit.app').catch(() => {})} />
+        <ListRow icon="document" tint={colors.textDim} title="Terms of Service" onPress={() => Linking.openURL('https://forgefit.app/terms').catch(() => {})} />
+        <ListRow icon="shield" tint={colors.textDim} title="Privacy Policy" onPress={() => Linking.openURL('https://forgefit.app/privacy').catch(() => {})} />
+        <ListRow icon="help" tint={colors.textDim} title="Help & Feedback" onPress={() => Linking.openURL('mailto:support@forgefit.app').catch(() => {})} />
       </Card>
 
       <View style={{ marginTop: spacing.xl, gap: spacing.md }}>

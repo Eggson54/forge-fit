@@ -2,6 +2,15 @@ import React from 'react';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
 import { Text } from './Text';
+import { Icon, type IconName } from '../Icon';
+
+/** Hex colour at a given alpha, for tinted glyph tiles. */
+function withAlpha(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return `rgba(255,255,255,${alpha})`;
+  const n = parseInt(m[1]!, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
 
 /** Row of a title + optional action, used above content sections. */
 export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
@@ -99,10 +108,26 @@ export function StatTile({
   );
 }
 
-export function EmptyState({ title, subtitle, icon }: { title: string; subtitle?: string; icon?: string }) {
+export function EmptyState({
+  title,
+  subtitle,
+  icon,
+  action,
+  onAction,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: IconName;
+  action?: string;
+  onAction?: () => void;
+}) {
   return (
     <View style={styles.empty}>
-      {icon && <Text style={{ fontSize: 40 }}>{icon}</Text>}
+      {icon && (
+        <View style={styles.emptyIcon}>
+          <Icon name={icon} size={26} color={colors.textDim} strokeWidth={1.7} />
+        </View>
+      )}
       <Text variant="title" center>
         {title}
       </Text>
@@ -110,6 +135,13 @@ export function EmptyState({ title, subtitle, icon }: { title: string; subtitle?
         <Text variant="body" color={colors.textDim} center>
           {subtitle}
         </Text>
+      )}
+      {action && onAction && (
+        <Pressable onPress={onAction} hitSlop={8} style={{ marginTop: spacing.xs }}>
+          <Text variant="bodyStrong" color={colors.primary}>
+            {action}
+          </Text>
+        </Pressable>
       )}
     </View>
   );
@@ -121,20 +153,32 @@ export function ListRow({
   right,
   onPress,
   icon,
+  tint = colors.textDim,
+  danger,
 }: {
   title: string;
   subtitle?: string;
   right?: React.ReactNode;
   onPress?: () => void;
-  icon?: string;
+  /** Vector glyph shown in a tinted tile at the start of the row. */
+  icon?: IconName;
+  tint?: string;
+  danger?: boolean;
 }) {
   const Wrapper: any = onPress ? Pressable : View;
+  const glyphTint = danger ? colors.danger : tint;
   return (
     <Wrapper onPress={onPress} style={({ pressed }: { pressed?: boolean }) => [styles.listRow, pressed && { opacity: 0.6 }]}>
       <View style={styles.listRowLeft}>
-        {icon && <Text style={{ fontSize: 20 }}>{icon}</Text>}
+        {icon && (
+          <View style={[styles.listRowIcon, { backgroundColor: withAlpha(glyphTint, 0.13) }]}>
+            <Icon name={icon} size={19} color={glyphTint} strokeWidth={1.9} />
+          </View>
+        )}
         <View style={{ flex: 1 }}>
-          <Text variant="bodyStrong">{title}</Text>
+          <Text variant="bodyStrong" color={danger ? colors.danger : colors.text}>
+            {title}
+          </Text>
           {subtitle && (
             <Text variant="caption" color={colors.textDim}>
               {subtitle}
@@ -162,7 +206,19 @@ const styles = StyleSheet.create({
   track: { backgroundColor: colors.surfaceHigh, overflow: 'hidden', width: '100%' },
   statTile: { flex: 1, gap: 2 },
   accentDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
-  empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.huge },
+  empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxxl, paddingHorizontal: spacing.lg },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    marginBottom: spacing.xs,
+  },
   listRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, gap: spacing.md },
   listRowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
+  listRowIcon: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
 });

@@ -120,7 +120,13 @@ export const useLogStore = create<LogState>()(
       waterForDate: (date) => get().water.filter((w) => w.date === date).reduce((a, w) => a + w.amountOz, 0),
       stepsForDate: (date) => get().steps.find((s) => s.date === date)?.steps ?? 0,
       sleepForDate: (date) => get().sleep.find((s) => s.date === date)?.minutes ?? 0,
-      latestWeightKg: () => get().weight[0]?.weightKg ?? null,
+      // Pick by date, not insertion order — a backfilled or rehydrated log can
+      // leave the newest entry anywhere in the array.
+      latestWeightKg: () => {
+        const w = get().weight;
+        if (w.length === 0) return null;
+        return w.reduce((best, x) => (x.date > best.date ? x : best), w[0]!).weightKg;
+      },
 
       reset: () => set({ nutrition: [], water: [], weight: [], sleep: [], steps: [], measurements: [], photos: [] }),
     }),

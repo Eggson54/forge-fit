@@ -16,7 +16,25 @@ export type IconName =
   | 'bell'
   | 'steps'
   | 'moon'
-  | 'scale';
+  | 'scale'
+  | 'trophy'
+  | 'clock'
+  | 'list'
+  | 'search'
+  | 'target'
+  | 'shield'
+  | 'trash'
+  | 'lock'
+  | 'repeat'
+  | 'document'
+  | 'download'
+  | 'help'
+  | 'gear'
+  | 'card'
+  | 'watch'
+  | 'check'
+  | 'chart'
+  | 'sliders';
 
 interface Props {
   name: IconName;
@@ -46,19 +64,19 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
       {name === 'dumbbell' &&
         (filled ? (
           <>
-            <Rect x="9.8" y="10.9" width="4.4" height="2.2" fill={color} />
-            <Rect x="2.6" y="7.4" width="4" height="9.2" rx="1.6" fill={color} />
-            <Rect x="17.4" y="7.4" width="4" height="9.2" rx="1.6" fill={color} />
-            <Rect x="7.2" y="9.4" width="3" height="5.2" rx="1.2" fill={color} />
-            <Rect x="13.8" y="9.4" width="3" height="5.2" rx="1.2" fill={color} />
+            <Rect x="2.6" y="9.9" width="2.6" height="4.2" rx="1.2" fill={color} />
+            <Rect x="6" y="6.6" width="3.4" height="10.8" rx="1.5" fill={color} />
+            <Rect x="9.2" y="11" width="5.6" height="2" rx="1" fill={color} />
+            <Rect x="14.6" y="6.6" width="3.4" height="10.8" rx="1.5" fill={color} />
+            <Rect x="18.8" y="9.9" width="2.6" height="4.2" rx="1.2" fill={color} />
           </>
         ) : (
           <>
             <Path d="M9.6 12h4.8" stroke={color} strokeWidth={2} strokeLinecap="round" />
-            <Rect x="2.8" y="7.6" width="4" height="8.8" rx="1.5" {...s} />
-            <Rect x="17.2" y="7.6" width="4" height="8.8" rx="1.5" {...s} />
-            <Rect x="7.4" y="9.6" width="2.8" height="4.8" rx="1.2" {...s} />
-            <Rect x="13.8" y="9.6" width="2.8" height="4.8" rx="1.2" {...s} />
+            <Path d="M8.2 7.8v8.4" stroke={color} strokeWidth={3.2} strokeLinecap="round" fill="none" />
+            <Path d="M15.8 7.8v8.4" stroke={color} strokeWidth={3.2} strokeLinecap="round" fill="none" />
+            <Path d="M4.4 10.1v3.8" stroke={color} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+            <Path d="M19.6 10.1v3.8" stroke={color} strokeWidth={2.4} strokeLinecap="round" fill="none" />
           </>
         ))}
 
@@ -144,6 +162,149 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
           <Path d="M10 19.4a2.2 2.2 0 0 0 4 0" {...s} />
         </>
       )}
+
+      {name === 'trophy' && (
+        <>
+          <Path d="M7.4 4h9.2v4.8a4.6 4.6 0 0 1-9.2 0Z" {...s} />
+          <Path d="M7.4 5.6H4.9v1.3a3.2 3.2 0 0 0 2.9 3.1" {...s} />
+          <Path d="M16.6 5.6h2.5v1.3a3.2 3.2 0 0 1-2.9 3.1" {...s} />
+          <Path d="M12 13.4V17" {...s} />
+          <Path d="M8.6 20h6.8l-.8-3H9.4Z" {...s} />
+        </>
+      )}
+
+      {name === 'clock' && (
+        <>
+          <Circle cx="12" cy="12" r="8.4" {...s} />
+          <Path d="M12 7.4V12l3.1 1.9" {...s} />
+        </>
+      )}
+
+      {name === 'list' && (
+        <>
+          <Path d="M9 6.4h11M9 12h11M9 17.6h11" {...s} />
+          <Circle cx="4.6" cy="6.4" r="1.4" fill={color} stroke="none" />
+          <Circle cx="4.6" cy="12" r="1.4" fill={color} stroke="none" />
+          <Circle cx="4.6" cy="17.6" r="1.4" fill={color} stroke="none" />
+        </>
+      )}
+
+      {name === 'search' && (
+        <>
+          <Circle cx="10.8" cy="10.8" r="6.4" {...s} />
+          <Path d="M15.5 15.5 20.4 20.4" {...s} />
+        </>
+      )}
+
+
+      {name === 'target' && (
+        <>
+          <Circle cx="12" cy="12" r="8.4" {...s} />
+          <Circle cx="12" cy="12" r="4.6" {...s} />
+          <Circle cx="12" cy="12" r="1.5" fill={color} stroke="none" />
+        </>
+      )}
+
+      {name === 'shield' && (
+        <>
+          <Path d="M12 3.2 19 5.8v5.5c0 4.2-2.8 7.6-7 9.5-4.2-1.9-7-5.3-7-9.5V5.8Z" {...s} />
+          <Path d="m9.1 12.1 2 2 3.8-3.9" {...s} />
+        </>
+      )}
+
+      {name === 'trash' && (
+        <>
+          <Path d="M4.6 6.6h14.8" {...s} />
+          <Path d="M9.4 6.6V4.9a1 1 0 0 1 1-1h3.2a1 1 0 0 1 1 1v1.7" {...s} />
+          <Path d="M6.5 6.6 7.3 19a1.6 1.6 0 0 0 1.6 1.5h6.2A1.6 1.6 0 0 0 16.7 19l.8-12.4" {...s} />
+          <Path d="M10.4 10.2v6.4M13.6 10.2v6.4" {...s} />
+        </>
+      )}
+
+      {name === 'lock' && (
+        <>
+          <Rect x="4.8" y="10.4" width="14.4" height="9.8" rx="2.2" {...s} />
+          <Path d="M8.4 10.4V7.9a3.6 3.6 0 0 1 7.2 0v2.5" {...s} />
+          <Circle cx="12" cy="15.3" r="1.4" fill={color} stroke="none" />
+        </>
+      )}
+
+      {name === 'repeat' && (
+        <>
+          <Path d="M4.4 10.2a5 5 0 0 1 5-5h9.3" {...s} />
+          <Path d="m15.8 2.4 3 2.8-3 2.8" {...s} />
+          <Path d="M19.6 13.8a5 5 0 0 1-5 5H5.3" {...s} />
+          <Path d="m8.2 21.6-3-2.8 3-2.8" {...s} />
+        </>
+      )}
+
+      {name === 'document' && (
+        <>
+          <Path d="M13.4 3.4H7.2a1.8 1.8 0 0 0-1.8 1.8v13.6a1.8 1.8 0 0 0 1.8 1.8h9.6a1.8 1.8 0 0 0 1.8-1.8V8.4Z" {...s} />
+          <Path d="M13.4 3.4v5h5.2" {...s} />
+          <Path d="M8.8 13h6.4M8.8 16.6h4.4" {...s} />
+        </>
+      )}
+
+      {name === 'download' && (
+        <>
+          <Path d="M12 3.6v10.8" {...s} />
+          <Path d="m7.8 10.6 4.2 4.2 4.2-4.2" {...s} />
+          <Path d="M4.6 17.4v1.6a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-1.6" {...s} />
+        </>
+      )}
+
+      {name === 'help' && (
+        <>
+          <Circle cx="12" cy="12" r="8.4" {...s} />
+          <Path d="M9.6 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.5 2-2.5 3.6" {...s} />
+          <Circle cx="12" cy="16.6" r="1.1" fill={color} stroke="none" />
+        </>
+      )}
+
+      {name === 'gear' && (
+        <>
+          <Circle cx="12" cy="12" r="3.1" {...s} />
+          <Path d="M19.1 14.5a1.5 1.5 0 0 0 .3 1.7l.1.1a1.8 1.8 0 1 1-2.6 2.6l-.1-.1a1.5 1.5 0 0 0-1.7-.3 1.5 1.5 0 0 0-.9 1.4v.3a1.8 1.8 0 1 1-3.6 0v-.2a1.5 1.5 0 0 0-1-1.4 1.5 1.5 0 0 0-1.7.3l-.1.1a1.8 1.8 0 1 1-2.6-2.6l.1-.1a1.5 1.5 0 0 0 .3-1.7 1.5 1.5 0 0 0-1.4-.9h-.3a1.8 1.8 0 1 1 0-3.6h.2a1.5 1.5 0 0 0 1.4-1 1.5 1.5 0 0 0-.3-1.7l-.1-.1a1.8 1.8 0 1 1 2.6-2.6l.1.1a1.5 1.5 0 0 0 1.7.3h.1a1.5 1.5 0 0 0 .9-1.4v-.3a1.8 1.8 0 1 1 3.6 0v.2a1.5 1.5 0 0 0 .9 1.4 1.5 1.5 0 0 0 1.7-.3l.1-.1a1.8 1.8 0 1 1 2.6 2.6l-.1.1a1.5 1.5 0 0 0-.3 1.7v.1a1.5 1.5 0 0 0 1.4.9h.3a1.8 1.8 0 1 1 0 3.6h-.2a1.5 1.5 0 0 0-1.4.9Z" {...s} />
+        </>
+      )}
+
+      {name === 'card' && (
+        <>
+          <Rect x="2.8" y="5.4" width="18.4" height="13.2" rx="2.4" {...s} />
+          <Path d="M2.8 10h18.4" {...s} />
+          <Path d="M6.6 14.6h3.2" {...s} />
+        </>
+      )}
+
+      {name === 'watch' && (
+        <>
+          <Rect x="6.8" y="6.8" width="10.4" height="10.4" rx="3" {...s} />
+          <Path d="M9.2 6.8 9.6 3h4.8l.4 3.8" {...s} />
+          <Path d="M9.2 17.2 9.6 21h4.8l.4-3.8" {...s} />
+          <Path d="M12 9.9V12l1.7 1.1" {...s} />
+        </>
+      )}
+
+
+      {name === 'check' && <Path d="m5.2 12.6 4.4 4.4 9.2-10" {...s} strokeWidth={2.4} />}
+
+      {name === 'chart' && (
+        <>
+          <Path d="M4 20h16" {...s} />
+          <Path d="M7 20v-6M12 20V7M17 20v-9" {...s} strokeWidth={2.4} />
+        </>
+      )}
+
+      {name === 'sliders' && (
+        <>
+          <Path d="M5 5v5M5 14v5M12 5v3M12 12v7M19 5v9M19 18v1" {...s} />
+          <Circle cx="5" cy="12" r="2" {...s} />
+          <Circle cx="12" cy="10" r="2" {...s} />
+          <Circle cx="19" cy="16" r="2" {...s} />
+        </>
+      )}
+
     </Svg>
   );
 }

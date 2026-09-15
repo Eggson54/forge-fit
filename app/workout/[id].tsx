@@ -5,7 +5,7 @@ import { Button, Card, Screen, SectionHeader, StatTile, Text } from '../../src/c
 import { AnimatedNumber, Celebration, FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
-import { formatDuration } from '../../src/domain/date';
+import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayWeight } from '../../src/domain/units';
 import type { MuscleGroup } from '../../src/domain/types';
@@ -56,7 +56,7 @@ export default function WorkoutDetail() {
           </Text>
           <AnimatedNumber value={Math.round(vol.value)} variant="display" color={colors.primary} format={(n) => n.toLocaleString()} />
           <Text variant="caption" color={colors.textDim}>
-            total volume ({vol.unit}) · {formatDuration(workout.durationSeconds ?? 0)}
+            total volume ({vol.unit}) · {formatDurationShort(workout.durationSeconds ?? 0)}
           </Text>
           {prCount > 0 && (
             <Text variant="bodyStrong" color={colors.amber}>

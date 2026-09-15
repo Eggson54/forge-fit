@@ -24,7 +24,7 @@ export default function ProtocolHome() {
       </Card>
 
       {protocols.length === 0 ? (
-        <EmptyState icon="🧪" title="Nothing tracked" subtitle="Add an item you want to keep a personal log and reminders for." />
+        <EmptyState icon="bolt" title="Nothing tracked" subtitle="Add an item you want to keep a personal log and reminders for." />
       ) : (
         <View style={{ gap: spacing.md }}>
           {protocols.map((p) => (

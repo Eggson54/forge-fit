@@ -6,7 +6,15 @@ import { colors, radius, spacing } from '../theme';
 import { useAuthStore } from '../stores/useAuthStore';
 import { Text } from './ui/Text';
 
-/** Google + Apple sign-in buttons using the standard button treatments. */
+/**
+ * Google + Apple sign-in buttons.
+ *
+ * Both use the vendors' dark treatments, which their branding guidelines allow
+ * and which sit in a dark app without the stark white/black slabs the light
+ * treatments would put on this screen: Google dark is #131314 with a #8E918F
+ * outline and #E3E3E3 label plus the unmodified "G" mark; Apple's black button
+ * keeps the white logo and label.
+ */
 export function SocialAuthButtons({ onDone }: { onDone?: () => void }) {
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signInWithApple = useAuthStore((s) => s.signInWithApple);
@@ -36,24 +44,40 @@ export function SocialAuthButtons({ onDone }: { onDone?: () => void }) {
       </View>
 
       <View style={{ flexDirection: 'row', gap: spacing.md }}>
-        <Pressable style={[styles.btn, { backgroundColor: '#FFFFFF' }]} disabled={busy !== null} onPress={() => run('google', signInWithGoogle)}>
+        <Pressable
+          style={[styles.btn, { backgroundColor: '#131314', borderColor: '#8E918F', borderWidth: 1 }]}
+          disabled={busy !== null}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+          onPress={() => run('google', signInWithGoogle)}
+        >
           {busy === 'google' ? (
-            <ActivityIndicator color="#111" />
+            <ActivityIndicator color="#E3E3E3" />
           ) : (
             <>
               <GoogleIcon />
-              <Text variant="bodyStrong" color="#1A1A1A">Google</Text>
+              <Text variant="bodyStrong" color="#E3E3E3">
+                Google
+              </Text>
             </>
           )}
         </Pressable>
 
-        <Pressable style={[styles.btn, { backgroundColor: '#000000', borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth }]} disabled={busy !== null} onPress={() => run('apple', signInWithApple)}>
+        <Pressable
+          style={[styles.btn, { backgroundColor: '#000000', borderColor: '#3A3A3C', borderWidth: 1 }]}
+          disabled={busy !== null}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Apple"
+          onPress={() => run('apple', signInWithApple)}
+        >
           {busy === 'apple' ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
               <AppleIcon />
-              <Text variant="bodyStrong" color="#FFFFFF">Apple</Text>
+              <Text variant="bodyStrong" color="#FFFFFF">
+                Apple
+              </Text>
             </>
           )}
         </Pressable>

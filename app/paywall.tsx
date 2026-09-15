@@ -1,23 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Screen, Text } from '../src/components/ui';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { BrandMark } from '../src/components/BrandMark';
-import { Icon } from '../src/components/Icon';
-import { colors, gradients, radius, spacing } from '../src/theme';
+import { Icon, type IconName } from '../src/components/Icon';
+import { colors, radius, spacing } from '../src/theme';
 import { subscriptions, type Product } from '../src/services/subscriptions';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { analytics } from '../src/services/analytics';
 
-const FEATURES = [
-  'Unlimited AI food analysis',
-  'Advanced AI workout generation',
-  'Advanced AI coaching & personalities',
-  'Advanced analytics & progress insights',
-  'Unlimited reminders & customization',
-  'No advertisements',
+// Each benefit gets its own glyph; six identical bullets read as filler.
+const FEATURES: { icon: IconName; label: string }[] = [
+  { icon: 'nutrition', label: 'Unlimited AI food analysis' },
+  { icon: 'dumbbell', label: 'Advanced AI workout generation' },
+  { icon: 'flame', label: 'Advanced AI coaching & personalities' },
+  { icon: 'chart', label: 'Advanced analytics & progress insights' },
+  { icon: 'bell', label: 'Unlimited reminders & customization' },
+  { icon: 'check', label: 'No advertisements' },
 ];
 
 export default function Paywall() {
@@ -70,11 +71,13 @@ export default function Paywall() {
 
       <View style={{ gap: spacing.md, marginBottom: spacing.xl }}>
         {FEATURES.map((f) => (
-          <View key={f} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,90,31,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="flame" size={15} color={colors.primary} />
+          <View key={f.label} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <View style={{ width: 30, height: 30, borderRadius: radius.sm, backgroundColor: 'rgba(255,90,31,0.13)', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={f.icon} size={17} color={colors.primary} strokeWidth={1.9} />
             </View>
-            <Text variant="body">{f}</Text>
+            <Text variant="body" style={{ flex: 1 }}>
+              {f.label}
+            </Text>
           </View>
         ))}
       </View>
@@ -84,19 +87,36 @@ export default function Paywall() {
           const active = selected === p.id;
           return (
             <Pressable key={p.id} onPress={() => setSelected(p.id)}>
-              <LinearGradient
-                colors={active ? gradients.ember : [colors.surface, colors.surface]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ borderRadius: radius.lg, padding: 2 }}
+              <View
+                style={{
+                  borderRadius: radius.lg,
+                  overflow: 'hidden',
+                  borderWidth: active ? 1.5 : StyleSheet.hairlineWidth,
+                  borderColor: active ? colors.primary : colors.border,
+                }}
               >
-                <View style={{ backgroundColor: active ? 'rgba(0,0,0,0.35)' : colors.surface, borderRadius: radius.lg - 2, padding: spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View>
+                <LinearGradient
+                  colors={active ? ['rgba(255,90,31,0.22)', 'rgba(255,90,31,0.06)'] : [colors.surface, colors.surface]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={{ padding: spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md }}>
+                  <View style={{ flexShrink: 1, gap: 2 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                       <Text variant="title">{p.title}</Text>
                       {p.savingsLabel && (
-                        <View style={{ backgroundColor: colors.lime, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
-                          <Text variant="caption" color="#0B0B0F">
+                        <View
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 2,
+                            borderRadius: 999,
+                            backgroundColor: 'rgba(61,220,132,0.16)',
+                            borderWidth: StyleSheet.hairlineWidth,
+                            borderColor: 'rgba(61,220,132,0.45)',
+                          }}
+                        >
+                          <Text variant="caption" color={colors.success}>
                             {p.savingsLabel}
                           </Text>
                         </View>
@@ -106,9 +126,12 @@ export default function Paywall() {
                       {p.perMonthString ? `${p.perMonthString} · billed annually` : 'billed monthly'}
                     </Text>
                   </View>
-                  <Text variant="h3">{p.priceString}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Text variant="h3">{p.priceString}</Text>
+                    {active && <Icon name="check" size={18} color={colors.primary} />}
+                  </View>
                 </View>
-              </LinearGradient>
+              </View>
             </Pressable>
           );
         })}

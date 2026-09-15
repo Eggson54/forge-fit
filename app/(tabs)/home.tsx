@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Animated, Easing, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
-import { AdSlot, Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AdSlot, Card, IconButton, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing, FadeIn } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { CoachCard } from '../../src/components/CoachCard';
@@ -101,15 +101,9 @@ export default function Home() {
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
           <StreakBadge count={streak} />
-          <Button
-            title=""
-            icon={<Icon name="bell" size={22} color={colors.text} />}
-            variant="ghost"
-            fullWidth={false}
-            haptic={false}
-            onPress={() => router.push('/reminders')}
-            style={{ width: 46, paddingHorizontal: 0 }}
-          />
+          <IconButton accessibilityLabel="Reminders" onPress={() => router.push('/reminders')}>
+            <Icon name="bell" size={22} color={colors.text} />
+          </IconButton>
         </View>
       </View>
 

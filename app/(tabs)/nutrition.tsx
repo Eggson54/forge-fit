@@ -59,14 +59,15 @@ export default function Nutrition() {
       </Card>
 
       {/* Macro bars */}
-      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+      <SectionHeader title="Macros" action="Edit targets" onAction={() => router.push('/settings/goals')} />
+      <View style={{ flexDirection: 'row', gap: spacing.md }}>
         <MacroCard label="Protein" value={macros.proteinG} target={targets.proteinG} color={colors.protein} />
         <MacroCard label="Carbs" value={macros.carbsG} target={targets.carbsG} color={colors.carbs} />
         <MacroCard label="Fat" value={macros.fatG} target={targets.fatG} color={colors.fat} />
       </View>
 
       {/* Water */}
-      <SectionHeader title="Water" action="Custom targets" onAction={() => router.push('/settings/goals')} />
+      <SectionHeader title="Water" />
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -146,15 +147,36 @@ function FoodRow({ entry, last, onDelete }: { entry: NutritionEntry; last: boole
   return (
     <Pressable onLongPress={onDelete} style={{ paddingVertical: spacing.md, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ flex: 1 }}>
-        <Text variant="body">
-          {entry.name} {entry.isEstimate ? '~' : ''}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Text variant="body" style={{ flexShrink: 1 }}>
+            {entry.name}
+          </Text>
+          {entry.isEstimate && <EstimateTag />}
+        </View>
         <Text variant="caption" color={colors.textDim}>
           {entry.quantity} × {entry.servingLabel} · P{Math.round(m.proteinG)} C{Math.round(m.carbsG)} F{Math.round(m.fatG)}
         </Text>
       </View>
       <Text variant="bodyStrong">{m.calories}</Text>
     </Pressable>
+  );
+}
+
+/** Marks AI-derived macros as an estimate the user can open and correct. */
+function EstimateTag() {
+  return (
+    <View
+      style={{
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.07)',
+      }}
+    >
+      <Text variant="overline" color={colors.textFaint} style={{ fontSize: 9, letterSpacing: 1 }}>
+        EST
+      </Text>
+    </View>
   );
 }
 

@@ -29,7 +29,7 @@ export default function SignIn() {
   };
 
   return (
-    <Screen gradient>
+    <Screen gradient ambient>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={{ gap: spacing.xxxl, paddingTop: spacing.huge }}>
           <View style={{ gap: spacing.sm }}>

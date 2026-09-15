@@ -1,10 +1,11 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, ListRow, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
+import { Avatar } from '../../src/components/Avatar';
 import { RankCard } from '../../src/components/RankCard';
-import { colors, gradients, spacing } from '../../src/theme';
+import { colors, spacing } from '../../src/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { displayWeight } from '../../src/domain/units';
 import { computeRank } from '../../src/domain/rank';
@@ -43,11 +44,7 @@ export default function Profile() {
       </Text>
 
       <Card style={{ alignItems: 'center', gap: spacing.sm }}>
-        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' }}>
-          <Text variant="h1" color={colors.primary}>
-            {(profile.name || 'A').charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        <Avatar initial={(profile.name || 'A').charAt(0).toUpperCase()} accent={rank.tier.color} />
         <Text variant="h3">{profile.name || 'Athlete'}</Text>
         <Text variant="caption" color={colors.textDim}>
           {user?.email ?? 'Local account'}
@@ -55,7 +52,7 @@ export default function Profile() {
         <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
           <Stat label="Workouts" value={`${workouts}`} />
           <Stat label="Streak" value={`${streak}`} />
-          <Stat label="Weight" value={weight ? `${weight.value}${weight.unit}` : '—'} />
+          <Stat label="Weight" value={weight ? `${weight.value} ${weight.unit}` : '—'} />
         </View>
       </Card>
 
@@ -68,34 +65,52 @@ export default function Profile() {
         </Pressable>
       </FadeIn>
 
+      {/* Upsell: an ember-washed panel rather than a full-bleed orange slab, so
+          it invites without shouting over the athlete's own numbers. */}
       {!isPro && (
-        <LinearGradient colors={gradients.forge} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: spacing.xl, marginTop: spacing.lg }}>
-          <Text variant="overline" color={colors.onPrimary}>
-            FORGEFIT PRO
-          </Text>
-          <Text variant="h2" color={colors.onPrimary} style={{ marginTop: 4 }}>
-            Take your training seriously.
-          </Text>
-          <Text variant="body" color="#2a1400" style={{ marginTop: 4, marginBottom: spacing.md }}>
-            Unlimited AI, advanced coaching & analytics, no ads.
-          </Text>
-          <Button title="Upgrade to Pro" variant="secondary" onPress={() => router.push('/paywall')} />
-        </LinearGradient>
+        <View
+          style={{
+            borderRadius: 20,
+            marginTop: spacing.lg,
+            overflow: 'hidden',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: 'rgba(255,122,61,0.35)',
+          }}
+        >
+          <LinearGradient
+            colors={['rgba(255,90,31,0.20)', 'rgba(255,90,31,0.05)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={{ padding: spacing.xl }}>
+            <Text variant="overline" color={colors.primary}>
+              FORGEFIT PRO
+            </Text>
+            <Text variant="h2" style={{ marginTop: 4 }}>
+              Take your training seriously.
+            </Text>
+            <Text variant="body" color={colors.textDim} style={{ marginTop: 4, marginBottom: spacing.lg }}>
+              Unlimited AI, advanced coaching & analytics, no ads.
+            </Text>
+            <Button title="Upgrade to Pro" onPress={() => router.push('/paywall')} />
+          </View>
+        </View>
       )}
 
       <SectionHeader title="Coach & Goals" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="🔥" title="AI Coach" subtitle="Personality & aggression" onPress={() => router.push('/settings/coach')} />
-        <ListRow icon="🎯" title="Goals & Targets" subtitle="Calories, macros, activity" onPress={() => router.push('/settings/goals')} />
-        <ListRow icon="⏰" title="Reminders" subtitle="Stay accountable" onPress={() => router.push('/reminders')} />
+        <ListRow icon="flame" tint={colors.primary} title="AI Coach" subtitle="Personality & aggression" onPress={() => router.push('/settings/coach')} />
+        <ListRow icon="target" tint={colors.protein} title="Goals & Targets" subtitle="Calories, macros, activity" onPress={() => router.push('/settings/goals')} />
+        <ListRow icon="bell" tint={colors.amber} title="Reminders" subtitle="Stay accountable" onPress={() => router.push('/reminders')} />
       </Card>
 
       <SectionHeader title="Tracking" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="⚖️" title="Weight & Body" onPress={() => router.push('/progress/weight')} />
-        <ListRow icon="📸" title="Progress Photos" onPress={() => router.push('/progress/photos')} />
+        <ListRow icon="scale" tint={colors.water} title="Weight & Body" onPress={() => router.push('/progress/weight')} />
+        <ListRow icon="camera" tint={colors.fat} title="Progress Photos" onPress={() => router.push('/progress/photos')} />
         <ListRow
-          icon="🧪"
+          icon="bolt" tint={colors.sleep}
           title="Protocol Tracker"
           subtitle={protocolEnabled ? 'Enabled' : 'Off — enable in settings'}
           onPress={() => (protocolEnabled ? router.push('/protocol') : router.push('/settings/privacy'))}
@@ -104,8 +119,8 @@ export default function Profile() {
 
       <SectionHeader title="Account" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="⚙️" title="Settings" onPress={() => router.push('/settings')} />
-        <ListRow icon="💳" title="Subscription" subtitle={isPro ? 'Pro' : 'Free'} onPress={() => router.push('/settings/subscription')} />
+        <ListRow icon="gear" tint={colors.textDim} title="Settings" onPress={() => router.push('/settings')} />
+        <ListRow icon="card" tint={colors.success} title="Subscription" subtitle={isPro ? 'Pro' : 'Free'} onPress={() => router.push('/settings/subscription')} />
       </Card>
 
       <View style={{ height: spacing.xxxl }} />

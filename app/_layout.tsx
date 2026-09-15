@@ -6,6 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
+import { FONT_MAP } from '../src/theme/typography';
 import { colors } from '../src/theme';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { useProfileStore } from '../src/stores/useProfileStore';
@@ -15,6 +17,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const status = useAuthStore((s) => s.status);
+  const [fontsLoaded, fontError] = useFonts(FONT_MAP);
+  const fontsSettled = fontsLoaded || !!fontError;
 
   useEffect(() => {
     ensureNative();
@@ -24,8 +28,13 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (status !== 'loading') SplashScreen.hideAsync().catch(() => {});
-  }, [status]);
+    if (status !== 'loading' && fontsSettled) SplashScreen.hideAsync().catch(() => {});
+  }, [status, fontsSettled]);
+
+  // Hold the splash until the type system is ready so text never reflows. If a
+  // face fails to load we render anyway with the platform fallback rather than
+  // stranding the user on a blank screen.
+  if (!fontsSettled) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>

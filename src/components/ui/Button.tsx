@@ -49,16 +49,25 @@ export function Button({
     onPress?.();
   };
 
+  const labelColor =
+    variant === 'primary'
+      ? isDisabled
+        ? colors.textFaint
+        : colors.onPrimary
+      : variant === 'danger'
+        ? colors.danger
+        : colors.text;
+
   const content = (
     <View style={styles.row}>
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? colors.onPrimary : colors.text} />
+        <ActivityIndicator color={labelColor} />
       ) : (
         <>
           {icon}
           <Text
             variant={size === 'lg' ? 'title' : 'bodyStrong'}
-            color={variant === 'primary' ? colors.onPrimary : variant === 'danger' ? colors.danger : colors.text}
+            color={labelColor}
           >
             {title}
           </Text>
@@ -73,17 +82,23 @@ export function Button({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
-    opacity: isDisabled ? 0.5 : 1,
+    opacity: isDisabled && variant !== 'primary' ? 0.5 : 1,
     alignSelf: fullWidth ? 'stretch' : 'flex-start',
   };
 
   if (variant === 'primary') {
+    // A faded ember gradient turns muddy brown, so a disabled primary drops to
+    // a flat inert surface rather than a dimmed version of the live one.
     return (
       <Pressable onPress={handlePress} onPressIn={onPressIn} onPressOut={onPressOut} disabled={isDisabled} style={[fullWidth && { alignSelf: 'stretch' }, style]}>
         <Animated.View style={{ transform: [{ scale }] }}>
-          <LinearGradient colors={gradients.ember} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={base}>
-            {content}
-          </LinearGradient>
+          {isDisabled ? (
+            <View style={[base, { backgroundColor: colors.surfaceHigh }]}>{content}</View>
+          ) : (
+            <LinearGradient colors={gradients.ember} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={base}>
+              {content}
+            </LinearGradient>
+          )}
         </Animated.View>
       </Pressable>
     );
