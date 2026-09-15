@@ -8,11 +8,12 @@ import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { PrBanner } from '../../src/components/PrBanner';
 import { RestTimer } from '../../src/components/RestTimer';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, noOutline, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayVolume, displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
 import type { SetEntry, WorkoutExercise } from '../../src/domain/types';
+import { SET_KIND_LABEL, SET_KIND_MARK, isWarmupSet, nextSetKind, setKind } from '../../src/domain/sets';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
@@ -120,6 +121,13 @@ export default function ActiveWorkout() {
         )}
         <View style={{ padding: spacing.xl, gap: spacing.md }}>
           <Button title="Add Exercise" variant="secondary" icon={<Icon name="plus" size={18} color={colors.text} />} onPress={() => router.push('/workout/library?select=1')} />
+          {active.exercises.length > 0 && (
+            <Text variant="caption" color={colors.textFaint} center>
+              Tap a set number to mark it <Text variant="caption" color={colors.amber}>W</Text>arm-up,{' '}
+              <Text variant="caption" color={colors.info}>D</Text>rop or to{' '}
+              <Text variant="caption" color={colors.danger}>F</Text>ailure. Long-press the tick to delete a set.
+            </Text>
+          )}
         </View>
       </ScrollView>
 
@@ -156,6 +164,8 @@ function ExerciseBlock({
   const recommendationFor = useWorkoutStore((s) => s.recommendationFor);
   const addSet = useWorkoutStore((s) => s.addSet);
   const removeExercise = useWorkoutStore((s) => s.removeExercise);
+  const setNote = useWorkoutStore((s) => s.setExerciseNote);
+  const [noteOpen, setNoteOpen] = useState(exercise.notes != null);
 
   // The heaviest weight already typed into this exercise, in display units.
   const heaviestEntered = (() => {
@@ -238,6 +248,23 @@ function ExerciseBlock({
         />
       ))}
 
+      {noteOpen ? (
+        <TextInput
+          value={exercise.notes ?? ''}
+          onChangeText={(t) => setNote(exercise.id, t)}
+          placeholder="Cue, tweak, how it felt…"
+          placeholderTextColor={colors.textFaint}
+          multiline
+          style={[styles.note, noOutline]}
+          selectionColor={colors.primary}
+        />
+      ) : (
+        <Pressable onPress={() => setNoteOpen(true)} style={styles.noteOpen} hitSlop={6}>
+          <Icon name="document" size={14} color={colors.textFaint} strokeWidth={1.8} />
+          <Text variant="caption" color={colors.textFaint}>Add a note</Text>
+        </Pressable>
+      )}
+
       <Pressable onPress={() => addSet(exercise.id)} style={styles.addSet}>
         <Icon name="plus" size={16} color={colors.primary} />
         <Text variant="label" color={colors.primary}>Add set</Text>
@@ -266,10 +293,14 @@ function SetRow({
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const removeSet = useWorkoutStore((s) => s.removeSet);
   const toggle = useWorkoutStore((s) => s.toggleSetComplete);
+  const cycleKind = useWorkoutStore((s) => s.cycleSetKind);
 
   const [weight, setWeight] = useState(set.weightKg != null ? String(round(units === 'imperial' ? kgToLb(set.weightKg) : set.weightKg, 1)) : '');
   const [reps, setReps] = useState(set.reps != null ? String(set.reps) : '');
   const [rpe, setRpe] = useState(set.rpe != null ? String(set.rpe) : '');
+
+  const kind = setKind(set);
+  const mark = SET_KIND_MARK[kind];
 
   const commitWeight = (t: string) => {
     setWeight(t);
@@ -296,14 +327,24 @@ function SetRow({
     } else {
       Haptics.selectionAsync().catch(() => {});
     }
-    if (!wasComplete) onRest(restSeconds);
+    // A warm-up doesn't earn a full working rest; capping it keeps the timer
+    // from sitting on screen through the whole ramp.
+    if (!wasComplete) onRest(isWarmupSet(set) ? Math.min(restSeconds, 60) : restSeconds);
   };
 
   return (
     <View style={[styles.setRow, set.completed && { backgroundColor: 'rgba(61,220,132,0.06)', borderRadius: radius.sm }]}>
-      <Text variant="bodyStrong" color={set.isPr ? colors.amber : colors.text} style={{ width: 28, textAlign: 'center' }}>
-        {set.isPr ? '★' : index}
-      </Text>
+      <Pressable
+        onPress={() => cycleKind(weId, set.id)}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`${SET_KIND_LABEL[kind]} — tap for ${SET_KIND_LABEL[nextSetKind(set)].toLowerCase()}`}
+        style={{ width: 28 }}
+      >
+        <Text variant="bodyStrong" color={set.isPr ? colors.amber : mark ? KIND_COLOR[kind] : colors.text} center>
+          {set.isPr ? '★' : (mark ?? index)}
+        </Text>
+      </Pressable>
       <Cell value={weight} onChange={commitWeight} placeholder="0" />
       <Cell value={reps} onChange={commitReps} placeholder="0" />
       <Cell value={rpe} onChange={commitRpe} placeholder="-" />
@@ -322,11 +363,18 @@ function Cell({ value, onChange, placeholder }: { value: string; onChange: (t: s
       keyboardType="decimal-pad"
       placeholder={placeholder}
       placeholderTextColor={colors.textFaint}
-      style={styles.cell}
+      style={[styles.cell, noOutline]}
       selectionColor={colors.primary}
     />
   );
 }
+
+const KIND_COLOR: Record<string, string> = {
+  working: colors.text,
+  warmup: colors.amber,
+  drop: colors.info,
+  failure: colors.danger,
+};
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
@@ -352,5 +400,16 @@ const styles = StyleSheet.create({
   checkOn: { backgroundColor: colors.success },
   checkDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: colors.textFaint },
   removeExercise: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  note: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    minHeight: 60,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceHigh,
+    color: colors.text,
+    fontSize: 14,
+    textAlignVertical: 'top',
+  },
+  noteOpen: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingTop: spacing.sm },
   addSet: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.md, marginTop: spacing.xs },
 });

@@ -1,4 +1,5 @@
 import { displayWeight, round } from './units';
+import { isWarmupSet } from './sets';
 import type { Experience, SetEntry, Units, Workout } from './types';
 
 export interface PreviousPerformance {
@@ -36,7 +37,7 @@ export function findPreviousPerformance(
     if (!ex) continue;
     let best: SetEntry | null = null;
     for (const s of ex.sets) {
-      if (!s.completed || s.isWarmup || !s.weightKg || !s.reps) continue;
+      if (!s.completed || isWarmupSet(s) || !s.weightKg || !s.reps) continue;
       if (!best || (s.weightKg ?? 0) * (s.reps ?? 0) > (best.weightKg ?? 0) * (best.reps ?? 0)) {
         best = s;
       }

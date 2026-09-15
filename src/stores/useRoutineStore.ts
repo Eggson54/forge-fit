@@ -5,6 +5,7 @@ import type { WorkoutGenResult } from '../services/ai/types';
 import { uid } from '../lib/uid';
 import { jsonStorage } from './persist';
 import { useWorkoutStore } from './useWorkoutStore';
+import { isWarmupSet } from '../domain/sets';
 
 export interface RoutineExercise {
   exerciseId: string;
@@ -107,7 +108,7 @@ export const useRoutineStore = create<RoutineState>()(
           exerciseId: ex.exerciseId,
           name: ex.name,
           primaryMuscle: ex.primaryMuscle,
-          sets: Math.max(1, ex.sets.filter((s) => !s.isWarmup).length),
+          sets: Math.max(1, ex.sets.filter((s) => !isWarmupSet(s)).length),
           targetReps: ex.targetReps ?? 8,
           restSeconds: ex.restSeconds,
         }));

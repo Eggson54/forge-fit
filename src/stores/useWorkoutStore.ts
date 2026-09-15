@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { todayISO } from '../domain/date';
 import { epley1RM } from '../domain/strength';
+import { isWarmupSet, nextSetKind } from '../domain/sets';
 import { findPreviousPerformance, recommendNext, type PreviousPerformance } from '../domain/progressiveOverload';
 import type {
   Exercise,
@@ -41,6 +42,8 @@ interface WorkoutState {
   addSet: (workoutExerciseId: string) => void;
   updateSet: (workoutExerciseId: string, setId: string, patch: Partial<SetEntry>) => void;
   removeSet: (workoutExerciseId: string, setId: string) => void;
+  cycleSetKind: (workoutExerciseId: string, setId: string) => void;
+  setExerciseNote: (workoutExerciseId: string, note: string) => void;
   /** Returns the new personal record this completion set, if any. */
   toggleSetComplete: (workoutExerciseId: string, setId: string) => NewPr | null;
 
@@ -181,6 +184,22 @@ export const useWorkoutStore = create<WorkoutState>()(
           exercises: w.exercises.map((e) => (e.id === weId ? { ...e, sets: e.sets.filter((s) => s.id !== setId) } : e)),
         })),
 
+      cycleSetKind: (weId, setId) =>
+        mutateActive((w) => ({
+          ...w,
+          exercises: w.exercises.map((e) =>
+            e.id === weId
+              ? { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, kind: nextSetKind(s), isWarmup: undefined } : s)) }
+              : e,
+          ),
+        })),
+
+      setExerciseNote: (weId, note) =>
+        mutateActive((w) => ({
+          ...w,
+          exercises: w.exercises.map((e) => (e.id === weId ? { ...e, notes: note.trim() ? note : undefined } : e)),
+        })),
+
       toggleSetComplete: (weId, setId) => {
         const prs = { ...get().prs };
         // Reported back so the screen can celebrate the moment it happens rather
@@ -196,7 +215,7 @@ export const useWorkoutStore = create<WorkoutState>()(
                 if (s.id !== setId) return s;
                 const completed = !s.completed;
                 let isPr = s.isPr;
-                if (completed && s.weightKg && s.reps) {
+                if (completed && s.weightKg && s.reps && !isWarmupSet(s)) {
                   const e1rm = epley1RM(s.weightKg, s.reps);
                   if (e1rm > (prs[e.exerciseId] ?? 0)) {
                     prs[e.exerciseId] = e1rm;

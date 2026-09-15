@@ -1,4 +1,5 @@
 import type { MuscleGroup, Workout } from './types';
+import { isWarmupSet } from './sets';
 
 /**
  * Weekly training volume measured in *working sets per muscle* — the standard
@@ -32,7 +33,7 @@ export function weeklySetsPerMuscle(workouts: Workout[]): MuscleVolume {
   };
   for (const w of workouts) {
     for (const ex of w.exercises) {
-      const workingSets = ex.sets.filter((s) => s.completed && !s.isWarmup).length;
+      const workingSets = ex.sets.filter((s) => s.completed && !isWarmupSet(s)).length;
       if (workingSets === 0) continue;
       add(ex.primaryMuscle, workingSets);
       // Secondary muscles get half credit — attribute from the exercise library

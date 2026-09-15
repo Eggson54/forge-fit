@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Platform, StyleSheet, TextInput, View, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
-import { colors, radius, spacing, typography } from '../../theme';
+import { StyleSheet, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { colors, noOutline, radius, spacing, typography } from '../../theme';
 import { Text } from './Text';
 import { Icon, type IconName } from '../Icon';
 
@@ -31,7 +31,7 @@ export function Input({ label, suffix, error, icon, style, onFocus, onBlur, ...r
           placeholderTextColor={colors.textFaint}
           // The field itself draws the focus state, so suppress the browser's
           // own outline on web rather than stacking two rings.
-          style={[styles.input, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as TextStyle) : null, style]}
+          style={[styles.input, noOutline, style]}
           selectionColor={colors.primary}
           onFocus={(e) => {
             setFocused(true);

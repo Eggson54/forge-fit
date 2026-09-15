@@ -23,6 +23,7 @@ import {
 import type { NutritionEntry, Profile, Workout } from '../domain/types';
 import { displayVolume, groupThousands } from '../domain/units';
 import { longestRunOfDays } from '../domain/date';
+import { isWarmupSet, nextSetKind, setKind } from '../domain/sets';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -369,5 +370,38 @@ describe('longestRun', () => {
   it('is 0 for no training and 1 for a single day', () => {
     expect(longestRunOfDays(new Set())).toBe(0);
     expect(longestRunOfDays(new Set(['2026-05-05']))).toBe(1);
+  });
+});
+
+describe('set kinds', () => {
+  const base = { id: 's1', weightKg: 100, reps: 5, rpe: null, completed: true };
+
+  it('reads the legacy isWarmup flag', () => {
+    expect(setKind({ ...base, isWarmup: true })).toBe('warmup');
+    expect(isWarmupSet({ ...base, isWarmup: true })).toBe(true);
+  });
+
+  it('prefers kind over the legacy flag', () => {
+    expect(setKind({ ...base, kind: 'drop', isWarmup: true })).toBe('drop');
+  });
+
+  it('defaults to a working set', () => {
+    expect(setKind(base)).toBe('working');
+    expect(isWarmupSet(base)).toBe(false);
+  });
+
+  it('counts drop and failure sets as real work', () => {
+    expect(isWarmupSet({ ...base, kind: 'drop' })).toBe(false);
+    expect(isWarmupSet({ ...base, kind: 'failure' })).toBe(false);
+  });
+
+  it('cycles back around', () => {
+    let kind = setKind(base);
+    const seen: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      kind = nextSetKind({ ...base, kind });
+      seen.push(kind);
+    }
+    expect(seen).toEqual(['warmup', 'drop', 'failure', 'working']);
   });
 });

@@ -1,5 +1,6 @@
 export * from './colors';
 export * from './typography';
+export * from './webStyle';
 
 export const spacing = {
   xs: 4,

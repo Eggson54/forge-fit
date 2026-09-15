@@ -10,6 +10,7 @@ import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayWeight, groupThousands } from '../../src/domain/units';
 import type { MuscleGroup } from '../../src/domain/types';
+import { SET_KIND_LABEL, setKind } from '../../src/domain/sets';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useRoutineStore } from '../../src/stores/useRoutineStore';
@@ -93,7 +94,7 @@ export default function WorkoutDetail() {
                 return (
                   <View key={s.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text variant="caption" color={colors.textDim}>
-                      Set {i + 1} {s.isPr ? '★' : ''}
+                      {setKind(s) === 'working' ? `Set ${i + 1}` : SET_KIND_LABEL[setKind(s)]} {s.isPr ? '★' : ''}
                     </Text>
                     <Text variant="label">
                       {w ? `${Math.round(w.value * 10) / 10} ${w.unit}` : '—'} × {s.reps ?? '—'}
@@ -108,6 +109,11 @@ export default function WorkoutDetail() {
                 </Text>
               )}
             </View>
+            {ex.notes ? (
+              <Text variant="caption" color={colors.textDim} style={{ marginTop: spacing.sm, fontStyle: 'italic' }}>
+                “{ex.notes}”
+              </Text>
+            ) : null}
           </Card>
         );
       })}

@@ -101,12 +101,20 @@ export interface Exercise {
   isUnilateral?: boolean;
 }
 
+/**
+ * What a set is *for*. Only warmups are excluded from volume, PRs and
+ * progression — a drop set or a set taken to failure is real work.
+ */
+export type SetKind = 'working' | 'warmup' | 'drop' | 'failure';
+
 export interface SetEntry {
   id: string;
   weightKg: number | null;
   reps: number | null;
   rpe: number | null;
   completed: boolean;
+  kind?: SetKind;
+  /** @deprecated Superseded by `kind`; still read so older logs keep counting. */
   isWarmup?: boolean;
   isPr?: boolean;
 }

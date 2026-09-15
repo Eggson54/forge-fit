@@ -1,4 +1,5 @@
 import { round } from './units';
+import { isWarmupSet } from './sets';
 import type { MuscleGroup, SetEntry, Workout, WorkoutExercise } from './types';
 
 /** Estimated one-rep max (Epley formula). Reps of 1 returns the weight. */
@@ -10,7 +11,7 @@ export function epley1RM(weightKg: number, reps: number): number {
 
 /** Volume (kg) for a single set: weight * reps. Warmups excluded by caller. */
 export function setVolume(set: SetEntry): number {
-  if (!set.completed || set.isWarmup) return 0;
+  if (!set.completed || isWarmupSet(set)) return 0;
   return (set.weightKg ?? 0) * (set.reps ?? 0);
 }
 
@@ -37,7 +38,7 @@ export function workoutStats(w: Workout): WorkoutStats {
   for (const ex of w.exercises) {
     let exVol = 0;
     for (const s of ex.sets) {
-      if (!s.completed || s.isWarmup) continue;
+      if (!s.completed || isWarmupSet(s)) continue;
       const v = setVolume(s);
       exVol += v;
       totalVolumeKg += v;
