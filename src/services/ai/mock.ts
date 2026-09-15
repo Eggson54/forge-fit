@@ -90,14 +90,9 @@ export class MockAIService implements AIService {
     const s = req.stats;
     return {
       summary: weeklyReviewSummary(s, req.settings),
-      highlights: [
-        `Workouts: ${s.workoutsCompleted}/${s.workoutsPlanned}`,
-        `Avg protein: ${Math.round(s.avgProteinG)}g`,
-        `Avg calories: ${Math.round(s.avgCalories)}`,
-        `Avg steps: ${Math.round(s.avgSteps).toLocaleString()}`,
-        `Weight: ${s.weightChangeKg >= 0 ? '+' : ''}${s.weightChangeKg.toFixed(1)} kg`,
-        `Strength: ${s.strengthChangePct >= 0 ? '+' : ''}${s.strengthChangePct.toFixed(1)}%`,
-      ],
+      // The screen already shows every raw number as a tile, so the highlights
+      // say what each one means rather than repeating it.
+      highlights: weeklyHighlights(s),
       focusNextWeek:
         s.avgWaterOz < s.waterTargetOz * 0.9
           ? 'Hydration was your weakest link — make water the first win each morning.'
@@ -136,3 +131,45 @@ function defaultFocus(cutting: boolean): MuscleGroup[] {
   return cutting ? ['full_body'] : ['chest', 'triceps'];
 }
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Comparative read of the week: each line adds something the tiles do not show. */
+function weeklyHighlights(s: WeeklyReviewRequest['stats']): string[] {
+  const out: string[] = [];
+
+  const missed = s.workoutsPlanned - s.workoutsCompleted;
+  out.push(
+    missed <= 0
+      ? `Hit all ${s.workoutsPlanned} planned sessions.`
+      : `Missed ${missed} of ${s.workoutsPlanned} planned sessions.`,
+  );
+
+  const proteinPct = s.proteinTargetG > 0 ? Math.round((s.avgProteinG / s.proteinTargetG) * 100) : 0;
+  out.push(
+    proteinPct >= 95
+      ? `Protein averaged ${proteinPct}% of target — dialled in.`
+      : `Protein averaged ${proteinPct}% of target, about ${Math.max(0, Math.round(s.proteinTargetG - s.avgProteinG))}g short a day.`,
+  );
+
+  const waterPct = s.waterTargetOz > 0 ? Math.round((s.avgWaterOz / s.waterTargetOz) * 100) : 0;
+  out.push(waterPct >= 90 ? `Hydration held at ${waterPct}% of target.` : `Hydration slipped to ${waterPct}% of target.`);
+
+  if (s.avgSteps > 0) {
+    out.push(
+      s.avgSteps >= 10000
+        ? `Averaged ${Math.round(s.avgSteps).toLocaleString()} steps a day outside training.`
+        : `Daily steps averaged ${Math.round(s.avgSteps).toLocaleString()} — room to move more on rest days.`,
+    );
+  }
+
+  if (Math.abs(s.strengthChangePct) >= 0.5) {
+    out.push(
+      s.strengthChangePct > 0
+        ? `Estimated strength is up ${s.strengthChangePct.toFixed(1)}% week over week.`
+        : `Estimated strength is down ${Math.abs(s.strengthChangePct).toFixed(1)}% — watch recovery.`,
+    );
+  } else {
+    out.push('Strength held steady week over week.');
+  }
+
+  return out;
+}

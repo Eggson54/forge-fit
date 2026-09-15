@@ -59,7 +59,7 @@ function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () =>
   };
   return (
     <View style={{ gap: spacing.sm }}>
-      <Input value={q} onChangeText={setQ} placeholder="Search foods (e.g. chicken)" autoFocus autoCapitalize="none" />
+      <Input icon="search" value={q} onChangeText={setQ} placeholder="Search foods (e.g. chicken)" autoFocus autoCapitalize="none" />
       {results.map((f) => (
         <Card key={f.id} onPress={() => save(f)}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

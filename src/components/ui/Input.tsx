@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { Platform, StyleSheet, TextInput, View, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
 import { Text } from './Text';
+import { Icon, type IconName } from '../Icon';
 
 interface Props extends TextInputProps {
   label?: string;
   suffix?: string;
   error?: string;
+  /** Glyph drawn inside the field, before the text. */
+  icon?: IconName;
 }
 
-export function Input({ label, suffix, error, style, onFocus, onBlur, ...rest }: Props) {
+export function Input({ label, suffix, error, icon, style, onFocus, onBlur, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
 
   const borderColor = error ? colors.danger : focused ? colors.primary : colors.border;
@@ -23,6 +26,7 @@ export function Input({ label, suffix, error, style, onFocus, onBlur, ...rest }:
         </Text>
       )}
       <View style={[styles.wrap, { borderColor, borderWidth: focused || error ? 1 : StyleSheet.hairlineWidth }, focusRing]}>
+        {icon && <Icon name={icon} size={18} color={focused ? colors.primary : colors.textFaint} strokeWidth={1.9} />}
         <TextInput
           placeholderTextColor={colors.textFaint}
           // The field itself draws the focus state, so suppress the browser's

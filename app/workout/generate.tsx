@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Button, Card, Chip, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -50,7 +50,21 @@ export default function GenerateWorkout() {
   };
 
   return (
-    <Screen gradient footer={result ? <Button title="Start This Workout" onPress={start} size="lg" /> : undefined}>
+    <Screen
+      gradient
+      footer={
+        <View style={{ gap: spacing.sm }}>
+          {result && <Button title="Start This Workout" onPress={start} size="lg" />}
+          <Button
+            title={result ? 'Regenerate' : 'Generate Workout'}
+            variant={result ? 'secondary' : 'primary'}
+            onPress={generate}
+            loading={loading}
+            size={result ? 'md' : 'lg'}
+          />
+        </View>
+      }
+    >
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title="AI Workout" />
 
@@ -76,9 +90,13 @@ export default function GenerateWorkout() {
         ))}
       </View>
 
-      <View style={{ marginTop: spacing.xl }}>
-        <Button title={result ? 'Regenerate' : 'Generate Workout'} onPress={generate} loading={loading} />
-      </View>
+      {/* What the generator is working from, so the inputs are not a black box. */}
+      <SectionHeader title="Built from your profile" />
+      <Card>
+        <ProfileRow label="Goal" value={label(profile.goal)} />
+        <ProfileRow label="Experience" value={label(profile.experience)} />
+        <ProfileRow label="Equipment" value={profile.equipment.map(label).join(', ') || 'Bodyweight'} last />
+      </Card>
 
       {result && (
         <Card style={{ marginTop: spacing.xl }}>
@@ -103,4 +121,27 @@ export default function GenerateWorkout() {
   );
 }
 
-const label = (m: MuscleGroup) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+function ProfileRow({ label: name, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: spacing.lg,
+        paddingVertical: spacing.sm,
+        borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
+      }}
+    >
+      <Text variant="body" color={colors.textDim}>
+        {name}
+      </Text>
+      <Text variant="bodyStrong" style={{ flexShrink: 1, textAlign: 'right' }}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const label = (m: string) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());

@@ -46,7 +46,7 @@ export default function Integrations() {
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="timer" size={24} color={colors.text} />
+              <Icon name="watch" size={24} color={colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text variant="bodyStrong">Apple Watch</Text>
@@ -65,7 +65,7 @@ export default function Integrations() {
             {s.appleWatchConnected ? (
               <Button title="Disconnect" variant="ghost" onPress={s.disconnectAppleWatch} />
             ) : (
-              <Button title="Connect Apple Watch" loading={busy === 'watch'} onPress={() => run('watch', s.connectAppleWatch)} />
+              <Button title="Connect Apple Watch" variant="secondary" loading={busy === 'watch'} onPress={() => run('watch', s.connectAppleWatch)} />
             )}
           </View>
         </Card>
@@ -76,8 +76,8 @@ export default function Integrations() {
       <FadeIn delay={60}>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#FC4C02', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="bolt" size={24} color="#fff" />
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="bolt" size={24} color={colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text variant="bodyStrong">Strava</Text>
@@ -108,7 +108,7 @@ export default function Integrations() {
                 <Button title="Disconnect" variant="ghost" onPress={() => run('strava-dc', s.disconnectStrava)} style={{ flex: 1 }} />
               </View>
             ) : (
-              <Button title="Connect Strava" loading={busy === 'strava'} onPress={() => run('strava', s.connectStrava)} />
+              <Button title="Connect Strava" variant="secondary" loading={busy === 'strava'} onPress={() => run('strava', s.connectStrava)} />
             )}
           </View>
           {!strava.usingRealOAuth && (

@@ -20,6 +20,16 @@ function initialAchievements(): Achievement[] {
   return ACHIEVEMENT_CATALOG.map((a) => ({ ...a, unlockedAt: null }));
 }
 
+/**
+ * Reconcile a persisted list against the current catalog: badges added in a
+ * later release appear (locked) for existing users, badges that were removed
+ * drop out, and copy changes take effect — while unlock dates are preserved.
+ */
+function mergeWithCatalog(saved: Achievement[] | undefined): Achievement[] {
+  const unlockedAt = new Map((saved ?? []).map((a) => [a.id, a.unlockedAt] as const));
+  return ACHIEVEMENT_CATALOG.map((a) => ({ ...a, unlockedAt: unlockedAt.get(a.id) ?? null }));
+}
+
 export const useGamificationStore = create<GamificationState>()(
   persist(
     (set, get) => ({
@@ -50,6 +60,12 @@ export const useGamificationStore = create<GamificationState>()(
 
       reset: () => set({ streaks: emptyStreaks(), achievements: initialAchievements(), bestDisciplineScore: 0 }),
     }),
-    { name: STORE_KEYS.gamification, storage: jsonStorage() },
+    {
+      name: STORE_KEYS.gamification,
+      storage: jsonStorage(),
+      onRehydrateStorage: () => (state) => {
+        if (state) state.achievements = mergeWithCatalog(state.achievements);
+      },
+    },
   ),
 );

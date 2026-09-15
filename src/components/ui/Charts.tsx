@@ -26,14 +26,16 @@ function EmptyPlot({ height, message }: { height: number; message: string }) {
 function niceBounds(values: number[]): { lo: number; hi: number } {
   const min = Math.min(...values);
   const max = Math.max(...values);
+  const range = max - min;
   const mag = Math.max(Math.abs(max), 1);
-  // A flat (or near-flat) series must read as flat in the middle of the plot,
-  // not pinned to the top edge by a razor-thin range.
-  if (max - min < mag * 0.02) {
-    const band = Math.max(mag * 0.05, 1);
-    return { lo: min - band, hi: max + band };
-  }
-  const pad = (max - min) * 0.15;
+
+  // Headroom is a fraction of the RANGE, not of the magnitude. Series that sit
+  // far from zero — bodyweight, estimated 1RM — move by a few units on a base of
+  // two hundred, and padding by magnitude would flatten a real trend into a
+  // hairline across the middle of an empty plot. The magnitude term survives
+  // only as a floor, so a genuinely flat series still gets a band to sit in
+  // rather than being pinned to an edge by a zero-height range.
+  const pad = Math.max(range * 0.15, mag * 0.005, 0.5);
   return { lo: min - pad, hi: max + pad };
 }
 

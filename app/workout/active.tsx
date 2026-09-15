@@ -153,17 +153,23 @@ function ExerciseBlock({ exercise, onRest }: { exercise: WorkoutExercise; onRest
             )}
           </View>
         </View>
-        <Pressable onPress={() => removeExercise(exercise.id)} hitSlop={8}>
-          <Text variant="caption" color={colors.textFaint}>Remove</Text>
+        <Pressable
+          onPress={() => removeExercise(exercise.id)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${exercise.name}`}
+          style={styles.removeExercise}
+        >
+          <Icon name="trash" size={16} color={colors.textFaint} strokeWidth={1.8} />
         </Pressable>
       </View>
 
       {/* column header */}
       <View style={[styles.setRow, { marginTop: spacing.md }]}>
         <Text variant="caption" color={colors.textFaint} style={{ width: 28 }}>SET</Text>
-        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, textAlign: 'center' }}>{units === 'imperial' ? 'LB' : 'KG'}</Text>
-        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, textAlign: 'center' }}>REPS</Text>
-        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, textAlign: 'center' }}>RPE</Text>
+        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>{units === 'imperial' ? 'LB' : 'KG'}</Text>
+        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>REPS</Text>
+        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>RPE</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -234,7 +240,7 @@ function SetRow({
       <Cell value={reps} onChange={commitReps} placeholder="0" />
       <Cell value={rpe} onChange={commitRpe} placeholder="-" />
       <Pressable onPress={onToggle} onLongPress={() => removeSet(weId, set.id)} style={[styles.check, set.completed && styles.checkOn]} hitSlop={6}>
-        {set.completed ? <Icon name="flame" size={16} color={colors.onPrimary} /> : <View style={styles.checkDot} />}
+        {set.completed ? <Icon name="check" size={16} color="#0B0B0F" strokeWidth={2.6} /> : <View style={styles.checkDot} />}
       </Pressable>
     </View>
   );
@@ -258,10 +264,25 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   footer: { padding: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  setRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
-  cell: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 16, fontWeight: '600', backgroundColor: colors.surfaceHigh, borderRadius: radius.sm, paddingVertical: spacing.sm },
+  setRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing.sm },
+  // minWidth 0 matters: a web TextInput carries an intrinsic min-content width
+  // from its `size` attribute, which stops flex from shrinking the cells and
+  // pushes RPE and the complete toggle off the row.
+  cell: {
+    flex: 1,
+    minWidth: 0,
+    textAlign: 'center',
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: 2,
+  },
   check: { width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: colors.success },
   checkDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: colors.textFaint },
+  removeExercise: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   addSet: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.md, marginTop: spacing.xs },
 });

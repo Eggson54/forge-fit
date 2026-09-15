@@ -270,7 +270,10 @@ export interface Achievement {
   id: string;
   title: string;
   description: string;
+  /** Name of a glyph in the app icon set, not an emoji. */
   icon: string;
+  /** Hex tint for the badge medallion. */
+  tint: string;
   unlockedAt: ISODateTime | null;
 }
 

@@ -72,9 +72,7 @@ export default function Leaderboard() {
                   backgroundColor: r.isMe ? 'rgba(255,90,31,0.08)' : colors.card,
                 }}
               >
-                <View style={{ width: 30, alignItems: 'center' }}>
-                  <Text variant="bodyStrong" color={i < 3 ? colors.amber : colors.textDim}>{medal(i)}</Text>
-                </View>
+                <RankBadge place={i + 1} />
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tier.color }} />
                 <View style={{ flex: 1 }}>
                   <Text variant="bodyStrong" color={r.isMe ? colors.primary : colors.text}>{r.handle}</Text>
@@ -107,4 +105,34 @@ function tierFor(score: number) {
   for (const tier of RANK_TIERS) if (score >= tier.min) t = tier;
   return t;
 }
-const medal = (i: number) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i + 1));
+/**
+ * Place marker. The top three get a metal-tinted disc rather than an emoji
+ * medal, which renders differently on every platform and reads as a sticker.
+ */
+const PODIUM: Record<number, { ring: string; fill: string; text: string }> = {
+  1: { ring: '#FFD062', fill: 'rgba(255,208,98,0.16)', text: '#FFD062' },
+  2: { ring: '#C9CEDC', fill: 'rgba(201,206,220,0.14)', text: '#C9CEDC' },
+  3: { ring: '#D08A55', fill: 'rgba(208,138,85,0.16)', text: '#D08A55' },
+};
+
+function RankBadge({ place }: { place: number }) {
+  const p = PODIUM[place];
+  return (
+    <View
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: p ? p.fill : 'transparent',
+        borderWidth: p ? 1 : 0,
+        borderColor: p ? p.ring : 'transparent',
+      }}
+    >
+      <Text variant="caption" color={p ? p.text : colors.textDim}>
+        {place}
+      </Text>
+    </View>
+  );
+}
