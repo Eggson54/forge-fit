@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   track: { backgroundColor: colors.surfaceHigh, overflow: 'hidden', width: '100%' },
-  statTile: { flex: 1, gap: 2 },
+  statTile: { flex: 1, minWidth: 0, gap: 2 },
   accentDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxxl, paddingHorizontal: spacing.lg },
   emptyIcon: {

@@ -68,13 +68,14 @@ export default function WorkoutTab() {
       </View>
 
       <SectionHeader title="Recent workouts" action={completed.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />
+      {/* The empty state carries no action: the Empty Workout tile above and the
+          footer button below are already the same tap, and three copies of one
+          call to action on one screen reads as indecision. */}
       {completed.length === 0 ? (
         <EmptyState
           icon="dumbbell"
           title="No workouts yet"
           subtitle="Start your first session and your coach starts tracking."
-          action="Start an empty workout"
-          onAction={startBlank}
         />
       ) : (
         <View style={{ gap: spacing.md }}>

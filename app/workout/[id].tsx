@@ -66,10 +66,12 @@ export default function WorkoutDetail() {
         </Card>
       </FadeIn>
 
+      {/* All four tiles carry an accent dot, and the unit moves into the value:
+          "Top e1RM (lb)" wrapped into the neighbouring label at quarter width. */}
       <Card style={{ flexDirection: 'row', marginBottom: spacing.lg }}>
-        <StatTile value={`${stats.totalSets}`} label="Sets" />
-        <StatTile value={`${stats.totalReps}`} label="Reps" />
-        <StatTile value={`${Math.round(e1rm.value)}`} label={`Top e1RM (${e1rm.unit})`} accent={colors.protein} />
+        <StatTile value={`${stats.totalSets}`} label="Sets" accent={colors.primary} />
+        <StatTile value={`${stats.totalReps}`} label="Reps" accent={colors.water} />
+        <StatTile value={`${Math.round(e1rm.value)} ${e1rm.unit}`} label="Top e1RM" accent={colors.protein} />
         <StatTile value={`${prCount}`} label="PRs" accent={colors.amber} />
       </Card>
 
