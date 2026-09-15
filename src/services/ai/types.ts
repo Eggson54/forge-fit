@@ -38,6 +38,8 @@ export interface GeneratedExercise {
   sets: number;
   reps: [number, number];
   restSeconds: number;
+  /** Shared by adjacent exercises meant to be trained as a superset. */
+  supersetGroup?: string;
 }
 export interface WorkoutGenResult {
   name: string;

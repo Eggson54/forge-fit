@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, EmptyState, IconButton, Input, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { Stagger } from '../../src/components/anim';
@@ -8,6 +8,7 @@ import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { colors, radius, spacing } from '../../src/theme';
 import type { MuscleGroup } from '../../src/domain/types';
+import { supersetLabel, toggleSupersetAt } from '../../src/domain/superset';
 import { useRoutineStore, type RoutineExercise } from '../../src/stores/useRoutineStore';
 
 /**
@@ -115,11 +116,17 @@ export default function RoutineBuilder() {
       ) : (
         <View style={{ gap: spacing.sm }}>
           <Stagger step={40}>
-            {items.map((it, idx) => (
-              <Card key={it.exerciseId} style={{ gap: spacing.md }}>
+            {items.map((it, idx) => {
+              const pairedAbove = !!it.supersetGroup && it.supersetGroup === items[idx - 1]?.supersetGroup;
+              const pairedBelow = !!it.supersetGroup && it.supersetGroup === items[idx + 1]?.supersetGroup;
+              const letter = pairedAbove || pairedBelow ? supersetLetterAt(items, idx) : null;
+              return (
+              <View key={it.exerciseId} style={pairedAbove || pairedBelow ? styles.grouped : undefined}>
+              <Card style={{ gap: spacing.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   <MuscleThumb muscle={it.primaryMuscle} size={28} />
                   <Text variant="bodyStrong" style={{ flex: 1 }}>
+                    {letter ? <Text variant="bodyStrong" color={colors.primary}>{letter} </Text> : null}
                     {it.name}
                   </Text>
                   <IconButton
@@ -171,7 +178,23 @@ export default function RoutineBuilder() {
                   />
                 </View>
               </Card>
-            ))}
+              {idx < items.length - 1 && (
+                <Pressable
+                  onPress={() => setDraftExercises(toggleSupersetAt(items, idx))}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={pairedBelow ? 'Break this superset here' : 'Superset with the next exercise'}
+                  style={styles.linkButton}
+                >
+                  <Icon name={pairedBelow ? 'link_off' : 'repeat'} size={13} color={pairedBelow ? colors.primary : colors.textFaint} strokeWidth={1.9} />
+                  <Text variant="caption" color={pairedBelow ? colors.primary : colors.textFaint}>
+                    {pairedBelow ? 'Superset — tap to unlink' : 'Superset with next'}
+                  </Text>
+                </Pressable>
+              )}
+              </View>
+              );
+            })}
           </Stagger>
         </View>
       )}
@@ -180,6 +203,28 @@ export default function RoutineBuilder() {
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** A/B/C for an exercise's position inside the run of pairings it belongs to. */
+function supersetLetterAt(items: RoutineExercise[], idx: number): string {
+  let start = idx;
+  while (start > 0 && items[start - 1]?.supersetGroup === items[idx]?.supersetGroup) start -= 1;
+  return supersetLabel(idx - start);
+}
+
+const styles = StyleSheet.create({
+  grouped: {
+    borderLeftWidth: 2,
+    borderLeftColor: colors.primary,
+    paddingLeft: spacing.sm,
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+});
 
 function suggestName(focus: MuscleGroup[]): string {
   if (focus.length === 0) return 'New routine';

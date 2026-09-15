@@ -495,8 +495,7 @@ describe('changeVerdict', () => {
 });
 
 describe('supersets', () => {
-  const ex = (id: string, supersetGroup?: string) =>
-    ({ id, exerciseId: id, name: id, primaryMuscle: 'chest', restSeconds: 150, sets: [], supersetGroup }) as never;
+  const ex = (id: string, supersetGroup?: string) => ({ id, supersetGroup });
   const tags = (list: ReturnType<typeof toggleSupersetAt>) => list.map((e) => e.supersetGroup ?? '-');
 
   it('links an exercise with the one below it', () => {

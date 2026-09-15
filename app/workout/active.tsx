@@ -163,7 +163,7 @@ function ExerciseGroupBlock({
   onRest,
   onPr,
 }: {
-  group: ExerciseGroup;
+  group: ExerciseGroup<WorkoutExercise>;
   isLast: boolean;
   onRest: (seconds: number) => void;
   onPr: (name: string, e1RMKg: number) => void;

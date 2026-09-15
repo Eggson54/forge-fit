@@ -1,4 +1,7 @@
-import type { WorkoutExercise } from './types';
+/** Anything that can be paired: a logged exercise or a routine's plan for one. */
+export interface Supersettable {
+  supersetGroup?: string;
+}
 
 /**
  * Rest between the exercises *inside* a superset. The point of pairing is to
@@ -7,10 +10,10 @@ import type { WorkoutExercise } from './types';
  */
 export const SUPERSET_TRANSITION_SECONDS = 20;
 
-export interface ExerciseGroup {
+export interface ExerciseGroup<T extends Supersettable = Supersettable> {
   /** null for a normal, ungrouped exercise. */
   supersetId: string | null;
-  items: WorkoutExercise[];
+  items: T[];
 }
 
 /**
@@ -22,8 +25,8 @@ export interface ExerciseGroup {
  * between. Reordering an exercise out of a group therefore splits it without
  * needing to rewrite any ids.
  */
-export function groupExercises(exercises: WorkoutExercise[]): ExerciseGroup[] {
-  const groups: ExerciseGroup[] = [];
+export function groupExercises<T extends Supersettable>(exercises: T[]): ExerciseGroup<T>[] {
+  const groups: ExerciseGroup<T>[] = [];
   for (const ex of exercises) {
     const last = groups[groups.length - 1];
     if (ex.supersetGroup && last && last.supersetId === ex.supersetGroup) {
@@ -46,7 +49,7 @@ export function supersetLabel(index: number): string {
  * Rest to run after completing a set. Inside a superset you move to the next
  * exercise; only the last one in the group earns the full rest.
  */
-export function restAfterSet(group: ExerciseGroup, indexInGroup: number, restSeconds: number): number {
+export function restAfterSet(group: ExerciseGroup<Supersettable>, indexInGroup: number, restSeconds: number): number {
   const isSuperset = group.items.length > 1;
   if (!isSuperset || indexInGroup === group.items.length - 1) return restSeconds;
   return Math.min(SUPERSET_TRANSITION_SECONDS, restSeconds);
@@ -60,7 +63,7 @@ export function restAfterSet(group: ExerciseGroup, indexInGroup: number, restSec
  * Unlinking splits at that seam only: the exercises below keep training
  * together under a tag of their own, and either side left alone loses its tag.
  */
-export function toggleSupersetAt(exercises: WorkoutExercise[], index: number): WorkoutExercise[] {
+export function toggleSupersetAt<T extends Supersettable>(exercises: T[], index: number): T[] {
   const current = exercises[index];
   const next = exercises[index + 1];
   if (!current || !next) return exercises;
@@ -91,7 +94,7 @@ export function toggleSupersetAt(exercises: WorkoutExercise[], index: number): W
 }
 
 /** A tag no other exercise in this workout is using. */
-function newGroupId(exercises: WorkoutExercise[]): string {
+function newGroupId(exercises: Supersettable[]): string {
   const taken = new Set(exercises.map((e) => e.supersetGroup).filter(Boolean));
   let n = 1;
   while (taken.has(`ss${n}`)) n += 1;

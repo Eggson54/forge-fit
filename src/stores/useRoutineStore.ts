@@ -14,6 +14,8 @@ export interface RoutineExercise {
   sets: number;
   targetReps: number;
   restSeconds: number;
+  /** Shared by adjacent exercises saved as a superset. */
+  supersetGroup?: string;
 }
 
 export interface Routine {
@@ -111,6 +113,7 @@ export const useRoutineStore = create<RoutineState>()(
           sets: Math.max(1, ex.sets.filter((s) => !isWarmupSet(s)).length),
           targetReps: ex.targetReps ?? 8,
           restSeconds: ex.restSeconds,
+          supersetGroup: ex.supersetGroup,
         }));
         return get().add({ name: name ?? workout.name, focus: workout.focus, exercises });
       },
@@ -134,6 +137,7 @@ export const useRoutineStore = create<RoutineState>()(
             sets: e.sets,
             reps: [Math.max(1, e.targetReps - 2), e.targetReps] as [number, number],
             restSeconds: e.restSeconds,
+            supersetGroup: e.supersetGroup,
           })),
           note: 'Started from your saved routine.',
         };

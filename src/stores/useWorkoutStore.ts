@@ -135,6 +135,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           const we = toWorkoutExercise(base, ge.reps[1]);
           we.sets = Array.from({ length: ge.sets }, newSet);
           we.restSeconds = ge.restSeconds;
+          we.supersetGroup = ge.supersetGroup;
           return we;
         });
         const workout: Workout = {
