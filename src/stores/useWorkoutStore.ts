@@ -8,6 +8,7 @@ import type {
   Experience,
   MuscleGroup,
   SetEntry,
+  Units,
   Workout,
   WorkoutExercise,
 } from '../domain/types';
@@ -48,7 +49,7 @@ interface WorkoutState {
   deleteWorkout: (id: string) => void;
 
   previousFor: (exerciseId: string) => PreviousPerformance | null;
-  recommendationFor: (exerciseId: string, experience: Experience) => ReturnType<typeof recommendNext>;
+  recommendationFor: (exerciseId: string, experience: Experience, units?: Units) => ReturnType<typeof recommendNext>;
   completedWorkouts: () => Workout[];
   reset: () => void;
 }
@@ -238,8 +239,8 @@ export const useWorkoutStore = create<WorkoutState>()(
 
       previousFor: (exerciseId) => findPreviousPerformance(get().completedWorkouts(), exerciseId),
 
-      recommendationFor: (exerciseId, experience) =>
-        recommendNext(findPreviousPerformance(get().completedWorkouts(), exerciseId), { experience }),
+      recommendationFor: (exerciseId, experience, units) =>
+        recommendNext(findPreviousPerformance(get().completedWorkouts(), exerciseId), { experience, units }),
 
       completedWorkouts: () => get().workouts.filter((w) => w.status === 'completed'),
 

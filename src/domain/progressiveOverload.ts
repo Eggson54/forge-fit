@@ -1,5 +1,5 @@
-import { round } from './units';
-import type { Experience, SetEntry, Workout } from './types';
+import { displayWeight, round } from './units';
+import type { Experience, SetEntry, Units, Workout } from './types';
 
 export interface PreviousPerformance {
   weightKg: number;
@@ -56,11 +56,18 @@ export function findPreviousPerformance(
  */
 export function recommendNext(
   prev: PreviousPerformance | null,
-  opts: { experience: Experience; repRange?: [number, number] } = { experience: 'intermediate' },
+  opts: { experience: Experience; repRange?: [number, number]; units?: Units } = { experience: 'intermediate' },
 ): OverloadRecommendation | null {
   if (!prev) return null;
   const [low, high] = opts.repRange ?? [6, 10];
   const inc = INCREMENT_KG[opts.experience];
+  // The rationale is user-facing, so it has to speak the user's units — it read
+  // "bump 1.25kg" to someone whose whole app is in pounds.
+  const units: Units = opts.units ?? 'metric';
+  const show = (kg: number) => {
+    const d = displayWeight(kg, units);
+    return `${d.value} ${d.unit}`;
+  };
 
   const easy = prev.rpe != null && prev.rpe <= 7;
   const hitTop = prev.reps >= high;
@@ -70,14 +77,14 @@ export function recommendNext(
       weightKg: round(prev.weightKg + inc, 2),
       reps: low,
       rationale: hitTop
-        ? `You hit ${prev.reps} reps last time — add ${inc}kg and rebuild the range.`
-        : `That felt easy (RPE ${prev.rpe}). Bump ${inc}kg.`,
+        ? `You hit ${prev.reps} reps last time — add ${show(inc)} and rebuild the range.`
+        : `That felt easy (RPE ${prev.rpe}). Bump ${show(inc)}.`,
     };
   }
 
   return {
     weightKg: prev.weightKg,
     reps: Math.min(high, prev.reps + 1),
-    rationale: `Match ${round(prev.weightKg, 1)}kg and add one rep (${prev.reps} → ${Math.min(high, prev.reps + 1)}).`,
+    rationale: `Match ${show(prev.weightKg)} and add one rep (${prev.reps} → ${Math.min(high, prev.reps + 1)}).`,
   };
 }

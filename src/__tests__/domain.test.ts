@@ -307,3 +307,24 @@ describe('warm-up ramp', () => {
     expect(warmupPlan({ workingWeight: 0, bar: 45, unit: 'imperial' })).toEqual([]);
   });
 });
+
+describe('overload rationale units', () => {
+  const prev = { weightKg: 100, reps: 10, rpe: 7, date: '2026-01-01' };
+
+  it('speaks pounds to an imperial user', () => {
+    const r = recommendNext(prev, { experience: 'intermediate', units: 'imperial' });
+    expect(r!.rationale).toContain('lb');
+    expect(r!.rationale).not.toContain('kg');
+  });
+
+  it('speaks kilos to a metric user', () => {
+    const r = recommendNext(prev, { experience: 'intermediate', units: 'metric' });
+    expect(r!.rationale).toContain('kg');
+  });
+
+  it('keeps the recommended weight in kg regardless of display units', () => {
+    const imperial = recommendNext(prev, { experience: 'intermediate', units: 'imperial' })!;
+    const metric = recommendNext(prev, { experience: 'intermediate', units: 'metric' })!;
+    expect(imperial.weightKg).toBe(metric.weightKg);
+  });
+});

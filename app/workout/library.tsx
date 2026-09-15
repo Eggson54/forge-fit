@@ -27,12 +27,15 @@ export default function ExerciseLibrary() {
     );
   }, [allExercises, query, muscle]);
 
+  // In select mode the tap adds straight to the session; otherwise it opens the
+  // full detail screen, which used to be a system alert with the instructions
+  // crammed into its body.
   const onPick = (e: Exercise) => {
     if (selectMode) {
       addToActive(e.id);
       router.back();
     } else {
-      Alert.alert(e.name, `${label(e.primaryMuscle)} · ${e.equipment} · ${e.category}\n\n${e.instructions.join('\n')}`);
+      router.push(`/exercise/${e.id}`);
     }
   };
 

@@ -164,7 +164,7 @@ function ExerciseBlock({
   })();
 
   const prev = previousFor(exercise.exerciseId);
-  const rec = recommendationFor(exercise.exerciseId, experience);
+  const rec = recommendationFor(exercise.exerciseId, experience, units);
   const recWeight = rec ? displayWeight(rec.weightKg, units) : null;
   const prevWeight = prev ? displayWeight(prev.weightKg, units) : null;
 
