@@ -1,7 +1,8 @@
 import React from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { AdSlot, Button, Card, ProgressRing, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AdSlot, Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AnimatedNumber, AnimatedProgressRing } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { colors, gradients, spacing } from '../../src/theme';
 import { todayISO } from '../../src/domain/date';
@@ -33,20 +34,20 @@ export default function Nutrition() {
 
       {/* Calories ring */}
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xl }}>
-        <ProgressRing progress={macros.calories / targets.calories} size={130} stroke={13} gradientColors={gradients.ember}>
+        <AnimatedProgressRing progress={macros.calories / targets.calories} size={130} stroke={13} gradientColors={gradients.ember}>
           <View style={{ alignItems: 'center' }}>
-            <Text variant="metricLg">{Math.max(0, remaining)}</Text>
+            <AnimatedNumber value={Math.max(0, remaining)} variant="metricLg" />
             <Text variant="caption" color={colors.textDim}>
               {remaining >= 0 ? 'left' : 'over'}
             </Text>
           </View>
-        </ProgressRing>
+        </AnimatedProgressRing>
         <View style={{ flex: 1, gap: spacing.md }}>
           <View>
             <Text variant="caption" color={colors.textDim}>
               Consumed
             </Text>
-            <Text variant="metric">{macros.calories} kcal</Text>
+            <AnimatedNumber value={macros.calories} variant="metric" format={(n) => `${n} kcal`} />
           </View>
           <View>
             <Text variant="caption" color={colors.textDim}>
@@ -124,20 +125,17 @@ function confirmDelete(e: NutritionEntry, remove: (id: string) => void) {
 }
 
 function MacroCard({ label, value, target, color }: { label: string; value: number; target: number; color: string }) {
-  const pct = Math.min(1, value / target);
+  const left = Math.max(0, Math.round(target - value));
   return (
-    <Card style={{ flex: 1, gap: spacing.sm }}>
-      <Text variant="caption" color={colors.textDim}>
-        {label}
-      </Text>
-      <Text variant="metric">
-        {Math.round(value)}
+    <Card style={{ flex: 1, alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg }}>
+      <AnimatedProgressRing progress={value / target} size={74} stroke={7} color={color}>
+        <AnimatedNumber value={Math.round(value)} variant="bodyStrong" format={(n) => `${n}g`} />
+      </AnimatedProgressRing>
+      <View style={{ alignItems: 'center' }}>
+        <Text variant="label">{label}</Text>
         <Text variant="caption" color={colors.textFaint}>
-          /{target}g
+          {left}g left
         </Text>
-      </Text>
-      <View style={{ height: 5, borderRadius: 3, backgroundColor: colors.surfaceHigh, overflow: 'hidden' }}>
-        <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} />
       </View>
     </Card>
   );

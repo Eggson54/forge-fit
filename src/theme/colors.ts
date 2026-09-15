@@ -32,14 +32,19 @@ export const palette = {
   danger: '#FF4D5E',
   info: '#4C8DFF',
 
-  // Ring / macro tokens
-  calorie: '#FF5A1F',
-  protein: '#39E6C3',
-  carbs: '#FFB020',
-  fat: '#C084FC',
-  water: '#4CC2FF',
-  steps: '#C6F135',
-  sleep: '#8B93FF',
+  // Data-mark tokens (charts, rings, macro bars, stat tiles).
+  // Validated for the dark surface: OKLCH lightness band, chroma floor,
+  // adjacent-pair CVD separation (worst ΔE 10.7 deutan) and 3:1 contrast.
+  // 7 hues cannot ALL be mutually separable under deuteranopia (amber and
+  // ember collapse), so every metric colour is always shown with its text
+  // label — identity is never carried by colour alone.
+  calorie: '#F2530F',
+  protein: '#12A181',
+  carbs: '#C07D0A',
+  fat: '#D2529E',
+  water: '#2E9BE0',
+  steps: '#7E9E15',
+  sleep: '#6E76E8',
 
   white: '#FFFFFF',
   overlay: 'rgba(0,0,0,0.6)',

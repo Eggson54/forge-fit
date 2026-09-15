@@ -8,6 +8,7 @@ import { CoachCard } from '../../src/components/CoachCard';
 import { colors, gradients, spacing } from '../../src/theme';
 import { formatSleep, timeOfDay } from '../../src/domain/date';
 import { displayWeight } from '../../src/domain/units';
+import { workoutStats } from '../../src/domain/strength';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -80,6 +81,11 @@ export default function Home() {
 
   const w = summary.workoutCompleted;
 
+  // Today's session detail for the workout card.
+  const todayWorkout = useWorkoutStore((st) => st.workouts.find((x) => x.date === summary.date));
+  const todayStats = todayWorkout ? workoutStats(todayWorkout) : null;
+  const todayVol = todayStats ? displayWeight(todayStats.totalVolumeKg, profile.units) : null;
+
   return (
     <Screen
       gradient
@@ -135,11 +141,27 @@ export default function Home() {
             </Text>
             <Text variant="h3">{summary.workoutName ?? 'Rest / Open'}</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md }}>
-            <Icon name={w ? 'flame' : 'dumbbell'} size={18} color={w ? colors.success : colors.primary} />
-            <Text variant="label" color={w ? colors.success : colors.primary}>
-              {w ? 'Completed' : summary.workoutPlanned ? 'Not completed' : 'Nothing planned'}
-            </Text>
+          <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+            {todayStats && todayStats.totalSets > 0 ? (
+              <View style={{ gap: 2 }}>
+                <Text variant="caption" color={colors.textDim}>
+                  {todayWorkout!.exercises.length} exercises · {todayStats.totalSets} sets
+                </Text>
+                <Text variant="bodyStrong" color={colors.primary}>
+                  {Math.round(todayVol!.value).toLocaleString()} {todayVol!.unit} volume
+                </Text>
+              </View>
+            ) : (
+              <Text variant="caption" color={colors.textDim}>
+                {summary.workoutPlanned ? 'Ready when you are' : 'Plan one or start an empty session'}
+              </Text>
+            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Icon name={w ? 'flame' : 'dumbbell'} size={18} color={w ? colors.success : colors.primary} />
+              <Text variant="label" color={w ? colors.success : colors.primary}>
+                {w ? 'Completed' : summary.workoutPlanned ? 'Not completed' : 'Nothing planned'}
+              </Text>
+            </View>
           </View>
         </Card>
       </FadeIn>
@@ -172,7 +194,7 @@ export default function Home() {
           progress={summary.waterOz / summary.waterTarget}
         />
         <MetricRow
-          icon="progress"
+          icon="steps"
           color={colors.steps}
           label="Steps"
           value={summary.steps.toLocaleString()}
@@ -181,7 +203,7 @@ export default function Home() {
           onPress={() => router.push('/log?focus=steps')}
         />
         <MetricRow
-          icon="timer"
+          icon="moon"
           color={colors.sleep}
           label="Sleep"
           value={summary.sleepMinutes ? formatSleep(summary.sleepMinutes) : '—'}

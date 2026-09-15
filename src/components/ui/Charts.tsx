@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, Defs, Line, LinearGradient as SvgGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { colors } from '../../theme';
 import { Text } from './Text';
 
@@ -9,61 +9,127 @@ export interface Point {
   value: number;
 }
 
-/** Smooth-ish line chart with an area fill. Handles empty/one-point data. */
+const AXIS = colors.hairline;
+const INK_FAINT = colors.textFaint;
+
+function EmptyPlot({ height, message }: { height: number; message: string }) {
+  return (
+    <View style={{ height, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+      <Text variant="caption" color={INK_FAINT}>
+        {message}
+      </Text>
+    </View>
+  );
+}
+
+/** Nice round-ish tick values for the value axis. */
+function niceBounds(values: number[]): { lo: number; hi: number } {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const mag = Math.max(Math.abs(max), 1);
+  // A flat (or near-flat) series must read as flat in the middle of the plot,
+  // not pinned to the top edge by a razor-thin range.
+  if (max - min < mag * 0.02) {
+    const band = Math.max(mag * 0.05, 1);
+    return { lo: min - band, hi: max + band };
+  }
+  const pad = (max - min) * 0.15;
+  return { lo: min - pad, hi: max + pad };
+}
+
+const fmt = (n: number) => (Math.abs(n) >= 1000 ? `${Math.round(n / 100) / 10}k` : `${Math.round(n * 10) / 10}`);
+
+/**
+ * Single-series trend line. One series, so no legend — the section title names
+ * it. Grid and axes stay recessive; only the latest point is labelled.
+ */
 export function LineChart({
   data,
-  height = 160,
+  height = 170,
   color = colors.primary,
   width = 320,
+  unit = '',
 }: {
   data: Point[];
   height?: number;
   color?: string;
   width?: number;
+  unit?: string;
 }) {
   const gid = React.useId();
-  if (data.length < 2) {
-    return (
-      <View style={{ height, alignItems: 'center', justifyContent: 'center' }}>
-        <Text variant="caption" color={colors.textFaint}>
-          Not enough data yet
-        </Text>
-      </View>
-    );
-  }
-  const pad = 12;
-  const values = data.map((d) => d.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const stepX = (width - pad * 2) / (data.length - 1);
-  const y = (v: number) => pad + (1 - (v - min) / range) * (height - pad * 2);
-  const x = (i: number) => pad + i * stepX;
+  if (data.length < 2) return <EmptyPlot height={height} message="Log at least two entries to see your trend" />;
+
+  const padL = 34;
+  const padR = 14;
+  const padT = 14;
+  const padB = 22;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+  const { lo, hi } = niceBounds(data.map((d) => d.value));
+  const span = hi - lo || 1;
+
+  const x = (i: number) => padL + (i / (data.length - 1)) * plotW;
+  const y = (v: number) => padT + (1 - (v - lo) / span) * plotH;
 
   const line = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(d.value)}`).join(' ');
-  const area = `${line} L ${x(data.length - 1)} ${height - pad} L ${x(0)} ${height - pad} Z`;
+  const area = `${line} L ${x(data.length - 1)} ${padT + plotH} L ${padL} ${padT + plotH} Z`;
+  const last = data[data.length - 1]!;
+  const gridVals = [hi, lo + span / 2, lo];
 
   return (
     <Svg width={width} height={height}>
       <Defs>
-        <SvgGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity="0.25" />
+        <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={color} stopOpacity="0.22" />
           <Stop offset="1" stopColor={color} stopOpacity="0" />
-        </SvgGradient>
+        </LinearGradient>
       </Defs>
-      <Path d={area} fill={`url(#${gid})`} />
-      <Path d={line} stroke={color} strokeWidth={2.5} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-      {data.map((d, i) => (
-        <Circle key={i} cx={x(i)} cy={y(d.value)} r={i === data.length - 1 ? 4 : 2.5} fill={color} />
+
+      {/* recessive grid + value labels */}
+      {gridVals.map((v, i) => (
+        <React.Fragment key={i}>
+          <Line x1={padL} x2={width - padR} y1={y(v)} y2={y(v)} stroke={AXIS} strokeWidth={1} />
+          <SvgText x={padL - 6} y={y(v) + 3.5} fontSize="9" fill={INK_FAINT} textAnchor="end">
+            {fmt(v)}
+          </SvgText>
+        </React.Fragment>
       ))}
+
+      <Path d={area} fill={`url(#${gid})`} />
+      <Path d={line} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+
+      {/* only the latest point is marked + labelled */}
+      <Circle cx={x(data.length - 1)} cy={y(last.value)} r={4.5} fill={color} stroke={colors.card} strokeWidth={2} />
+      <SvgText
+        x={Math.min(width - padR, x(data.length - 1))}
+        y={Math.max(11, y(last.value) - 11)}
+        fontSize="10"
+        fontWeight="600"
+        fill={colors.text}
+        textAnchor="end"
+      >
+        {fmt(last.value)}
+        {unit}
+      </SvgText>
+
+      {/* first/last x labels only */}
+      <SvgText x={padL} y={height - 6} fontSize="9" fill={INK_FAINT}>
+        {data[0]!.label}
+      </SvgText>
+      <SvgText x={width - padR} y={height - 6} fontSize="9" fill={INK_FAINT} textAnchor="end">
+        {last.label}
+      </SvgText>
     </Svg>
   );
 }
 
-/** Vertical bar chart (e.g. weekly workout volume / consistency). */
+/**
+ * Single-series bars with rounded data-ends anchored to the baseline and a 2px
+ * gap between bars. An optional target line is drawn as a recessive rule.
+ */
 export function BarChart({
   data,
-  height = 160,
+  height = 170,
   width = 320,
   color = colors.primary,
   targetLine,
@@ -74,49 +140,106 @@ export function BarChart({
   color?: string;
   targetLine?: number;
 }) {
-  if (!data.length) {
-    return (
-      <View style={{ height, alignItems: 'center', justifyContent: 'center' }}>
-        <Text variant="caption" color={colors.textFaint}>
-          No data yet
-        </Text>
-      </View>
-    );
-  }
-  const pad = 16;
+  if (!data.length) return <EmptyPlot height={height} message="No data logged yet" />;
+
+  const padL = 26;
+  const padR = 12;
+  const padT = 16;
+  const padB = 22;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
   const max = Math.max(...data.map((d) => d.value), targetLine ?? 0, 1);
-  const barW = (width - pad * 2) / data.length - 6;
-  const chartH = height - pad * 2;
+  const slot = plotW / data.length;
+  const barW = Math.max(6, slot - 6); // 2px+ surface gap either side
+  const baseline = padT + plotH;
+  const peak = Math.max(...data.map((d) => d.value));
+  const peakIdx = data.map((d) => d.value).lastIndexOf(peak);
 
   return (
     <Svg width={width} height={height}>
-      {targetLine !== undefined && (
-        <Line
-          x1={pad}
-          x2={width - pad}
-          y1={pad + (1 - targetLine / max) * chartH}
-          y2={pad + (1 - targetLine / max) * chartH}
-          stroke={colors.textFaint}
-          strokeDasharray="4 4"
-          strokeWidth={1}
-        />
-      )}
-      {data.map((d, i) => {
-        const h = (d.value / max) * chartH;
-        const xPos = pad + i * ((width - pad * 2) / data.length) + 3;
-        return (
-          <Rect
-            key={i}
-            x={xPos}
-            y={pad + (chartH - h)}
-            width={barW}
-            height={Math.max(2, h)}
-            rx={4}
-            fill={d.value >= (targetLine ?? 0) && targetLine ? color : d.value > 0 ? color : colors.surfaceHigh}
-            opacity={d.value > 0 ? 1 : 0.5}
+      {/* baseline + max rule */}
+      <Line x1={padL} x2={width - padR} y1={baseline} y2={baseline} stroke={AXIS} strokeWidth={1} />
+      <SvgText x={padL - 6} y={padT + 4} fontSize="9" fill={INK_FAINT} textAnchor="end">
+        {fmt(max)}
+      </SvgText>
+
+      {targetLine !== undefined && targetLine > 0 && (
+        <>
+          <Line
+            x1={padL}
+            x2={width - padR}
+            y1={baseline - (targetLine / max) * plotH}
+            y2={baseline - (targetLine / max) * plotH}
+            stroke={INK_FAINT}
+            strokeDasharray="3 4"
+            strokeWidth={1}
           />
+          <SvgText x={padL + 2} y={baseline - (targetLine / max) * plotH - 4} fontSize="9" fill={INK_FAINT}>
+            goal
+          </SvgText>
+        </>
+      )}
+
+      {data.map((d, i) => {
+        const h = d.value > 0 ? Math.max(3, (d.value / max) * plotH) : 0;
+        const bx = padL + i * slot + (slot - barW) / 2;
+        const isPeak = d.value === peak && peak > 0;
+        const labelThis = i === peakIdx && peak > 0;
+        return (
+          <React.Fragment key={i}>
+            {h > 0 ? (
+              <Rect x={bx} y={baseline - h} width={barW} height={h} rx={4} fill={color} opacity={isPeak ? 1 : 0.62} />
+            ) : (
+              <Rect x={bx} y={baseline - 3} width={barW} height={3} rx={1.5} fill={AXIS} />
+            )}
+            {labelThis && (
+              <SvgText x={bx + barW / 2} y={baseline - h - 5} fontSize="9" fontWeight="600" fill={colors.text} textAnchor="middle">
+                {fmt(d.value)}
+              </SvgText>
+            )}
+          </React.Fragment>
         );
       })}
+
+      {/* first/last x labels only */}
+      <SvgText x={padL} y={height - 6} fontSize="9" fill={INK_FAINT}>
+        {data[0]!.label}
+      </SvgText>
+      <SvgText x={width - padR} y={height - 6} fontSize="9" fill={INK_FAINT} textAnchor="end">
+        {data[data.length - 1]!.label}
+      </SvgText>
     </Svg>
+  );
+}
+
+/**
+ * Binary day strip (logged / not logged). A bar chart of 0s and 1s is the wrong
+ * form for a yes-no series — this reads the streak at a glance instead.
+ */
+export function DayStrip({ days, color = colors.primary }: { days: { label: string; on: boolean }[]; color?: string }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 6 }}>
+      {days.map((d, i) => (
+        <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+          <View
+            style={{
+              width: '100%',
+              height: 34,
+              borderRadius: 8,
+              backgroundColor: d.on ? color : colors.surfaceHigh,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text variant="caption" color={d.on ? colors.onPrimary : colors.textFaint} style={{ fontSize: 13, fontWeight: '700' }}>
+              {d.on ? '\u2713' : '\u2013'}
+            </Text>
+          </View>
+          <Text variant="caption" color={colors.textFaint} style={{ fontSize: 9 }}>
+            {d.label}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }

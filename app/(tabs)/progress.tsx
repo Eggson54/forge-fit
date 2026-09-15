@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
-import { BarChart, Card, LineChart, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
+import { BarChart, Card, DayStrip, LineChart, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
 import { BodyMap } from '../../src/components/BodyMap';
 import { Icon } from '../../src/components/Icon';
@@ -151,7 +151,7 @@ export default function Progress() {
 
       <SectionHeader title="Weight" action="Log" onAction={() => router.push('/progress/weight')} />
       <Card>
-        <LineChart data={weightSeries} width={chartW} color={colors.protein} />
+        <LineChart data={weightSeries} width={chartW} color={colors.protein} unit={profile.units === 'imperial' ? ' lb' : ' kg'} />
       </Card>
 
       <SectionHeader title="Estimated strength (top e1RM)" />
@@ -161,15 +161,15 @@ export default function Progress() {
 
       <SectionHeader title="Workout consistency (8 weeks)" />
       <Card>
-        <BarChart data={weeklyConsistency} width={chartW} color={colors.lime} targetLine={profile.trainingDaysPerWeek} />
+        <BarChart data={weeklyConsistency} width={chartW} color={colors.steps} targetLine={profile.trainingDaysPerWeek} />
         <Text variant="caption" color={colors.textFaint} center style={{ marginTop: spacing.sm }}>
           Dashed line = your weekly goal ({profile.trainingDaysPerWeek}/wk)
         </Text>
       </Card>
 
-      <SectionHeader title="Nutrition consistency (7 days)" />
+      <SectionHeader title={`Nutrition consistency · ${nutritionHitCount}/7 days`} />
       <Card>
-        <BarChart data={nutritionDays.map((d) => ({ ...d, value: d.value }))} width={chartW} color={colors.water} targetLine={1} />
+        <DayStrip days={nutritionDays.map((d) => ({ label: d.label.slice(3), on: d.value === 1 }))} color={colors.water} />
       </Card>
 
       <SectionHeader title="More" />
