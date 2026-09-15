@@ -8,7 +8,17 @@ import { Text } from './ui/Text';
 /** Floating rest countdown shown after completing a set. Self-dismisses at 0. */
 export function RestTimer({ seconds, onDone, onDismiss }: { seconds: number; onDone: () => void; onDismiss: () => void }) {
   const [remaining, setRemaining] = useState(seconds);
+  const [total, setTotal] = useState(seconds);
   const doneRef = useRef(false);
+
+  // onDone is an inline closure in the workout screen, so its identity changes on
+  // every render — and that screen re-renders once a second for its own elapsed
+  // clock. Depending on it here tore down and recreated the interval before it
+  // could ever fire, so the rest countdown sat frozen at its starting value.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -18,7 +28,7 @@ export function RestTimer({ seconds, onDone, onDismiss }: { seconds: number; onD
           if (!doneRef.current) {
             doneRef.current = true;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-            setTimeout(onDone, 400);
+            setTimeout(() => onDoneRef.current(), 400);
           }
           return 0;
         }
@@ -26,14 +36,18 @@ export function RestTimer({ seconds, onDone, onDismiss }: { seconds: number; onD
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [onDone]);
+  }, []);
 
   const mm = Math.floor(remaining / 60);
   const ss = String(remaining % 60).padStart(2, '0');
+  const elapsed = total > 0 ? 1 - remaining / total : 1;
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <View style={styles.bar}>
+        {/* The bar drains as the rest runs down, so how much is left reads at a
+            glance mid-set without parsing the digits. */}
+        <View style={[styles.drain, { width: `${Math.min(100, Math.max(0, elapsed * 100))}%` }]} pointerEvents="none" />
         <Icon name="timer" size={20} color={colors.primary} />
         <Text variant="metric" color={colors.text}>
           {mm}:{ss}
@@ -42,10 +56,19 @@ export function RestTimer({ seconds, onDone, onDismiss }: { seconds: number; onD
           rest
         </Text>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={() => setRemaining((r) => r + 15)} hitSlop={8} style={styles.pill}>
+        <Pressable
+          onPress={() => {
+            setRemaining((r) => r + 15);
+            setTotal((t) => t + 15);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Add 15 seconds"
+          hitSlop={8}
+          style={styles.pill}
+        >
           <Text variant="label" color={colors.text}>+15s</Text>
         </Pressable>
-        <Pressable onPress={onDismiss} hitSlop={8} style={styles.pill}>
+        <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Skip rest" hitSlop={8} style={styles.pill}>
           <Text variant="label" color={colors.primary}>Skip</Text>
         </Pressable>
       </View>
@@ -64,6 +87,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.primary,
+    overflow: 'hidden',
   },
+  drain: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: 'rgba(255,90,31,0.16)' },
   pill: { backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill },
 });

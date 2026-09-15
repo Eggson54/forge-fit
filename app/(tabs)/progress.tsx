@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { BarChart, Card, Chip, DayStrip, LineChart, ListRow, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
-import { FadeIn } from '../../src/components/anim';
+import { FadeIn, Shimmer } from '../../src/components/anim';
 import { BodyMap } from '../../src/components/BodyMap';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
@@ -115,6 +115,7 @@ export default function Progress() {
   const changeDisp = displayWeight(Math.abs(change), profile.units);
 
   const [analysis, setAnalysis] = useState<ProgressAnalysisResult | null>(null);
+  const analysisPending = weightByDate.length >= 2 && !analysis;
   useEffect(() => {
     if (weightByDate.length < 2) return;
     ai.analyzeProgress({
@@ -138,15 +139,24 @@ export default function Progress() {
         <StatTile value={`${nutritionHitCount}/7`} label="Logged" accent={colors.water} />
       </Card>
 
-      {analysis && (
+      {/* Reserve the card while the analysis loads instead of popping it in and
+          shoving the charts down the page. */}
+      {(analysis || analysisPending) && (
         <Card tone="alt" style={{ marginBottom: spacing.md }}>
           <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', marginBottom: 4 }}>
             <Icon name="bolt" size={16} color={colors.primary} />
             <Text variant="overline" color={colors.primary}>
-              AI ANALYSIS · {analysis.onTrack ? 'ON TRACK' : 'ADJUST'}
+              AI ANALYSIS{analysis ? ` · ${analysis.onTrack ? 'ON TRACK' : 'ADJUST'}` : ''}
             </Text>
           </View>
-          <Text variant="body">{analysis.summary}</Text>
+          {analysis ? (
+            <Text variant="body">{analysis.summary}</Text>
+          ) : (
+            <View style={{ gap: 8, paddingVertical: 2 }}>
+              <Shimmer height={14} radius={5} />
+              <Shimmer height={14} radius={5} width="70%" />
+            </View>
+          )}
         </Card>
       )}
 

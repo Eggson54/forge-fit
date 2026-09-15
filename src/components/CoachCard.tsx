@@ -1,9 +1,10 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radius, spacing } from '../theme';
 import type { CoachMessageResult } from '../services/ai/types';
 import type { CoachPersonality } from '../domain/types';
+import { Shimmer } from './anim';
 import { Icon } from './Icon';
 import { Text } from './ui/Text';
 
@@ -58,8 +59,11 @@ export function CoachCard({ message, personality, loading, onPress }: Props) {
         </View>
 
         {loading ? (
-          <View style={{ height: 56, justifyContent: 'center' }}>
-            <ActivityIndicator color={colors.primary} />
+          /* Skeleton lines rather than a spinner: the card's shape is known, so
+             showing it settling in reads as faster than a blank spinning gap. */
+          <View style={{ gap: 10, paddingVertical: 4 }} accessibilityLabel="Coach is thinking">
+            <Shimmer height={19} radius={6} />
+            <Shimmer height={19} radius={6} width="82%" />
           </View>
         ) : (
           <Text variant="h3" style={{ lineHeight: 28 }}>

@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { Card, EmptyState, Screen, Text } from '../../src/components/ui';
+import { Stagger } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
@@ -27,6 +28,7 @@ export default function History() {
         />
       ) : (
         <View style={{ gap: spacing.md }}>
+          <Stagger step={45}>
           {completed.map((wk) => {
             const stats = workoutStats(wk);
             const vol = displayWeight(stats.totalVolumeKg, units);
@@ -46,6 +48,7 @@ export default function History() {
               </Card>
             );
           })}
+          </Stagger>
         </View>
       )}
     </Screen>

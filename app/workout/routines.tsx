@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, EmptyState, Screen, SectionHeader, Text } from '../../src/components/ui';
-import { FadeIn } from '../../src/components/anim';
+import { FadeIn, Stagger } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
@@ -34,6 +34,7 @@ export default function Routines() {
         <EmptyState icon="list" title="No routines yet" subtitle="Save a completed workout below as a routine to reuse it." />
       ) : (
         <View style={{ gap: spacing.md }}>
+          <Stagger step={45}>
           {routines.map((r) => (
             <FadeIn key={r.id}>
               <Card>
@@ -57,6 +58,7 @@ export default function Routines() {
               </Card>
             </FadeIn>
           ))}
+          </Stagger>
         </View>
       )}
 
