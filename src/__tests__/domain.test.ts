@@ -1,3 +1,5 @@
+import { BAR_OPTIONS, PLATES, planPlates, totalPlates } from '../domain/plates';
+import { warmupPlan } from '../domain/warmup';
 import {
   applyDailyOutcome,
   bmr,
@@ -216,5 +218,92 @@ describe('achievements', () => {
     });
     expect(unlocked).toEqual(expect.arrayContaining(['first_workout', 'workouts_10', 'streak_7', 'first_pr']));
     expect(unlocked).not.toContain('workouts_100');
+  });
+});
+
+describe('plate maths', () => {
+  it('loads a standard 225 lb bench', () => {
+    const p = planPlates(225, 45, 'imperial');
+    expect(p.perSide).toEqual([{ weight: 45, count: 2 }]);
+    expect(p.achievable).toBe(225);
+    expect(p.delta).toBe(0);
+  });
+
+  it('reports the closest achievable load when the target cannot be made', () => {
+    const p = planPlates(226, 45, 'imperial');
+    expect(p.achievable).toBe(225);
+    expect(p.delta).toBe(-1);
+  });
+
+  it('mixes denominations, heaviest first', () => {
+    const p = planPlates(155, 45, 'imperial');
+    expect(p.perSide).toEqual([
+      { weight: 45, count: 1 },
+      { weight: 10, count: 1 },
+    ]);
+    expect(p.achievable).toBe(155);
+  });
+
+  it('cannot reach a target that needs a plate the gym does not have', () => {
+    // 147.5 needs 1.25 per side; the lightest imperial plate here is 2.5.
+    const p = planPlates(147.5, 45, 'imperial');
+    expect(p.achievable).toBe(145);
+    expect(p.delta).toBe(-2.5);
+  });
+
+  it('works in metric', () => {
+    const p = planPlates(100, 20, 'metric');
+    expect(p.achievable).toBe(100);
+    expect(totalPlates(p)).toBe(4);
+  });
+
+  it('gets within one plate of every loadable target', () => {
+    // Greedy is only safe if it never strands a remainder the smaller plates
+    // could have covered, so check the whole reachable range in both units.
+    for (const unit of ['imperial', 'metric'] as const) {
+      const smallest = PLATES[unit]![PLATES[unit]!.length - 1]!;
+      const bar = BAR_OPTIONS[unit]![0]!;
+      for (let perSide = smallest; perSide <= 200; perSide += smallest) {
+        const target = bar + perSide * 2;
+        const plan = planPlates(target, bar, unit);
+        expect(plan.achievable).toBeCloseTo(target, 5);
+      }
+    }
+  });
+
+  it('flags a target at or below the bar', () => {
+    expect(planPlates(40, 45, 'imperial').belowBar).toBe(true);
+    expect(planPlates(45, 45, 'imperial').perSide).toEqual([]);
+  });
+});
+
+describe('warm-up ramp', () => {
+  it('starts at the empty bar and rises to a primer single', () => {
+    const steps = warmupPlan({ workingWeight: 315, bar: 45, unit: 'imperial' });
+    expect(steps[0]!.loadedWeight).toBe(45);
+    expect(steps[steps.length - 1]!.reps).toBe(1);
+    expect(steps.every((s, i) => i === 0 || s.loadedWeight > steps[i - 1]!.loadedWeight)).toBe(true);
+  });
+
+  it('rounds every stage to a loadable bar', () => {
+    const steps = warmupPlan({ workingWeight: 225, bar: 45, unit: 'imperial' });
+    for (const s of steps) {
+      const perSide = (s.loadedWeight - 45) / 2;
+      expect(Math.round(perSide / 2.5) * 2.5).toBeCloseTo(perSide, 5);
+    }
+  });
+
+  it('skips the empty bar and sub-bar stages for a light working set', () => {
+    const steps = warmupPlan({ workingWeight: 65, bar: 45, unit: 'imperial' });
+    expect(steps.every((s) => s.loadedWeight > 45)).toBe(true);
+  });
+
+  it('does not round when there is no bar', () => {
+    const steps = warmupPlan({ workingWeight: 100, bar: 0, unit: 'imperial', barbell: false });
+    expect(steps[0]!.loadedWeight).toBe(40);
+  });
+
+  it('returns nothing for a missing working weight', () => {
+    expect(warmupPlan({ workingWeight: 0, bar: 45, unit: 'imperial' })).toEqual([]);
   });
 });

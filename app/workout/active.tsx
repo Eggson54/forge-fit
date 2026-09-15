@@ -157,6 +157,12 @@ function ExerciseBlock({
   const addSet = useWorkoutStore((s) => s.addSet);
   const removeExercise = useWorkoutStore((s) => s.removeExercise);
 
+  // The heaviest weight already typed into this exercise, in display units.
+  const heaviestEntered = (() => {
+    const kg = Math.max(0, ...exercise.sets.map((set) => set.weightKg ?? 0));
+    return kg > 0 ? Math.round(displayWeight(kg, units).value * 10) / 10 : null;
+  })();
+
   const prev = previousFor(exercise.exerciseId);
   const rec = recommendationFor(exercise.exerciseId, experience);
   const recWeight = rec ? displayWeight(rec.weightKg, units) : null;
@@ -181,15 +187,33 @@ function ExerciseBlock({
             )}
           </View>
         </View>
-        <Pressable
-          onPress={() => removeExercise(exercise.id)}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${exercise.name}`}
-          style={styles.removeExercise}
-        >
-          <Icon name="trash" size={16} color={colors.textFaint} strokeWidth={1.8} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Straight to the plate maths for the weight already entered, which is
+              the question being asked at the rack anyway. */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/tools/plates',
+                params: heaviestEntered ? { target: String(heaviestEntered) } : {},
+              })
+            }
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Plate calculator"
+            style={styles.removeExercise}
+          >
+            <Icon name="sliders" size={16} color={colors.textFaint} strokeWidth={1.8} />
+          </Pressable>
+          <Pressable
+            onPress={() => removeExercise(exercise.id)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${exercise.name}`}
+            style={styles.removeExercise}
+          >
+            <Icon name="trash" size={16} color={colors.textFaint} strokeWidth={1.8} />
+          </Pressable>
+        </View>
       </View>
 
       {/* column header */}

@@ -69,6 +69,10 @@ export default function WorkoutTab() {
         <StartCard icon="trophy" title="Leaderboard" subtitle="Ranked rivals" onPress={() => router.push('/leaderboard')} />
         <StartCard icon="clock" title="History" subtitle="Past sessions" onPress={() => router.push('/workout/history')} />
       </View>
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
+        <StartCard icon="sliders" title="Plate Math" subtitle="What goes on the bar" onPress={() => router.push('/tools/plates')} />
+        <StartCard icon="chart" title="Warm-Up" subtitle="Ramp to your work set" onPress={() => router.push('/tools/warmup')} />
+      </View>
 
       <SectionHeader title="Recent workouts" action={allCompleted.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />
       {/* The empty state carries no action: the Empty Workout tile above and the
