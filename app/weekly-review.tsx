@@ -18,7 +18,7 @@ import { analytics } from '../src/services/analytics';
 export default function WeeklyReview() {
   const profile = useProfileStore((s) => s.profile);
   const targets = useProfileStore((s) => s.targets);
-  const coach = useProfileStore((s) => s.coach);
+  const coach = useProfileStore((s) => s.effectiveCoach());
   const logStore = useLogStore();
   const workouts = useWorkoutStore((s) => s.completedWorkouts());
 

@@ -40,6 +40,14 @@ export default function Goals() {
     setTargets(patch);
   };
 
+  const num = (k: string) => {
+    const v = parseFloat(draft[k] ?? '');
+    return isNaN(v) ? 0 : v;
+  };
+  const macroCalories = Math.round(num('proteinG') * 4 + num('carbsG') * 4 + num('fatG') * 9);
+  const calorieTarget = Math.round(num('calories'));
+  const macroGap = Math.abs(macroCalories - calorieTarget);
+
   const total = WEIGHT_KEYS.reduce((a, k) => a + weights[k], 0) || 1;
   const bump = (k: keyof DisciplineWeights, delta: number) => {
     const next = { ...weights, [k]: Math.max(0, weights[k] + delta) };
@@ -56,18 +64,57 @@ export default function Goals() {
         </Text>
       </Card>
 
-      <View style={{ gap: spacing.md }}>
-        {TARGET_FIELDS.map((f) => (
-          <Input
-            key={f.key}
-            label={f.label}
-            value={draft[f.key]}
-            onChangeText={(t) => setDraft((d) => ({ ...d, [f.key]: t }))}
-            keyboardType="decimal-pad"
-            suffix={f.suffix}
-          />
-        ))}
-      </View>
+      {/* Grouped and paired: seven stacked full-width fields was a lot of
+          scrolling for values that belong together. */}
+      <SectionHeader title="Nutrition" />
+      <Card style={{ gap: spacing.md }}>
+        <Field field={TARGET_FIELDS[0]!} draft={draft} setDraft={setDraft} />
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <View style={{ flex: 1 }}>
+            <Field field={TARGET_FIELDS[1]!} draft={draft} setDraft={setDraft} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field field={TARGET_FIELDS[2]!} draft={draft} setDraft={setDraft} />
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <View style={{ flex: 1 }}>
+            <Field field={TARGET_FIELDS[3]!} draft={draft} setDraft={setDraft} />
+          </View>
+          {/* Fat sits alone on its row; the spacer keeps it the same width as
+              the pair above rather than stretching across the card. */}
+          <View style={{ flex: 1 }} />
+        </View>
+        {/* Macros and calories are entered independently, so show when they disagree. */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md }}>
+          <Text variant="caption" color={colors.textDim}>
+            Macros add up to
+          </Text>
+          <Text variant="bodyStrong" color={macroGap <= 60 ? colors.success : colors.amber}>
+            {macroCalories} kcal
+            {macroGap > 60 && (
+              <Text variant="caption" color={colors.amber}>
+                {' '}
+                ({macroCalories > calorieTarget ? '+' : '−'}
+                {macroGap} vs target)
+              </Text>
+            )}
+          </Text>
+        </View>
+      </Card>
+
+      <SectionHeader title="Daily habits" />
+      <Card style={{ gap: spacing.md }}>
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <View style={{ flex: 1 }}>
+            <Field field={TARGET_FIELDS[4]!} draft={draft} setDraft={setDraft} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field field={TARGET_FIELDS[6]!} draft={draft} setDraft={setDraft} />
+          </View>
+        </View>
+        <Field field={TARGET_FIELDS[5]!} draft={draft} setDraft={setDraft} />
+      </Card>
 
       <SectionHeader title="Discipline weighting" />
       <Text variant="caption" color={colors.textDim} style={{ marginBottom: spacing.md }}>
@@ -106,5 +153,25 @@ function Stepper({ label, onPress }: { label: string; onPress: () => void }) {
         {label}
       </Text>
     </View>
+  );
+}
+
+function Field({
+  field,
+  draft,
+  setDraft,
+}: {
+  field: (typeof TARGET_FIELDS)[number];
+  draft: Record<string, string>;
+  setDraft: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}) {
+  return (
+    <Input
+      label={field.label}
+      value={draft[field.key]}
+      onChangeText={(t) => setDraft((d) => ({ ...d, [field.key]: t }))}
+      keyboardType="decimal-pad"
+      suffix={field.suffix}
+    />
   );
 }

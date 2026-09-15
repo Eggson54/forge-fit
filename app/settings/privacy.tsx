@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Switch, View } from 'react-native';
-import { Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { Alert, View } from 'react-native';
+import { Button, Card, Screen, SectionHeader, Text, Toggle } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
 import { useProfileStore } from '../../src/stores/useProfileStore';
@@ -56,7 +56,7 @@ export default function Privacy() {
               Helps improve the app. No health data, ever.
             </Text>
           </View>
-          <Switch value={analyticsOn} onValueChange={(v) => { setAnalyticsOn(v); analytics.setEnabled(v); }} trackColor={{ true: colors.primary, false: colors.surfaceHigh }} thumbColor={colors.text} />
+          <Toggle value={analyticsOn} onValueChange={(v) => { setAnalyticsOn(v); analytics.setEnabled(v); }} />
         </View>
       </Card>
 
@@ -69,7 +69,7 @@ export default function Privacy() {
               Optional personal record-keeping. Hidden by default. Not medical advice.
             </Text>
           </View>
-          <Switch value={protocolEnabled} onValueChange={setProtocolEnabled} trackColor={{ true: colors.primary, false: colors.surfaceHigh }} thumbColor={colors.text} />
+          <Toggle value={protocolEnabled} onValueChange={setProtocolEnabled} />
         </View>
       </Card>
 

@@ -3,6 +3,7 @@ export { Screen } from './Screen';
 export { Card } from './Card';
 export { Button } from './Button';
 export { IconButton } from './IconButton';
+export { Toggle } from './Toggle';
 export { Input } from './Input';
 export { ProgressRing } from './ProgressRing';
 export { SegmentedControl } from './SegmentedControl';

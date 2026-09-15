@@ -27,7 +27,7 @@ const GREETING: Record<ReturnType<typeof timeOfDay>, string> = {
 
 export default function Home() {
   const profile = useProfileStore((s) => s.profile);
-  const coachSettings = useProfileStore((s) => s.coach);
+  const coachSettings = useProfileStore((s) => s.effectiveCoach());
   const summary = useDailySummary();
   const streak = useGamificationStore((s) => s.streaks.daily);
   const addWater = useLogStore((s) => s.addWater);

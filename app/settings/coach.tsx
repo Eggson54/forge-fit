@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Switch, View } from 'react-native';
-import { Card, Chip, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { View } from 'react-native';
+import { Card, Chip, Pill, Screen, SectionHeader, Text, Toggle } from '../../src/components/ui';
+import { Icon } from '../../src/components/Icon';
+import { router } from 'expo-router';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
 import type { CoachPersonality } from '../../src/domain/types';
+import { isProPersonality } from '../../src/domain/coach';
 import { selectCoachMessage } from '../../src/domain/coach';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
-const PERSONAS: { value: CoachPersonality; label: string; blurb: string; pro?: boolean }[] = [
+const PERSONAS: { value: CoachPersonality; label: string; blurb: string }[] = [
   { value: 'friendly', label: 'Friendly', blurb: 'Supportive and encouraging.' },
   { value: 'motivational', label: 'Motivational', blurb: 'Fires you up to show up.' },
-  { value: 'savage', label: 'Savage', blurb: 'Blunt. Calls out excuses.', pro: true },
-  { value: 'no_mercy', label: 'No Mercy', blurb: 'Relentless accountability.', pro: true },
+  { value: 'savage', label: 'Savage', blurb: 'Blunt. Calls out excuses.' },
+  { value: 'no_mercy', label: 'No Mercy', blurb: 'Relentless accountability.' },
 ];
 
 const AGGRESSION = [
@@ -21,8 +24,14 @@ const AGGRESSION = [
   { label: 'Max', value: 100 },
 ];
 
+/** Snap a stored 0-100 value to the nearest preset band so one always reads as chosen. */
+function nearestBand(value: number): number {
+  return AGGRESSION.reduce((best, a) => (Math.abs(a.value - value) < Math.abs(best - value) ? a.value : best), AGGRESSION[0]!.value);
+}
+
 export default function CoachSettings() {
   const coach = useProfileStore((s) => s.coach);
+  const effective = useProfileStore((s) => s.effectiveCoach());
   const isPro = useProfileStore((s) => s.isPro());
   const setCoach = useProfileStore((s) => s.setCoach);
   const [preview, setPreview] = useState('');
@@ -55,30 +64,42 @@ export default function CoachSettings() {
             Daily messages and accountability nudges.
           </Text>
         </View>
-        <Switch value={coach.enabled} onValueChange={(enabled) => setCoach({ enabled })} trackColor={{ true: colors.primary, false: colors.surfaceHigh }} thumbColor={colors.text} />
+        <Toggle value={coach.enabled} onValueChange={(enabled) => setCoach({ enabled })} />
       </View>
 
       <SectionHeader title="Personality" />
       <View style={{ gap: spacing.sm }}>
         {PERSONAS.map((p) => {
-          const locked = p.pro && !isPro;
-          const selected = coach.personality === p.value;
+          const locked = isProPersonality(p.value) && !isPro;
+          const selected = effective.personality === p.value;
           return (
             <Card
               key={p.value}
-              onPress={() => !locked && setCoach({ personality: p.value })}
-              style={{ borderColor: selected ? colors.primary : colors.border, borderWidth: selected ? 1 : 0.5, opacity: locked ? 0.55 : 1 }}
+              onPress={() => (locked ? router.push('/paywall') : setCoach({ personality: p.value }))}
+              style={{
+                borderColor: selected && !locked ? colors.primary : colors.border,
+                borderWidth: selected && !locked ? 1 : 0.5,
+              }}
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md }}>
                 <View style={{ flex: 1 }}>
-                  <Text variant="bodyStrong" color={selected ? colors.primary : colors.text}>
-                    {p.label} {locked ? '· PRO' : ''}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Text variant="bodyStrong" color={locked ? colors.textDim : selected ? colors.primary : colors.text}>
+                      {p.label}
+                    </Text>
+                    {locked && <Pill label="PRO" color={colors.amber} />}
+                  </View>
                   <Text variant="caption" color={colors.textDim}>
                     {p.blurb}
                   </Text>
                 </View>
-                {selected && <Text color={colors.primary}>●</Text>}
+                {/* A locked persona shows the lock, never a selected dot: marking
+                    one as both chosen and unavailable reads as a bug. */}
+                {locked ? (
+                  <Icon name="lock" size={18} color={colors.textFaint} />
+                ) : selected ? (
+                  <Icon name="check" size={18} color={colors.primary} />
+                ) : null}
               </View>
             </Card>
           );
@@ -88,7 +109,12 @@ export default function CoachSettings() {
       <SectionHeader title="Aggression" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
         {AGGRESSION.map((a) => (
-          <Chip key={a.value} label={a.label} selected={coach.aggression === a.value} onPress={() => setCoach({ aggression: a.value })} />
+          <Chip
+            key={a.value}
+            label={a.label}
+            selected={nearestBand(coach.aggression) === a.value}
+            onPress={() => setCoach({ aggression: a.value })}
+          />
         ))}
       </View>
 
@@ -99,7 +125,7 @@ export default function CoachSettings() {
             Off keeps every message supportive, even on Savage/No Mercy. Never any hate, threats, or abuse.
           </Text>
         </View>
-        <Switch value={coach.allowAggressiveLanguage} onValueChange={(v) => setCoach({ allowAggressiveLanguage: v })} trackColor={{ true: colors.primary, false: colors.surfaceHigh }} thumbColor={colors.text} />
+        <Toggle value={coach.allowAggressiveLanguage} onValueChange={(v) => setCoach({ allowAggressiveLanguage: v })} />
       </View>
     </Screen>
   );

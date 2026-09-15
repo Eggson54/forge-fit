@@ -10,6 +10,19 @@ import type { CoachPersonality, CoachSettings } from './types';
  *  - If the user disables aggressive language, savage/no_mercy are softened.
  */
 
+/**
+ * Personalities that require Pro. Kept here rather than in the settings screen
+ * so the gate and the runtime fallback cannot drift apart.
+ */
+export const PRO_PERSONALITIES: readonly CoachPersonality[] = ['savage', 'no_mercy'];
+
+/** The free personality a gated one falls back to when Pro is not active. */
+export const FALLBACK_PERSONALITY: CoachPersonality = 'motivational';
+
+export function isProPersonality(p: CoachPersonality): boolean {
+  return PRO_PERSONALITIES.includes(p);
+}
+
 export interface CoachContext {
   disciplineScore: number; // 0-100 today
   dailyStreak: number;

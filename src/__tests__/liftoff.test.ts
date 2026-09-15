@@ -1,4 +1,5 @@
 import { computeRank, RANK_TIERS } from '../domain/rank';
+import { FALLBACK_PERSONALITY, isProPersonality } from '../domain/coach';
 import { weeklySetsPerMuscle, volumeStatus } from '../domain/volume';
 import type { Workout } from '../domain/types';
 
@@ -56,5 +57,18 @@ describe('weekly muscle volume', () => {
     expect(volumeStatus('chest', 4)).toBe('low');
     expect(volumeStatus('chest', 15)).toBe('optimal');
     expect(volumeStatus('chest', 30)).toBe('high');
+  });
+});
+
+describe('pro personality gating', () => {
+  it('flags only savage and no_mercy as Pro', () => {
+    expect(isProPersonality('savage')).toBe(true);
+    expect(isProPersonality('no_mercy')).toBe(true);
+    expect(isProPersonality('friendly')).toBe(false);
+    expect(isProPersonality('motivational')).toBe(false);
+  });
+
+  it('falls back to a free personality', () => {
+    expect(isProPersonality(FALLBACK_PERSONALITY)).toBe(false);
   });
 });

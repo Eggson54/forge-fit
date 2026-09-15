@@ -24,7 +24,7 @@ const PERSONALITY_LABEL: Record<CoachSettings['personality'], string> = {
 const PROMPTS = ['Where am I slacking?', 'Push me right now', "What's my next win?", 'Am I on track?'];
 
 export default function CoachScreen() {
-  const settings = useProfileStore((s) => s.coach);
+  const settings = useProfileStore((s) => s.effectiveCoach());
   const summary = useDailySummary();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);

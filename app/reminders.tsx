@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, Switch, View } from 'react-native';
-import { Card, EmptyState, Input, Screen, SectionHeader, Text } from '../src/components/ui';
+import { Alert, Pressable, View } from 'react-native';
+import { Card, EmptyState, Input, Screen, SectionHeader, Text, Toggle } from '../src/components/ui';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { colors, radius, spacing } from '../src/theme';
 import type { Reminder, ReminderType } from '../src/domain/types';
@@ -101,7 +101,7 @@ function ReminderRow({ reminder }: { reminder: Reminder }) {
           )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <Switch value={reminder.enabled} onValueChange={() => toggle(reminder.id)} trackColor={{ true: colors.primary, false: colors.surfaceHigh }} thumbColor={colors.text} />
+          <Toggle value={reminder.enabled} onValueChange={() => toggle(reminder.id)} />
           <Pressable onPress={() => remove(reminder.id)} hitSlop={8}>
             <Text variant="caption" color={colors.danger}>
               Delete

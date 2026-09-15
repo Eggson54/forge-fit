@@ -67,5 +67,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
-  input: { flex: 1, color: colors.text, paddingVertical: spacing.md, ...typography.body },
+  // minWidth 0 is required: a web TextInput has an intrinsic min-content width
+  // from its `size` attribute, so inside a narrow column the field refuses to
+  // shrink and shoves the suffix out past the card edge.
+  input: { flex: 1, minWidth: 0, color: colors.text, paddingVertical: spacing.md, ...typography.body },
 });

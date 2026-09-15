@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Switch, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, Card, Chip, Input, Screen, Text } from '../../src/components/ui';
+import { Button, Card, Chip, Input, Screen, Text, Toggle } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Syringe } from '../../src/components/Syringe';
 import { colors, spacing } from '../../src/theme';
@@ -96,7 +96,7 @@ export default function AddProtocol() {
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm }}>
           <Text variant="body">Remind me to log this</Text>
-          <Switch value={reminder} onValueChange={setReminder} trackColor={{ true: colors.primary, false: colors.surfaceHigh }} thumbColor={colors.text} />
+          <Toggle value={reminder} onValueChange={setReminder} />
         </View>
       </View>
     </Screen>
