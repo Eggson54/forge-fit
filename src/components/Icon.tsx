@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 export type IconName =
   | 'home'
@@ -36,6 +36,12 @@ export type IconName =
   | 'chart'
   | 'sliders';
 
+// Footprint used by the `steps` glyph, drawn once and mirrored for the pair.
+const STEP_SOLE =
+  'M7.5 3.2c2 0 3.3 1.5 3.3 3.6 0 1.4-.6 2.5-.6 3.5 0 .9.5 1.6.5 2.4 0 1.2-1.2 2-3.2 2s-3.2-.8-3.2-2c0-.8.5-1.5.5-2.4 0-1-.6-2.1-.6-3.5 0-2.1 1.3-3.6 3.3-3.6Z';
+const STEP_HEEL =
+  'M5.1 15.1h4.8c.6 0 .9.4.8 1l-.3 1.4c-.2.8-.9 1.3-1.9 1.3H6.5c-1 0-1.7-.5-1.9-1.3l-.3-1.4c-.1-.6.2-1 .8-1Z';
+
 interface Props {
   name: IconName;
   size?: number;
@@ -64,19 +70,21 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
       {name === 'dumbbell' &&
         (filled ? (
           <>
-            <Rect x="2.6" y="9.9" width="2.6" height="4.2" rx="1.2" fill={color} />
-            <Rect x="6" y="6.6" width="3.4" height="10.8" rx="1.5" fill={color} />
-            <Rect x="9.2" y="11" width="5.6" height="2" rx="1" fill={color} />
-            <Rect x="14.6" y="6.6" width="3.4" height="10.8" rx="1.5" fill={color} />
-            <Rect x="18.8" y="9.9" width="2.6" height="4.2" rx="1.2" fill={color} />
+            <Rect x="4.4" y="11.4" width="15.2" height="1.2" rx="0.6" fill={color} />
+            <Rect x="2.8" y="9.6" width="2.6" height="4.8" rx="1.2" fill={color} />
+            <Rect x="6.1" y="6.4" width="3.4" height="11.2" rx="1.5" fill={color} />
+            <Rect x="9.3" y="10.9" width="5.4" height="2.2" rx="1.1" fill={color} />
+            <Rect x="14.5" y="6.4" width="3.4" height="11.2" rx="1.5" fill={color} />
+            <Rect x="18.6" y="9.6" width="2.6" height="4.8" rx="1.2" fill={color} />
           </>
         ) : (
           <>
-            <Path d="M9.6 12h4.8" stroke={color} strokeWidth={2} strokeLinecap="round" />
-            <Path d="M8.2 7.8v8.4" stroke={color} strokeWidth={3.2} strokeLinecap="round" fill="none" />
-            <Path d="M15.8 7.8v8.4" stroke={color} strokeWidth={3.2} strokeLinecap="round" fill="none" />
-            <Path d="M4.4 10.1v3.8" stroke={color} strokeWidth={2.4} strokeLinecap="round" fill="none" />
-            <Path d="M19.6 10.1v3.8" stroke={color} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+            <Path d="M5 12h14" stroke={color} strokeWidth={1.6} strokeLinecap="round" fill="none" />
+            <Path d="M8 12h8" stroke={color} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+            <Path d="M7.7 7.4v9.2" stroke={color} strokeWidth={3.4} strokeLinecap="round" fill="none" />
+            <Path d="M16.3 7.4v9.2" stroke={color} strokeWidth={3.4} strokeLinecap="round" fill="none" />
+            <Path d="M4.2 9.6v4.8" stroke={color} strokeWidth={2.6} strokeLinecap="round" fill="none" />
+            <Path d="M19.8 9.6v4.8" stroke={color} strokeWidth={2.6} strokeLinecap="round" fill="none" />
           </>
         ))}
 
@@ -140,11 +148,18 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
           <Circle cx="12" cy="13" r="3.6" {...s} />
         </>
       )}
+      {/* A matched pair of prints: the earlier version faded one print to 55%,
+          which at tab size read as two smudges rather than footsteps. */}
       {name === 'steps' && (
         <>
-          <Path d="M7.6 3.2c1.7 0 2.7 1.5 2.7 3.6 0 1.5-.5 2.6-.5 3.8 0 1 .4 1.7.4 2.6 0 1.3-1 2.1-2.6 2.1s-2.6-.8-2.6-2.1c0-.9.4-1.6.4-2.6 0-1.2-.5-2.3-.5-3.8 0-2.1 1-3.6 2.7-3.6Z" fill={color} />
-          <Path d="M5.4 17.2h4.4c.5 0 .8.4.7.9l-.3 1.5c-.2.8-.9 1.2-1.9 1.2H6.9c-1 0-1.7-.4-1.9-1.2l-.3-1.5c-.1-.5.2-.9.7-.9Z" fill={color} opacity={0.75} />
-          <Path d="M16.4 6.8c1.7 0 2.7 1.5 2.7 3.6 0 1.5-.5 2.6-.5 3.8 0 1 .4 1.7.4 2.6 0 1.3-1 2.1-2.6 2.1s-2.6-.8-2.6-2.1c0-.9.4-1.6.4-2.6 0-1.2-.5-2.3-.5-3.8 0-2.1 1-3.6 2.7-3.6Z" fill={color} opacity={0.55} />
+          <G transform="rotate(-8 7.5 11)">
+            <Path d={STEP_SOLE} fill={color} />
+            <Path d={STEP_HEEL} fill={color} />
+          </G>
+          <G transform="translate(25,4) scale(-1,1) rotate(-8 7.5 11)">
+            <Path d={STEP_SOLE} fill={color} />
+            <Path d={STEP_HEEL} fill={color} />
+          </G>
         </>
       )}
       {name === 'moon' && (

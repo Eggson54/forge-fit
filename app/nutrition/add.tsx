@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, Card, Input, Screen, SegmentedControl, Text } from '../../src/components/ui';
+import { Button, Card, EmptyState, Input, Screen, SegmentedControl, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
@@ -60,21 +60,50 @@ function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () =>
   return (
     <View style={{ gap: spacing.sm }}>
       <Input icon="search" value={q} onChangeText={setQ} placeholder="Search foods (e.g. chicken)" autoFocus autoCapitalize="none" />
-      {results.map((f) => (
-        <Card key={f.id} onPress={() => save(f)}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Text variant="body">{f.name}</Text>
-              <Text variant="caption" color={colors.textDim}>
-                {f.servingLabel} · P{f.proteinG} C{f.carbsG} F{f.fatG}
+      {results.length === 0 ? (
+        <EmptyState
+          icon="search"
+          title={q.trim() ? `No match for "${q.trim()}"` : 'Search the food database'}
+          subtitle="Or switch to Manual to enter macros yourself, or AI Estimate to describe a meal."
+        />
+      ) : (
+        /* One card with divided rows: separate cards per food halved how many
+           results fit on screen. */
+        <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+          {results.map((f, i) => (
+            <Pressable
+              key={f.id}
+              onPress={() => save(f)}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                  paddingVertical: spacing.md,
+                  borderBottomWidth: i === results.length - 1 ? 0 : StyleSheet.hairlineWidth,
+                  borderBottomColor: colors.border,
+                },
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">{f.name}</Text>
+                <Text variant="caption" color={colors.textDim}>
+                  {f.servingLabel} · P{f.proteinG} C{f.carbsG} F{f.fatG}
+                </Text>
+              </View>
+              <Text variant="bodyStrong" color={colors.calorie}>
+                {f.calories}
+                <Text variant="caption" color={colors.textFaint}>
+                  {' '}
+                  kcal
+                </Text>
               </Text>
-            </View>
-            <Text variant="bodyStrong" color={colors.primary}>
-              {f.calories}
-            </Text>
-          </View>
+            </Pressable>
+          ))}
         </Card>
-      ))}
+      )}
     </View>
   );
 }

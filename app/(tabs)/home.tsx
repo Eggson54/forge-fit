@@ -210,29 +210,23 @@ export default function Home() {
 
       {/* Quick actions */}
       <SectionHeader title="Quick add" />
-      <View style={{ flexDirection: 'row', gap: spacing.md }}>
-        <QuickAction icon="dumbbell" label="Workout" onPress={() => router.push('/(tabs)/workout')} />
-        <QuickAction icon="nutrition" label="Food" onPress={() => router.push('/nutrition/add')} />
-        <QuickAction icon="water" label="+16 oz" onPress={() => addWater(16)} />
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <QuickAction icon="dumbbell" tint={colors.primary} label="Workout" onPress={() => router.push('/(tabs)/workout')} />
+        <QuickAction icon="nutrition" tint={colors.calorie} label="Food" onPress={() => router.push('/nutrition/add')} />
+        <QuickAction icon="water" tint={colors.water} label="+16 oz" onPress={() => addWater(16)} />
+        <QuickAction
+          icon="scale"
+          tint={colors.protein}
+          label="Weigh in"
+          onPress={() => router.push({ pathname: '/log', params: { focus: 'weight' } })}
+        />
       </View>
 
       <View style={{ marginTop: spacing.lg }}>
         <AdSlot placement="home_feed" />
       </View>
-
-      {profile.targetWeightKg && summary && (
-        <Text variant="caption" color={colors.textFaint} center style={{ marginTop: spacing.md }}>
-          Target: {display(profile.targetWeightKg, profile.units)} · Current:{' '}
-          {display(useLogStore.getState().latestWeightKg() ?? profile.weightKg ?? 0, profile.units)}
-        </Text>
-      )}
     </Screen>
   );
-}
-
-function display(kg: number, units: 'imperial' | 'metric') {
-  const d = displayWeight(kg, units);
-  return `${d.value} ${d.unit}`;
 }
 
 function StreakBadge({ count }: { count: number }) {
@@ -294,11 +288,25 @@ function MetricRow({
   );
 }
 
-function QuickAction({ icon, label, onPress }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: () => void }) {
+function QuickAction({
+  icon,
+  label,
+  tint,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Icon>['name'];
+  label: string;
+  tint: string;
+  onPress: () => void;
+}) {
   return (
-    <Card style={{ flex: 1, alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg }} onPress={onPress}>
-      <Icon name={icon} size={24} color={colors.primary} />
-      <Text variant="label">{label}</Text>
+    <Card style={{ flex: 1, alignItems: 'center', gap: 6 }} padded={false} onPress={onPress}>
+      <View style={{ alignItems: 'center', gap: 6, paddingVertical: spacing.md, paddingHorizontal: 4 }}>
+        <Icon name={icon} size={21} color={tint} strokeWidth={1.9} />
+        <Text variant="caption" numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
     </Card>
   );
 }
