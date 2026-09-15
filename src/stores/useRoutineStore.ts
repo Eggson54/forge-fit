@@ -23,12 +23,35 @@ export interface Routine {
   createdAt: string;
 }
 
+/**
+ * The routine being edited.
+ *
+ * The builder and the exercise picker are separate screens, so the draft cannot
+ * live in the builder's own state: returning from the picker pushes a fresh
+ * builder, which would start empty and silently drop everything added before it.
+ */
+export interface RoutineDraft {
+  editingId: string | null;
+  name: string;
+  exercises: RoutineExercise[];
+}
+
+const emptyDraft = (): RoutineDraft => ({ editingId: null, name: '', exercises: [] });
+
 interface RoutineState {
   routines: Routine[];
+  draft: RoutineDraft;
+
+  startDraft: (routine?: Routine) => void;
+  setDraftName: (name: string) => void;
+  setDraftExercises: (exercises: RoutineExercise[]) => void;
+  addDraftExercise: (e: RoutineExercise) => void;
+  commitDraft: () => Routine | null;
   add: (r: Omit<Routine, 'id' | 'createdAt'>) => Routine;
   saveFromWorkout: (workout: Workout, name?: string) => Routine;
   remove: (id: string) => void;
   rename: (id: string, name: string) => void;
+  update: (id: string, patch: Partial<Omit<Routine, 'id' | 'createdAt'>>) => void;
   start: (id: string, experience: Experience) => string | null;
   reset: () => void;
 }
@@ -37,6 +60,41 @@ export const useRoutineStore = create<RoutineState>()(
   persist(
     (set, get) => ({
       routines: [],
+      draft: emptyDraft(),
+
+      startDraft: (routine) =>
+        set({
+          draft: routine
+            ? { editingId: routine.id, name: routine.name, exercises: [...routine.exercises] }
+            : emptyDraft(),
+        }),
+
+      setDraftName: (name) => set((s) => ({ draft: { ...s.draft, name } })),
+
+      setDraftExercises: (exercises) => set((s) => ({ draft: { ...s.draft, exercises } })),
+
+      addDraftExercise: (e) =>
+        set((s) =>
+          s.draft.exercises.some((x) => x.exerciseId === e.exerciseId)
+            ? s
+            : { draft: { ...s.draft, exercises: [...s.draft.exercises, e] } },
+        ),
+
+      commitDraft: () => {
+        const { draft } = get();
+        if (draft.exercises.length === 0) return null;
+        const focus = [...new Set(draft.exercises.map((e) => e.primaryMuscle))];
+        const name = draft.name.trim() || 'New routine';
+        if (draft.editingId) {
+          get().update(draft.editingId, { name, focus, exercises: draft.exercises });
+          const updated = get().routines.find((r) => r.id === draft.editingId) ?? null;
+          set({ draft: emptyDraft() });
+          return updated;
+        }
+        const created = get().add({ name, focus, exercises: draft.exercises });
+        set({ draft: emptyDraft() });
+        return created;
+      },
 
       add: (r) => {
         const routine: Routine = { ...r, id: uid('rt_'), createdAt: new Date().toISOString() };
@@ -59,6 +117,8 @@ export const useRoutineStore = create<RoutineState>()(
       remove: (id) => set((s) => ({ routines: s.routines.filter((r) => r.id !== id) })),
       rename: (id, name) => set((s) => ({ routines: s.routines.map((r) => (r.id === id ? { ...r, name } : r)) })),
 
+      update: (id, patch) => set((s) => ({ routines: s.routines.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
+
       start: (id, experience) => {
         const routine = get().routines.find((r) => r.id === id);
         if (!routine) return null;
@@ -79,8 +139,14 @@ export const useRoutineStore = create<RoutineState>()(
         return useWorkoutStore.getState().startFromGenerated(gen, experience);
       },
 
-      reset: () => set({ routines: [] }),
+      reset: () => set({ routines: [], draft: emptyDraft() }),
     }),
-    { name: 'forgefit.routines', storage: jsonStorage() },
+    {
+      name: 'forgefit.routines',
+      storage: jsonStorage(),
+      // The draft is scratch state for one editing session; persisting it would
+      // reopen a half-built routine days later with no way to tell why.
+      partialize: (s) => ({ routines: s.routines }),
+    },
   ),
 );

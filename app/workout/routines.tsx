@@ -25,13 +25,30 @@ export default function Routines() {
 
   return (
     <Screen gradient>
-      <ScreenHeader title="Routines" />
+      <ScreenHeader
+        title="Routines"
+        right={
+          <Button
+            title="New"
+            size="sm"
+            fullWidth={false}
+            icon={<Icon name="plus" size={15} color={colors.onPrimary} />}
+            onPress={() => router.push('/workout/routine-builder')}
+          />
+        }
+      />
       <Text variant="caption" color={colors.textDim} style={{ marginBottom: spacing.md }}>
         Reusable workout templates. Start one anytime and it pre-loads your exercises and sets.
       </Text>
 
       {routines.length === 0 ? (
-        <EmptyState icon="list" title="No routines yet" subtitle="Save a completed workout below as a routine to reuse it." />
+        <EmptyState
+          icon="list"
+          title="No routines yet"
+          subtitle="Build one from scratch, or save a completed workout below to reuse it."
+          action="Build a routine"
+          onAction={() => router.push('/workout/routine-builder')}
+        />
       ) : (
         <View style={{ gap: spacing.md }}>
           <Stagger step={45}>

@@ -8,14 +8,30 @@ import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { colors, layout, spacing } from '../../src/theme';
 import type { Exercise, MuscleGroup } from '../../src/domain/types';
 import { MUSCLE_GROUPS } from '../../src/data/exercises';
+import { useRoutineStore } from '../../src/stores/useRoutineStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 
 export default function ExerciseLibrary() {
-  const params = useLocalSearchParams<{ select?: string }>();
+  const params = useLocalSearchParams<{ select?: string; pick?: string }>();
   const selectMode = params.select === '1';
+  // "pick" hands the chosen exercise back to the routine builder instead of
+  // adding it to a live session.
+  const pickMode = params.pick === '1';
   const allExercises = useWorkoutStore((s) => s.allExercises());
   const addToActive = useWorkoutStore((s) => s.addExerciseToActive);
   const addCustom = useWorkoutStore((s) => s.addCustomExercise);
+  const addDraftExercise = useRoutineStore((s) => s.addDraftExercise);
+
+  /** Sensible starting sets/reps/rest for a routine, by exercise category. */
+  const addToDraft = (e: Exercise) =>
+    addDraftExercise({
+      exerciseId: e.id,
+      name: e.name,
+      primaryMuscle: e.primaryMuscle,
+      sets: 3,
+      targetReps: e.category === 'compound' ? 6 : 10,
+      restSeconds: e.category === 'compound' ? 150 : 75,
+    });
 
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | 'all'>('all');
@@ -31,7 +47,10 @@ export default function ExerciseLibrary() {
   // full detail screen, which used to be a system alert with the instructions
   // crammed into its body.
   const onPick = (e: Exercise) => {
-    if (selectMode) {
+    if (pickMode) {
+      addToDraft(e);
+      router.back();
+    } else if (selectMode) {
       addToActive(e.id);
       router.back();
     } else {
@@ -53,7 +72,10 @@ export default function ExerciseLibrary() {
       difficulty: 'beginner',
       instructions: ['Custom exercise.'],
     });
-    if (selectMode) {
+    if (pickMode) {
+      addToDraft(created);
+      router.back();
+    } else if (selectMode) {
       addToActive(created.id);
       router.back();
     } else {
@@ -63,7 +85,7 @@ export default function ExerciseLibrary() {
 
   return (
     <Screen gradient>
-      <ScreenHeader title={selectMode ? 'Add Exercise' : 'Exercise Library'} />
+      <ScreenHeader title={selectMode || pickMode ? 'Add Exercise' : 'Exercise Library'} />
       <Input icon="search" value={query} onChangeText={setQuery} placeholder="Search exercises" autoCapitalize="none" />
 
       <ScrollView
@@ -107,7 +129,7 @@ export default function ExerciseLibrary() {
                     {label(e.primaryMuscle)} · {e.equipment} · {e.difficulty}
                   </Text>
                 </View>
-                {selectMode ? <Icon name="plus" size={20} color={colors.primary} /> : <Text color={colors.textFaint}>›</Text>}
+                {selectMode || pickMode ? <Icon name="plus" size={20} color={colors.primary} /> : <Text color={colors.textFaint}>›</Text>}
               </Pressable>
             ))}
           </Card>
