@@ -17,7 +17,10 @@ export default function WorkoutTab() {
   const startEmpty = useWorkoutStore((s) => s.startEmptyWorkout);
   const units = useProfileStore((s) => s.profile.units);
 
-  const completed = workouts.filter((w) => w.status === 'completed').slice(0, 10);
+  // "Recent" means recent: ten sessions is the History screen, which "See all"
+  // already links to, and it buried the start button under a full duplicate list.
+  const allCompleted = workouts.filter((w) => w.status === 'completed');
+  const completed = allCompleted.slice(0, 4);
   const active = workouts.find((w) => w.id === activeId);
 
   const startBlank = () => {
@@ -67,7 +70,7 @@ export default function WorkoutTab() {
         <StartCard icon="clock" title="History" subtitle="Past sessions" onPress={() => router.push('/workout/history')} />
       </View>
 
-      <SectionHeader title="Recent workouts" action={completed.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />
+      <SectionHeader title="Recent workouts" action={allCompleted.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />
       {/* The empty state carries no action: the Empty Workout tile above and the
           footer button below are already the same tap, and three copies of one
           call to action on one screen reads as indecision. */}

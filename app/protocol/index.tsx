@@ -33,10 +33,16 @@ export default function ProtocolHome() {
         </View>
       )}
 
-      <SectionHeader title="History" />
-      <Text variant="caption" color={colors.textFaint}>
-        Tap any item to view its calendar history, adherence, and export your personal records.
-      </Text>
+      {/* The history hint describes tapping an item, so it only belongs on screen
+          once there is an item to tap. */}
+      {protocols.length > 0 && (
+        <>
+          <SectionHeader title="History" />
+          <Text variant="caption" color={colors.textFaint}>
+            Tap any item to view its calendar history, adherence, and export your personal records.
+          </Text>
+        </>
+      )}
     </Screen>
   );
 }
