@@ -14,6 +14,7 @@ import { workoutStats } from '../../src/domain/strength';
 import { displayVolume, displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
 import type { SetEntry, WorkoutExercise } from '../../src/domain/types';
 import { SET_KIND_LABEL, SET_KIND_MARK, isWarmupSet, nextSetKind, setKind } from '../../src/domain/sets';
+import { SUPERSET_TRANSITION_SECONDS, groupExercises, restAfterSet, supersetLabel, type ExerciseGroup } from '../../src/domain/superset';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
@@ -39,6 +40,7 @@ export default function ActiveWorkout() {
   }, [active?.id, active?.startedAt]);
 
   const stats = useMemo(() => (active ? workoutStats(active) : null), [active]);
+  const groups = useMemo(() => groupExercises(active?.exercises ?? []), [active?.exercises]);
 
   if (!active) {
     return (
@@ -106,10 +108,11 @@ export default function ActiveWorkout() {
         <Text variant="h2" style={{ paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
           {active.name}
         </Text>
-        {active.exercises.map((ex) => (
-          <ExerciseBlock
-            key={ex.id}
-            exercise={ex}
+        {groups.map((group, gi) => (
+          <ExerciseGroupBlock
+            key={group.items[0]!.id}
+            group={group}
+            isLast={gi === groups.length - 1}
             onRest={(sec) => setRestKey({ seconds: sec, id: Date.now() })}
             onPr={(name, kg) => setPr({ name, kg, id: Date.now() })}
           />
@@ -149,12 +152,85 @@ export default function ActiveWorkout() {
   );
 }
 
+/**
+ * One superset, or a single exercise. The rail and the A/B letters are what
+ * tell you at a glance that two cards are trained together rather than in
+ * sequence — the rest behaviour differs, so the grouping has to be visible.
+ */
+function ExerciseGroupBlock({
+  group,
+  isLast,
+  onRest,
+  onPr,
+}: {
+  group: ExerciseGroup;
+  isLast: boolean;
+  onRest: (seconds: number) => void;
+  onPr: (name: string, e1RMKg: number) => void;
+}) {
+  const toggleSuperset = useWorkoutStore((s) => s.toggleSupersetWithNext);
+  const isSuperset = group.items.length > 1;
+
+  return (
+    <View style={isSuperset ? styles.group : undefined}>
+      {isSuperset && (
+        <View style={styles.groupHeader}>
+          <View style={styles.groupBadge}>
+            <Icon name="repeat" size={12} color={colors.onPrimary} strokeWidth={2.4} />
+            <Text variant="overline" color={colors.onPrimary}>
+              Superset
+            </Text>
+          </View>
+          <Text variant="caption" color={colors.textFaint}>
+            {SUPERSET_TRANSITION_SECONDS}s between · full rest after {supersetLabel(group.items.length - 1)}
+          </Text>
+        </View>
+      )}
+
+      {group.items.map((ex, i) => (
+        <View key={ex.id}>
+          <ExerciseBlock
+            exercise={ex}
+            letter={isSuperset ? supersetLabel(i) : null}
+            onRest={(seconds) => onRest(restAfterSet(group, i, seconds))}
+            onPr={onPr}
+          />
+          {/* Sits in the gap between two cards, where the link it makes is. */}
+          {(i < group.items.length - 1 || !isLast) && (
+            <Pressable
+              onPress={() => toggleSuperset(ex.id)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={
+                i < group.items.length - 1 ? 'Break this superset here' : 'Superset with the next exercise'
+              }
+              style={styles.linkButton}
+            >
+              <Icon
+                name={i < group.items.length - 1 ? 'link_off' : 'repeat'}
+                size={13}
+                color={colors.textFaint}
+                strokeWidth={1.9}
+              />
+              <Text variant="caption" color={colors.textFaint}>
+                {i < group.items.length - 1 ? 'Unlink' : 'Superset with next'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function ExerciseBlock({
   exercise,
+  letter,
   onRest,
   onPr,
 }: {
   exercise: WorkoutExercise;
+  letter: string | null;
   onRest: (seconds: number) => void;
   onPr: (name: string, e1RMKg: number) => void;
 }) {
@@ -183,7 +259,10 @@ function ExerciseBlock({
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
         <MuscleThumb muscle={exercise.primaryMuscle} size={30} />
         <View style={{ flex: 1 }}>
-          <Text variant="title">{exercise.name}</Text>
+          <Text variant="title">
+            {letter ? <Text variant="title" color={colors.primary}>{letter} </Text> : null}
+            {exercise.name}
+          </Text>
           <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: 2 }}>
             {prevWeight && (
               <Text variant="caption" color={colors.textDim}>
@@ -409,6 +488,38 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     textAlignVertical: 'top',
+  },
+  group: {
+    borderLeftWidth: 2,
+    borderLeftColor: colors.primary,
+    marginLeft: spacing.md,
+    marginBottom: spacing.md,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingLeft: spacing.md,
+    paddingBottom: spacing.xs,
+    flexWrap: 'wrap',
+  },
+  groupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.xs,
   },
   noteOpen: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingTop: spacing.sm },
   addSet: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.md, marginTop: spacing.xs },

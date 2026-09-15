@@ -37,7 +37,8 @@ export type IconName =
   | 'sliders'
   | 'calendar'
   | 'chevron_left'
-  | 'chevron_right';
+  | 'chevron_right'
+  | 'link_off';
 
 // Footprint used by the `steps` glyph, drawn once and mirrored for the pair.
 const STEP_SOLE =
@@ -340,6 +341,14 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
       {name === 'chevron_left' && <Path d="M14.5 5.5 8 12l6.5 6.5" {...s} />}
 
       {name === 'chevron_right' && <Path d="M9.5 5.5 16 12l-6.5 6.5" {...s} />}
+
+      {name === 'link_off' && (
+        <>
+          <Path d="M9.2 14.8 7.4 16.6a3.6 3.6 0 0 1-5.1-5.1l1.8-1.8" {...s} />
+          <Path d="M14.8 9.2l1.8-1.8a3.6 3.6 0 0 1 5.1 5.1l-1.8 1.8" {...s} />
+          <Path d="M4 4l16 16" {...s} />
+        </>
+      )}
 
     </Svg>
   );

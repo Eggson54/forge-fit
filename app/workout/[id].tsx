@@ -9,8 +9,9 @@ import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayWeight, groupThousands } from '../../src/domain/units';
-import type { MuscleGroup } from '../../src/domain/types';
+import type { MuscleGroup, Units, WorkoutExercise } from '../../src/domain/types';
 import { SET_KIND_LABEL, setKind } from '../../src/domain/sets';
+import { groupExercises, supersetLabel } from '../../src/domain/superset';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useRoutineStore } from '../../src/stores/useRoutineStore';
@@ -78,45 +79,26 @@ export default function WorkoutDetail() {
       </Card>
 
       <SectionHeader title="Exercises" />
-      {workout.exercises.map((ex) => {
-        const completedSets = ex.sets.filter((s) => s.completed);
-        return (
-          <Card key={ex.id} style={{ marginBottom: spacing.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <MuscleThumb muscle={ex.primaryMuscle} size={26} />
-              <Text variant="bodyStrong" style={{ flex: 1 }}>
-                {ex.name}
-              </Text>
-            </View>
-            <View style={{ marginTop: spacing.sm, gap: 4 }}>
-              {completedSets.map((s, i) => {
-                const w = s.weightKg != null ? displayWeight(s.weightKg, units) : null;
-                return (
-                  <View key={s.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text variant="caption" color={colors.textDim}>
-                      {setKind(s) === 'working' ? `Set ${i + 1}` : SET_KIND_LABEL[setKind(s)]} {s.isPr ? '★' : ''}
-                    </Text>
-                    <Text variant="label">
-                      {w ? `${Math.round(w.value * 10) / 10} ${w.unit}` : '—'} × {s.reps ?? '—'}
-                      {s.rpe ? ` @ RPE ${s.rpe}` : ''}
-                    </Text>
-                  </View>
-                );
-              })}
-              {completedSets.length === 0 && (
-                <Text variant="caption" color={colors.textFaint}>
-                  No completed sets
-                </Text>
-              )}
-            </View>
-            {ex.notes ? (
-              <Text variant="caption" color={colors.textDim} style={{ marginTop: spacing.sm, fontStyle: 'italic' }}>
-                “{ex.notes}”
-              </Text>
-            ) : null}
-          </Card>
-        );
-      })}
+      {groupExercises(workout.exercises).map((group) => (
+        <View
+          key={group.items[0]!.id}
+          style={group.supersetId ? { borderLeftWidth: 2, borderLeftColor: colors.primary, paddingLeft: spacing.md } : undefined}
+        >
+          {group.supersetId && (
+            <Text variant="overline" color={colors.primary} style={{ marginBottom: spacing.xs }}>
+              Superset
+            </Text>
+          )}
+          {group.items.map((ex, i) => (
+            <ExerciseSummary
+              key={ex.id}
+              exercise={ex}
+              letter={group.supersetId ? supersetLabel(i) : null}
+              units={units}
+            />
+          ))}
+        </View>
+      ))}
 
       <SectionHeader title="Muscle volume" />
       <Card>
@@ -142,3 +124,54 @@ export default function WorkoutDetail() {
 }
 
 const label = (m: MuscleGroup) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** One exercise as it was actually performed, for the post-session summary. */
+function ExerciseSummary({
+  exercise,
+  letter,
+  units,
+}: {
+  exercise: WorkoutExercise;
+  letter: string | null;
+  units: Units;
+}) {
+  const completedSets = exercise.sets.filter((s) => s.completed);
+
+  return (
+    <Card style={{ marginBottom: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <MuscleThumb muscle={exercise.primaryMuscle} size={26} />
+        <Text variant="bodyStrong" style={{ flex: 1 }}>
+          {letter ? <Text variant="bodyStrong" color={colors.primary}>{letter} </Text> : null}
+          {exercise.name}
+        </Text>
+      </View>
+      <View style={{ marginTop: spacing.sm, gap: 4 }}>
+        {completedSets.map((s, i) => {
+          const w = s.weightKg != null ? displayWeight(s.weightKg, units) : null;
+          return (
+            <View key={s.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="caption" color={colors.textDim}>
+                {setKind(s) === 'working' ? `Set ${i + 1}` : SET_KIND_LABEL[setKind(s)]} {s.isPr ? '★' : ''}
+              </Text>
+              <Text variant="label">
+                {w ? `${Math.round(w.value * 10) / 10} ${w.unit}` : '—'} × {s.reps ?? '—'}
+                {s.rpe ? ` @ RPE ${s.rpe}` : ''}
+              </Text>
+            </View>
+          );
+        })}
+        {completedSets.length === 0 && (
+          <Text variant="caption" color={colors.textFaint}>
+            No completed sets
+          </Text>
+        )}
+      </View>
+      {exercise.notes ? (
+        <Text variant="caption" color={colors.textDim} style={{ marginTop: spacing.sm, fontStyle: 'italic' }}>
+          “{exercise.notes}”
+        </Text>
+      ) : null}
+    </Card>
+  );
+}

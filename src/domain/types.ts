@@ -125,6 +125,8 @@ export interface WorkoutExercise {
   name: string;
   primaryMuscle: MuscleGroup;
   notes?: string;
+  /** Shared by adjacent exercises trained back-to-back as a superset. */
+  supersetGroup?: string;
   restSeconds: number;
   sets: SetEntry[];
   targetReps?: number;

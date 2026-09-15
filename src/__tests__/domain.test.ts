@@ -26,6 +26,7 @@ import { longestRunOfDays } from '../domain/date';
 import { isWarmupSet, nextSetKind, setKind } from '../domain/sets';
 import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries } from '../domain/measurements';
 import { formatDateLong, formatDateWithWeekday, formatDayMonth } from '../domain/date';
+import { groupExercises, restAfterSet, toggleSupersetAt } from '../domain/superset';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -490,5 +491,66 @@ describe('changeVerdict', () => {
   it('judges nothing when the goal is maintenance', () => {
     expect(changeVerdict(arm, 1, 'maintain')).toBe('neutral');
     expect(changeVerdict(waist, -1, 'maintain')).toBe('neutral');
+  });
+});
+
+describe('supersets', () => {
+  const ex = (id: string, supersetGroup?: string) =>
+    ({ id, exerciseId: id, name: id, primaryMuscle: 'chest', restSeconds: 150, sets: [], supersetGroup }) as never;
+  const tags = (list: ReturnType<typeof toggleSupersetAt>) => list.map((e) => e.supersetGroup ?? '-');
+
+  it('links an exercise with the one below it', () => {
+    const out = toggleSupersetAt([ex('a'), ex('b'), ex('c')], 0);
+    expect(tags(out)).toEqual(['ss1', 'ss1', '-']);
+  });
+
+  it('extends the group rather than starting a new pair', () => {
+    const out = toggleSupersetAt([ex('a', 'ss1'), ex('b', 'ss1'), ex('c')], 1);
+    expect(tags(out)).toEqual(['ss1', 'ss1', 'ss1']);
+  });
+
+  it('absorbs the group below instead of tearing its head out', () => {
+    const out = toggleSupersetAt([ex('a'), ex('b', 'ss1'), ex('c', 'ss1')], 0);
+    expect(new Set(tags(out)).size).toBe(1);
+  });
+
+  it('splits at the seam and keeps the tail training together', () => {
+    const out = toggleSupersetAt([ex('a', 'ss1'), ex('b', 'ss1'), ex('c', 'ss1')], 0);
+    expect(out[0]!.supersetGroup).toBeUndefined();
+    expect(out[1]!.supersetGroup).toBe(out[2]!.supersetGroup);
+    expect(out[1]!.supersetGroup).toBeDefined();
+  });
+
+  it('leaves no tag on an exercise left on its own', () => {
+    const out = toggleSupersetAt([ex('a', 'ss1'), ex('b', 'ss1')], 0);
+    expect(tags(out)).toEqual(['-', '-']);
+  });
+
+  it('does nothing on the last exercise', () => {
+    const list = [ex('a'), ex('b')];
+    expect(toggleSupersetAt(list, 1)).toBe(list);
+  });
+
+  it('only groups adjacent exercises', () => {
+    // Same tag, but separated — you cannot alternate between them.
+    const groups = groupExercises([ex('a', 'ss1'), ex('b'), ex('c', 'ss1')]);
+    expect(groups.map((g) => g.items.length)).toEqual([1, 1, 1]);
+    expect(groups.every((g) => g.supersetId === null)).toBe(true);
+  });
+
+  it('demotes a group of one', () => {
+    const groups = groupExercises([ex('a', 'ss1'), ex('b')]);
+    expect(groups[0]!.supersetId).toBeNull();
+  });
+
+  it('rests fully only after the last exercise in the group', () => {
+    const group = groupExercises([ex('a', 'ss1'), ex('b', 'ss1')])[0]!;
+    expect(restAfterSet(group, 0, 150)).toBe(20);
+    expect(restAfterSet(group, 1, 150)).toBe(150);
+  });
+
+  it('never stretches a short rest into a longer transition', () => {
+    const group = groupExercises([ex('a', 'ss1'), ex('b', 'ss1')])[0]!;
+    expect(restAfterSet(group, 0, 15)).toBe(15);
   });
 });

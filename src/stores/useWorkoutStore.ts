@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { todayISO } from '../domain/date';
 import { epley1RM } from '../domain/strength';
 import { isWarmupSet, nextSetKind } from '../domain/sets';
+import { toggleSupersetAt } from '../domain/superset';
 import { findPreviousPerformance, recommendNext, type PreviousPerformance } from '../domain/progressiveOverload';
 import type {
   Exercise,
@@ -43,6 +44,8 @@ interface WorkoutState {
   updateSet: (workoutExerciseId: string, setId: string, patch: Partial<SetEntry>) => void;
   removeSet: (workoutExerciseId: string, setId: string) => void;
   cycleSetKind: (workoutExerciseId: string, setId: string) => void;
+  /** Link this exercise with the one below it into a superset, or unlink it. */
+  toggleSupersetWithNext: (workoutExerciseId: string) => void;
   setExerciseNote: (workoutExerciseId: string, note: string) => void;
   /** Returns the new personal record this completion set, if any. */
   toggleSetComplete: (workoutExerciseId: string, setId: string) => NewPr | null;
@@ -183,6 +186,9 @@ export const useWorkoutStore = create<WorkoutState>()(
           ...w,
           exercises: w.exercises.map((e) => (e.id === weId ? { ...e, sets: e.sets.filter((s) => s.id !== setId) } : e)),
         })),
+
+      toggleSupersetWithNext: (weId) =>
+        mutateActive((w) => ({ ...w, exercises: toggleSupersetAt(w.exercises, w.exercises.findIndex((e) => e.id === weId)) })),
 
       cycleSetKind: (weId, setId) =>
         mutateActive((w) => ({
