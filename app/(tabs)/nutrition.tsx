@@ -127,9 +127,11 @@ function confirmDelete(e: NutritionEntry, remove: (id: string) => void) {
 
 function MacroCard({ label, value, target, color }: { label: string; value: number; target: number; color: string }) {
   const left = Math.max(0, Math.round(target - value));
+  // Ring and padding are sized for the narrowest common phone: a 74px ring
+  // inside spacing.lg padding overflowed the card at 360pt width.
   return (
-    <Card style={{ flex: 1, alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg }}>
-      <AnimatedProgressRing progress={value / target} size={74} stroke={7} color={color}>
+    <Card style={{ flex: 1, alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg, paddingHorizontal: spacing.sm }}>
+      <AnimatedProgressRing progress={value / target} size={64} stroke={6.5} color={color}>
         <AnimatedNumber value={Math.round(value)} variant="bodyStrong" format={(n) => `${n}g`} />
       </AnimatedProgressRing>
       <View style={{ alignItems: 'center' }}>
