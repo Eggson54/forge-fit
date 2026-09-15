@@ -1,4 +1,4 @@
-import { displayWeight, round } from './units';
+import { displayWeight, round, toKg } from './units';
 import { isWarmupSet } from './sets';
 import type { Experience, SetEntry, Units, Workout } from './types';
 
@@ -15,11 +15,17 @@ export interface OverloadRecommendation {
   rationale: string;
 }
 
-// Smallest weight jump we suggest, by experience. Beginners can add more.
-const INCREMENT_KG: Record<Experience, number> = {
-  beginner: 2.5,
-  intermediate: 1.25,
-  advanced: 1.25,
+/**
+ * Smallest weight jump we suggest, by experience and by the units the athlete
+ * actually thinks in. Beginners can add more.
+ *
+ * These are unit-native rather than converted: the increment has to land on a
+ * pair of plates that exists in the gym, and 1.25 kg converted into pounds
+ * reads as "add 2.8 lb", which is not a thing anyone can load.
+ */
+const INCREMENT: Record<Units, Record<Experience, number>> = {
+  metric: { beginner: 2.5, intermediate: 1.25, advanced: 1.25 },
+  imperial: { beginner: 5, intermediate: 2.5, advanced: 2.5 },
 };
 
 /**
@@ -61,31 +67,35 @@ export function recommendNext(
 ): OverloadRecommendation | null {
   if (!prev) return null;
   const [low, high] = opts.repRange ?? [6, 10];
-  const inc = INCREMENT_KG[opts.experience];
   // The rationale is user-facing, so it has to speak the user's units — it read
   // "bump 1.25kg" to someone whose whole app is in pounds.
   const units: Units = opts.units ?? 'metric';
-  const show = (kg: number) => {
-    const d = displayWeight(kg, units);
-    return `${d.value} ${d.unit}`;
-  };
+  const step = INCREMENT[units][opts.experience];
+  const show = (value: number) => `${round(value, 2)} ${units === 'imperial' ? 'lb' : 'kg'}`;
+
+  /**
+   * Add the step in the units the athlete reads, then convert back. Adding a
+   * converted increment to the kg value instead lands a pound or two off a
+   * loadable number once both ends are rounded for display.
+   */
+  const stepUp = (kg: number) => round(toKg(displayWeight(kg, units).value + step, units), 4);
 
   const easy = prev.rpe != null && prev.rpe <= 7;
   const hitTop = prev.reps >= high;
 
   if (hitTop || easy) {
     return {
-      weightKg: round(prev.weightKg + inc, 2),
+      weightKg: stepUp(prev.weightKg),
       reps: low,
       rationale: hitTop
-        ? `You hit ${prev.reps} reps last time — add ${show(inc)} and rebuild the range.`
-        : `That felt easy (RPE ${prev.rpe}). Bump ${show(inc)}.`,
+        ? `You hit ${prev.reps} reps last time — add ${show(step)} and rebuild the range.`
+        : `That felt easy (RPE ${prev.rpe}). Bump ${show(step)}.`,
     };
   }
 
   return {
     weightKg: prev.weightKg,
     reps: Math.min(high, prev.reps + 1),
-    rationale: `Match ${show(prev.weightKg)} and add one rep (${prev.reps} → ${Math.min(high, prev.reps + 1)}).`,
+    rationale: `Match ${show(displayWeight(prev.weightKg, units).value)} and add one rep (${prev.reps} → ${Math.min(high, prev.reps + 1)}).`,
   };
 }

@@ -5,8 +5,9 @@ import { Button, Card, Chip, Input, Screen, Text } from '../../src/components/ui
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
-import { colors, layout, spacing } from '../../src/theme';
-import type { Exercise, MuscleGroup } from '../../src/domain/types';
+import { colors, layout, radius, spacing } from '../../src/theme';
+import type { Equipment, Exercise, MuscleGroup } from '../../src/domain/types';
+import { recentExerciseIds } from '../../src/domain/history';
 import { MUSCLE_GROUPS } from '../../src/data/exercises';
 import { useRoutineStore } from '../../src/stores/useRoutineStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -35,13 +36,30 @@ export default function ExerciseLibrary() {
 
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | 'all'>('all');
+  const [equipment, setEquipment] = useState<Equipment | 'all'>('all');
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return allExercises.filter(
-      (e) => (muscle === 'all' || e.primaryMuscle === muscle || e.secondaryMuscles.includes(muscle)) && (!q || e.name.toLowerCase().includes(q)),
+      (e) =>
+        (muscle === 'all' || e.primaryMuscle === muscle || e.secondaryMuscles.includes(muscle)) &&
+        (equipment === 'all' || e.equipment === equipment) &&
+        (!q || e.name.toLowerCase().includes(q)),
     );
-  }, [allExercises, query, muscle]);
+  }, [allExercises, query, muscle, equipment]);
+
+  // Most people rotate through a handful of lifts, so the ones they actually
+  // train beat scrolling sixty entries — but only while nothing is filtered,
+  // where they'd otherwise contradict the filter the user just set.
+  const completed = useWorkoutStore((s) => s.completedWorkouts());
+  const unfiltered = !query.trim() && muscle === 'all' && equipment === 'all';
+  const recent = useMemo(() => {
+    if (!unfiltered) return [];
+    const byId = new Map(allExercises.map((e) => [e.id, e]));
+    return recentExerciseIds(completed, 8)
+      .map((id) => byId.get(id))
+      .filter((e): e is Exercise => !!e);
+  }, [completed, allExercises, unfiltered]);
 
   // In select mode the tap adds straight to the session; otherwise it opens the
   // full detail screen, which used to be a system alert with the instructions
@@ -100,7 +118,51 @@ export default function ExerciseLibrary() {
         ))}
       </ScrollView>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: spacing.md, marginHorizontal: -layout.screenPadding }}
+        contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: layout.screenPadding, alignItems: 'center' }}
+      >
+        <Icon name="sliders" size={14} color={colors.textFaint} strokeWidth={1.8} />
+        <Chip label="Any kit" selected={equipment === 'all'} onPress={() => setEquipment('all')} />
+        {EQUIPMENT.map((eq) => (
+          <Chip key={eq} label={label(eq)} selected={equipment === eq} onPress={() => setEquipment(eq)} />
+        ))}
+      </ScrollView>
+
+      {recent.length > 0 && (
+        <View style={{ marginBottom: spacing.md }}>
+          <Text variant="overline" color={colors.textDim} style={{ marginBottom: spacing.sm }}>
+            Your lifts
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginHorizontal: -layout.screenPadding }}
+            contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: layout.screenPadding }}
+          >
+            {recent.map((e) => (
+              <Pressable key={e.id} onPress={() => onPick(e)} style={styles.recent}>
+                {/* A dot rather than the figure: at chip size the body reads as
+                    noise, and the tint already carries the muscle group. */}
+                <View style={[styles.dot, { backgroundColor: muscleTint(e.primaryMuscle) }]} />
+                <Text variant="label" numberOfLines={1} style={{ maxWidth: 150 }}>
+                  {e.name}
+                </Text>
+                {(selectMode || pickMode) && <Icon name="plus" size={14} color={colors.primary} strokeWidth={2.2} />}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <View>
+        {filtered.length > 0 && (
+          <Text variant="overline" color={colors.textDim} style={{ marginBottom: spacing.sm }}>
+            {filtered.length} exercise{filtered.length === 1 ? '' : 's'}
+          </Text>
+        )}
         {filtered.length > 0 && (
           <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
             {filtered.map((e, i) => (
@@ -136,8 +198,8 @@ export default function ExerciseLibrary() {
         )}
         {filtered.length === 0 && (
           <View style={{ alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xl }}>
-            <Text variant="body" color={colors.textDim}>
-              No matches for "{query}".
+            <Text variant="body" color={colors.textDim} center>
+              {query.trim() ? `No matches for "${query}".` : 'Nothing matches those filters.'}
             </Text>
             <Button title={`Create "${query}"`} variant="secondary" fullWidth={false} onPress={createCustom} />
           </View>
@@ -155,7 +217,22 @@ export default function ExerciseLibrary() {
   );
 }
 
-const label = (m: MuscleGroup) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const EQUIPMENT: Equipment[] = ['bodyweight', 'dumbbells', 'barbell', 'kettlebell', 'machines', 'cables', 'bands', 'full_gym'];
+
+const label = (m: string) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+const styles = StyleSheet.create({
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  recent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceHigh,
+  },
+});
 
 /**
  * A muscle's tint in the results list. Grouping by colour makes a long scroll

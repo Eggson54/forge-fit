@@ -266,12 +266,12 @@ function ExerciseBlock({
           <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: 2 }}>
             {prevWeight && (
               <Text variant="caption" color={colors.textDim}>
-                Prev: {round(prevWeight.value, 1)}{prevWeight.unit} × {prev!.reps}
+                Prev: {round(prevWeight.value, 1)} {prevWeight.unit} × {prev!.reps}
               </Text>
             )}
             {recWeight && (
               <Text variant="caption" color={colors.primary}>
-                Target: {round(recWeight.value, 1)}{recWeight.unit} × {rec!.reps}
+                Target: {round(recWeight.value, 1)} {recWeight.unit} × {rec!.reps}
               </Text>
             )}
           </View>

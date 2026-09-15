@@ -9,6 +9,7 @@ import {
   emptyStreaks,
   epley1RM,
   evaluateAchievements,
+  displayWeight,
   findPreviousPerformance,
   ftInToCm,
   kgToLb,
@@ -27,6 +28,7 @@ import { isWarmupSet, nextSetKind, setKind } from '../domain/sets';
 import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries } from '../domain/measurements';
 import { formatDateLong, formatDateWithWeekday, formatDayMonth } from '../domain/date';
 import { groupExercises, restAfterSet, toggleSupersetAt } from '../domain/superset';
+import { recentExerciseIds } from '../domain/history';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -328,10 +330,29 @@ describe('overload rationale units', () => {
     expect(r!.rationale).toContain('kg');
   });
 
-  it('keeps the recommended weight in kg regardless of display units', () => {
+  it('always returns canonical kg, whatever the display units', () => {
     const imperial = recommendNext(prev, { experience: 'intermediate', units: 'imperial' })!;
     const metric = recommendNext(prev, { experience: 'intermediate', units: 'metric' })!;
-    expect(imperial.weightKg).toBe(metric.weightKg);
+    // Both are a small step up from the previous kg weight, not a pound number
+    // smuggled into a kg field.
+    for (const r of [imperial, metric]) {
+      expect(r.weightKg).toBeGreaterThan(prev.weightKg);
+      expect(r.weightKg - prev.weightKg).toBeLessThan(3);
+    }
+  });
+
+  it('steps by a jump that exists on the rack in the user\'s units', () => {
+    const imperial = recommendNext(prev, { experience: 'intermediate', units: 'imperial' })!;
+    const metric = recommendNext(prev, { experience: 'intermediate', units: 'metric' })!;
+    // 2.5 lb is loadable; 1.25 kg converted (2.76 lb) is not, so the number the
+    // athlete reads has to move by exactly the step.
+    const shownLb = (kg: number) => displayWeight(kg, 'imperial').value;
+    expect(shownLb(imperial.weightKg) - shownLb(prev.weightKg)).toBeCloseTo(2.5, 5);
+    // Kilos are stored exactly; displayWeight's single decimal cannot resolve a
+    // 1.25 step, so the stored value is what this one has to check.
+    expect(metric.weightKg - prev.weightKg).toBeCloseTo(1.25, 5);
+    expect(imperial.rationale).toContain('2.5 lb');
+    expect(metric.rationale).toContain('1.25 kg');
   });
 });
 
@@ -551,5 +572,32 @@ describe('supersets', () => {
   it('never stretches a short rest into a longer transition', () => {
     const group = groupExercises([ex('a', 'ss1'), ex('b', 'ss1')])[0]!;
     expect(restAfterSet(group, 0, 15)).toBe(15);
+  });
+});
+
+describe('recentExerciseIds', () => {
+  const w = (date: string, ids: string[], status = 'completed') =>
+    ({ date, status, exercises: ids.map((exerciseId) => ({ exerciseId })) }) as never;
+
+  it('lists each exercise once, most recent first', () => {
+    const history = [
+      w('2026-09-01', ['bench', 'fly']),
+      w('2026-09-10', ['squat', 'bench']),
+    ];
+    expect(recentExerciseIds(history)).toEqual(['squat', 'bench', 'fly']);
+  });
+
+  it('ignores workouts that were never finished', () => {
+    const history = [w('2026-09-12', ['deadlift'], 'in_progress'), w('2026-09-01', ['row'])];
+    expect(recentExerciseIds(history)).toEqual(['row']);
+  });
+
+  it('stops at the limit', () => {
+    const history = [w('2026-09-10', ['a', 'b', 'c', 'd'])];
+    expect(recentExerciseIds(history, 2)).toEqual(['a', 'b']);
+  });
+
+  it('is empty with no history', () => {
+    expect(recentExerciseIds([])).toEqual([]);
   });
 });
