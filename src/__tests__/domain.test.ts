@@ -168,6 +168,31 @@ describe('discipline score', () => {
     });
     expect(r.score).toBe(100);
   });
+  it('awards nothing for a day with nothing logged and nothing planned', () => {
+    const r = disciplineScore({
+      workoutCompleted: false, workoutPlanned: false,
+      calories: 0, calorieTarget: 2400, protein: 0, proteinTarget: 170,
+      steps: 0, stepsTarget: 10000, waterOz: 0, waterTarget: 100,
+      sleepMinutes: 0, sleepTarget: 480,
+    });
+    expect(r.score).toBe(0);
+  });
+  it('drops the workout component on a rest day rather than gifting its weight', () => {
+    const rest = disciplineScore({
+      workoutCompleted: false, workoutPlanned: false,
+      calories: 0, calorieTarget: 2400, protein: 170, proteinTarget: 170,
+      steps: 0, stepsTarget: 10000, waterOz: 0, waterTarget: 100,
+      sleepMinutes: 0, sleepTarget: 480,
+    });
+    // Protein is the only metric met, and it is 20 of the 75 remaining weight.
+    const remaining =
+      DEFAULT_DISCIPLINE_WEIGHTS.nutrition +
+      DEFAULT_DISCIPLINE_WEIGHTS.protein +
+      DEFAULT_DISCIPLINE_WEIGHTS.steps +
+      DEFAULT_DISCIPLINE_WEIGHTS.water +
+      DEFAULT_DISCIPLINE_WEIGHTS.sleep;
+    expect(rest.score).toBe(Math.round((DEFAULT_DISCIPLINE_WEIGHTS.protein / remaining) * 100));
+  });
 });
 
 describe('streaks', () => {

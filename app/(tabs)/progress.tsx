@@ -113,6 +113,8 @@ export default function Progress() {
   const startWeight = weightByDate[0]?.weightKg ?? latest;
   const change = latest != null && startWeight != null ? latest - startWeight : 0;
   const changeDisp = displayWeight(Math.abs(change), profile.units);
+  // "+0" implies a measured result; with fewer than two weigh-ins there is none.
+  const hasWeightTrend = weightByDate.length >= 2;
 
   const [analysis, setAnalysis] = useState<ProgressAnalysisResult | null>(null);
   const analysisPending = weightByDate.length >= 2 && !analysis;
@@ -135,7 +137,11 @@ export default function Progress() {
       <Card style={{ flexDirection: 'row', marginBottom: spacing.md }}>
         <StatTile value={`${workouts.length}`} label="Workouts" accent={colors.primary} />
         <StatTile value={`${streaks.daily}`} label="Day streak" accent={colors.amber} />
-        <StatTile value={`${change >= 0 ? '+' : '-'}${changeDisp.value}`} label={`Weight (${changeDisp.unit})`} accent={colors.protein} />
+        <StatTile
+          value={hasWeightTrend ? `${change >= 0 ? '+' : '-'}${changeDisp.value}` : '—'}
+          label={`Weight (${changeDisp.unit})`}
+          accent={colors.protein}
+        />
         <StatTile value={`${nutritionHitCount}/7`} label="Logged" accent={colors.water} />
       </Card>
 

@@ -57,11 +57,16 @@ export function disciplineScore(
   input: DisciplineInputs,
   weights: DisciplineWeights = DEFAULT_DISCIPLINE_WEIGHTS,
 ): DisciplineBreakdown {
-  const rawParts: { key: keyof DisciplineWeights; pct: number }[] = [
+  // pct === null means the metric does not apply today, so it leaves the score
+  // entirely rather than scoring 0 or 100.
+  const rawParts: { key: keyof DisciplineWeights; pct: number | null }[] = [
     {
       key: 'workout',
-      // If no workout was planned for today, don't punish — give full credit.
-      pct: !input.workoutPlanned ? 1 : input.workoutCompleted ? 1 : 0,
+      // On a rest day the workout component is dropped, not awarded. Giving full
+      // credit for having planned nothing handed a brand-new user a quarter of
+      // the day's score for doing nothing at all, which makes the number
+      // meaningless on exactly the day it has to earn trust.
+      pct: !input.workoutPlanned ? null : input.workoutCompleted ? 1 : 0,
     },
     { key: 'nutrition', pct: nutritionAdherence(input.calories, input.calorieTarget) },
     { key: 'protein', pct: ratio(input.protein, input.proteinTarget) },
@@ -70,10 +75,14 @@ export function disciplineScore(
     { key: 'sleep', pct: ratio(input.sleepMinutes, input.sleepTarget) },
   ];
 
-  const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0) || 1;
+  // Only applicable metrics are in the denominator, so dropping one redistributes
+  // its weight across the rest instead of shrinking the maximum reachable score.
+  const applicable = rawParts.filter((p) => p.pct !== null);
+  const totalWeight = applicable.reduce((a, p) => a + weights[p.key], 0) || 1;
 
   let score = 0;
   const parts = rawParts.map((p) => {
+    if (p.pct === null) return { key: p.key, earned: 0, possible: 0, pct: 0 };
     const possible = (weights[p.key] / totalWeight) * 100;
     const earned = possible * p.pct;
     score += earned;
