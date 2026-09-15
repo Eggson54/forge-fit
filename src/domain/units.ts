@@ -40,3 +40,27 @@ export function ftInToCm(ft: number, inches: number): number {
 export function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
+
+/** Thousands separators without relying on Intl, which Hermes ships partially. */
+export function groupThousands(n: number): string {
+  const s = String(Math.abs(Math.trunc(n)));
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 === 0) out += ',';
+    out += s[i];
+  }
+  return n < 0 ? `-${out}` : out;
+}
+
+/**
+ * Training volume. A tenth of a pound is noise here and six raw digits are
+ * unreadable, so this groups thousands and switches to "k" once the number
+ * stops fitting a stat tile: 8,602 lb / 137.5k lb.
+ */
+export function displayVolume(kg: number, units: 'imperial' | 'metric'): { value: string; unit: string } {
+  const unit = units === 'imperial' ? 'lb' : 'kg';
+  const n = units === 'imperial' ? kgToLb(kg) : kg;
+  if (n >= 100_000) return { value: `${groupThousands(round(n / 1000))}k`, unit };
+  if (n >= 10_000) return { value: `${round(n / 1000, 1)}k`, unit };
+  return { value: groupThousands(n), unit };
+}

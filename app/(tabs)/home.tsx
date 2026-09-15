@@ -7,7 +7,7 @@ import { Icon } from '../../src/components/Icon';
 import { CoachCard } from '../../src/components/CoachCard';
 import { colors, gradients, spacing } from '../../src/theme';
 import { formatSleep, timeOfDay } from '../../src/domain/date';
-import { displayWeight } from '../../src/domain/units';
+import { displayVolume } from '../../src/domain/units';
 import { workoutStats } from '../../src/domain/strength';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useLogStore } from '../../src/stores/useLogStore';
@@ -84,7 +84,7 @@ export default function Home() {
   // Today's session detail for the workout card.
   const todayWorkout = useWorkoutStore((st) => st.workouts.find((x) => x.date === summary.date));
   const todayStats = todayWorkout ? workoutStats(todayWorkout) : null;
-  const todayVol = todayStats ? displayWeight(todayStats.totalVolumeKg, profile.units) : null;
+  const todayVol = todayStats ? displayVolume(todayStats.totalVolumeKg, profile.units) : null;
 
   return (
     <Screen
@@ -142,7 +142,7 @@ export default function Home() {
                   {todayWorkout!.exercises.length} exercises · {todayStats.totalSets} sets
                 </Text>
                 <Text variant="bodyStrong" color={colors.primary}>
-                  {Math.round(todayVol!.value).toLocaleString()} {todayVol!.unit} volume
+                  {todayVol!.value} {todayVol!.unit} volume
                 </Text>
               </View>
             ) : (

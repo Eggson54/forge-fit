@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { BarChart, Card, Chip, DayStrip, LineChart, ListRow, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
 import { FadeIn, Shimmer } from '../../src/components/anim';
 import { BodyMap } from '../../src/components/BodyMap';
+import { TrainingCalendar } from '../../src/components/TrainingCalendar';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { addDaysISO, lastNDays, todayISO } from '../../src/domain/date';
@@ -165,6 +166,13 @@ export default function Progress() {
           )}
         </Card>
       )}
+
+      <SectionHeader title="Training calendar" action="History" onAction={() => router.push('/workout/history')} />
+      <FadeIn>
+        <Card>
+          <TrainingCalendar workouts={workouts} units={profile.units} />
+        </Card>
+      </FadeIn>
 
       <SectionHeader title="Body Map · weekly volume" />
       <FadeIn>

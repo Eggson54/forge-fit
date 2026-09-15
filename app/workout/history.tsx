@@ -7,7 +7,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
-import { displayWeight } from '../../src/domain/units';
+import { displayVolume } from '../../src/domain/units';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
@@ -31,7 +31,7 @@ export default function History() {
           <Stagger step={45}>
           {completed.map((wk) => {
             const stats = workoutStats(wk);
-            const vol = displayWeight(stats.totalVolumeKg, units);
+            const vol = displayVolume(stats.totalVolumeKg, units);
             return (
               <Card key={wk.id} onPress={() => router.push(`/workout/${wk.id}`)}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -42,7 +42,7 @@ export default function History() {
                     </Text>
                   </View>
                   <Text variant="bodyStrong" color={colors.primary}>
-                    {Math.round(vol.value).toLocaleString()} {vol.unit}
+                    {vol.value} {vol.unit}
                   </Text>
                 </View>
               </Card>

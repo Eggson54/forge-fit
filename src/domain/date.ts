@@ -58,3 +58,22 @@ export function formatSleep(minutes: number): string {
   if (h > 0) return m > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${h}h`;
   return `${m}m`;
 }
+
+/** Longest run of consecutive trained days inside the given date set. */
+export function longestRunOfDays(dates: Set<ISODate>): number {
+  let best = 0;
+  for (const date of dates) {
+    // Only count from the start of a run, so each run is walked once.
+    const prev = new Date(`${date}T00:00:00`);
+    prev.setDate(prev.getDate() - 1);
+    if (dates.has(todayISO(prev))) continue;
+    let run = 0;
+    const cursor = new Date(`${date}T00:00:00`);
+    while (dates.has(todayISO(cursor))) {
+      run += 1;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    best = Math.max(best, run);
+  }
+  return best;
+}

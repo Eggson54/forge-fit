@@ -7,7 +7,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
-import { displayWeight } from '../../src/domain/units';
+import { displayVolume } from '../../src/domain/units';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
@@ -89,7 +89,7 @@ export default function WorkoutTab() {
           <Stagger step={45}>
           {completed.map((wk) => {
             const stats = workoutStats(wk);
-            const vol = displayWeight(stats.totalVolumeKg, units);
+            const vol = displayVolume(stats.totalVolumeKg, units);
             return (
               <Card key={wk.id} onPress={() => router.push(`/workout/${wk.id}`)}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -102,7 +102,7 @@ export default function WorkoutTab() {
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text variant="bodyStrong" color={colors.primary}>
-                      {Math.round(vol.value).toLocaleString()} {vol.unit}
+                      {vol.value} {vol.unit}
                     </Text>
                     <Text variant="caption" color={colors.textDim}>
                       {stats.totalSets} sets · {stats.totalReps} reps

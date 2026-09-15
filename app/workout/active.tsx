@@ -11,7 +11,7 @@ import { RestTimer } from '../../src/components/RestTimer';
 import { colors, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
-import { displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
+import { displayVolume, displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
 import type { SetEntry, WorkoutExercise } from '../../src/domain/types';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
@@ -91,7 +91,7 @@ export default function ActiveWorkout() {
         <View style={{ alignItems: 'center' }}>
           <Text variant="metric">{formatDuration(elapsed)}</Text>
           <Text variant="caption" color={colors.textDim}>
-            {stats?.totalVolumeKg ? `${Math.round(displayWeight(stats.totalVolumeKg, units).value).toLocaleString()} vol` : 'elapsed'}
+            {stats?.totalVolumeKg ? `${displayVolume(stats.totalVolumeKg, units).value} vol` : 'elapsed'}
           </Text>
         </View>
         <Pressable onPress={onDiscard} hitSlop={10}>

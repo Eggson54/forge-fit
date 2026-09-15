@@ -8,7 +8,7 @@ import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
-import { displayWeight } from '../../src/domain/units';
+import { displayWeight, groupThousands } from '../../src/domain/units';
 import type { MuscleGroup } from '../../src/domain/types';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
@@ -55,7 +55,7 @@ export default function WorkoutDetail() {
           <Text variant="overline" color={colors.textDim}>
             {workout.status === 'completed' ? 'COMPLETED' : 'SUMMARY'}
           </Text>
-          <AnimatedNumber value={Math.round(vol.value)} variant="display" color={colors.primary} format={(n) => n.toLocaleString()} />
+          <AnimatedNumber value={Math.round(vol.value)} variant="display" color={colors.primary} format={groupThousands} />
           <Text variant="caption" color={colors.textDim}>
             total volume ({vol.unit}) · {formatDurationShort(workout.durationSeconds ?? 0)}
           </Text>

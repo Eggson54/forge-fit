@@ -34,7 +34,10 @@ export type IconName =
   | 'watch'
   | 'check'
   | 'chart'
-  | 'sliders';
+  | 'sliders'
+  | 'calendar'
+  | 'chevron_left'
+  | 'chevron_right';
 
 // Footprint used by the `steps` glyph, drawn once and mirrored for the pair.
 const STEP_SOLE =
@@ -319,6 +322,24 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
           <Circle cx="19" cy="16" r="2" {...s} />
         </>
       )}
+
+      {name === 'calendar' &&
+        (filled ? (
+          <>
+            <Rect x="3" y="5" width="18" height="16" rx="3" fill={color} />
+            <Path d="M8 2.6v3.2M16 2.6v3.2" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
+          </>
+        ) : (
+          <>
+            <Rect x="3.2" y="5.2" width="17.6" height="15.6" rx="3" {...s} />
+            <Path d="M3.2 10h17.6" {...s} />
+            <Path d="M8 3v3.4M16 3v3.4" {...s} />
+          </>
+        ))}
+
+      {name === 'chevron_left' && <Path d="M14.5 5.5 8 12l6.5 6.5" {...s} />}
+
+      {name === 'chevron_right' && <Path d="M9.5 5.5 16 12l-6.5 6.5" {...s} />}
 
     </Svg>
   );

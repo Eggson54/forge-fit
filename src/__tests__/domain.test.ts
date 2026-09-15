@@ -21,6 +21,8 @@ import {
   workoutStats,
 } from '../domain';
 import type { NutritionEntry, Profile, Workout } from '../domain/types';
+import { displayVolume, groupThousands } from '../domain/units';
+import { longestRunOfDays } from '../domain/date';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -326,5 +328,46 @@ describe('overload rationale units', () => {
     const imperial = recommendNext(prev, { experience: 'intermediate', units: 'imperial' })!;
     const metric = recommendNext(prev, { experience: 'intermediate', units: 'metric' })!;
     expect(imperial.weightKg).toBe(metric.weightKg);
+  });
+});
+
+
+
+describe('volume formatting', () => {
+  it('groups thousands without Intl', () => {
+    expect(groupThousands(0)).toBe('0');
+    expect(groupThousands(999)).toBe('999');
+    expect(groupThousands(1000)).toBe('1,000');
+    expect(groupThousands(137480.3)).toBe('137,480');
+    expect(groupThousands(-4200)).toBe('-4,200');
+  });
+
+  it('switches to k only once the number stops fitting', () => {
+    expect(displayVolume(1000, 'metric')).toEqual({ value: '1,000', unit: 'kg' });
+    expect(displayVolume(9999, 'metric')).toEqual({ value: '9,999', unit: 'kg' });
+    expect(displayVolume(12500, 'metric')).toEqual({ value: '12.5k', unit: 'kg' });
+    expect(displayVolume(250000, 'metric')).toEqual({ value: '250k', unit: 'kg' });
+  });
+
+  it('converts before deciding the format', () => {
+    // 5000 kg is 11,023 lb — compact in one unit, grouped in the other.
+    expect(displayVolume(5000, 'metric').value).toBe('5,000');
+    expect(displayVolume(5000, 'imperial')).toEqual({ value: '11k', unit: 'lb' });
+  });
+});
+
+describe('longestRun', () => {
+  it('finds the longest consecutive block', () => {
+    const dates = new Set(['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-09', '2026-03-28']);
+    expect(longestRunOfDays(dates)).toBe(3);
+  });
+
+  it('walks across a month boundary', () => {
+    expect(longestRunOfDays(new Set(['2026-01-30', '2026-01-31', '2026-02-01']))).toBe(3);
+  });
+
+  it('is 0 for no training and 1 for a single day', () => {
+    expect(longestRunOfDays(new Set())).toBe(0);
+    expect(longestRunOfDays(new Set(['2026-05-05']))).toBe(1);
   });
 });
