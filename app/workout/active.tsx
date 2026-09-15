@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Button, Card, Text } from '../../src/components/ui';
 import { Icon } from '../../src/components/Icon';
+import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { RestTimer } from '../../src/components/RestTimer';
 import { colors, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
@@ -137,7 +138,8 @@ function ExerciseBlock({ exercise, onRest }: { exercise: WorkoutExercise; onRest
 
   return (
     <Card style={{ marginHorizontal: spacing.xl, marginBottom: spacing.md }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
+        <MuscleThumb muscle={exercise.primaryMuscle} size={30} />
         <View style={{ flex: 1 }}>
           <Text variant="title">{exercise.name}</Text>
           <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: 2 }}>

@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { AnimatedNumber, Celebration, FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
@@ -80,7 +81,12 @@ export default function WorkoutDetail() {
         const completedSets = ex.sets.filter((s) => s.completed);
         return (
           <Card key={ex.id} style={{ marginBottom: spacing.md }}>
-            <Text variant="bodyStrong">{ex.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+              <MuscleThumb muscle={ex.primaryMuscle} size={26} />
+              <Text variant="bodyStrong" style={{ flex: 1 }}>
+                {ex.name}
+              </Text>
+            </View>
             <View style={{ marginTop: spacing.sm, gap: 4 }}>
               {completedSets.map((s, i) => {
                 const w = s.weightKg != null ? displayWeight(s.weightKg, units) : null;

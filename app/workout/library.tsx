@@ -4,7 +4,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Chip, Input, Screen, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
-import { colors, layout, radius, spacing } from '../../src/theme';
+import { MuscleThumb } from '../../src/components/body/MuscleThumb';
+import { colors, layout, spacing } from '../../src/theme';
 import type { Exercise, MuscleGroup } from '../../src/domain/types';
 import { MUSCLE_GROUPS } from '../../src/data/exercises';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -93,7 +94,7 @@ export default function ExerciseLibrary() {
                   pressed && { opacity: 0.6 },
                 ]}
               >
-                <View style={[styles.muscleDot, { backgroundColor: muscleTint(e.primaryMuscle) }]} />
+                <MuscleThumb muscle={e.primaryMuscle} secondary={e.secondaryMuscles} size={30} color={muscleTint(e.primaryMuscle)} />
                 <View style={{ flex: 1 }}>
                   <Text variant="bodyStrong">
                     {e.name}
@@ -150,7 +151,3 @@ const MUSCLE_TINTS: Partial<Record<MuscleGroup, string>> = {
   full_body: colors.textDim,
 };
 const muscleTint = (m: MuscleGroup) => MUSCLE_TINTS[m] ?? colors.textDim;
-
-const styles = StyleSheet.create({
-  muscleDot: { width: 4, height: 30, borderRadius: radius.sm },
-});
