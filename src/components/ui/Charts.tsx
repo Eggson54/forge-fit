@@ -223,21 +223,21 @@ export function DayStrip({ days, color = colors.primary }: { days: { label: stri
     <View style={{ flexDirection: 'row', gap: 6 }}>
       {days.map((d, i) => (
         <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+          {/* A hit day is a filled pip, a missed day a hollow one. Full-height
+              blocks with a tick in each read as decoration rather than data,
+              and the difference between hit and missed has to survive being
+              seen without colour. */}
           <View
             style={{
               width: '100%',
-              height: 34,
-              borderRadius: 8,
-              backgroundColor: d.on ? color : colors.surfaceHigh,
-              alignItems: 'center',
-              justifyContent: 'center',
+              height: 22,
+              borderRadius: 7,
+              backgroundColor: d.on ? color : 'transparent',
+              borderWidth: d.on ? 0 : 1,
+              borderColor: colors.border,
             }}
-          >
-            <Text variant="caption" color={d.on ? colors.onPrimary : colors.textFaint} style={{ fontSize: 13, fontWeight: '700' }}>
-              {d.on ? '\u2713' : '\u2013'}
-            </Text>
-          </View>
-          <Text variant="caption" color={colors.textFaint} style={{ fontSize: 9 }}>
+          />
+          <Text variant="caption" color={d.on ? colors.textDim : colors.textFaint} style={{ fontSize: 9 }}>
             {d.label}
           </Text>
         </View>

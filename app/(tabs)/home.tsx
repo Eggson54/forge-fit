@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Animated, Easing, RefreshControl, View } from 'react-native';
+import { Animated, Easing, Pressable, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { AdSlot, Card, IconButton, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing, FadeIn } from '../../src/components/anim';
@@ -270,7 +270,14 @@ function MetricRow({
   }, [pct, fill]);
   const widthPct = fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   return (
-    <View onTouchEnd={onPress} style={{ paddingVertical: spacing.md, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border }}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        { paddingVertical: spacing.md, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border },
+        pressed && { opacity: 0.6 },
+      ]}
+    >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Icon name={icon} size={18} color={color} />
@@ -286,7 +293,7 @@ function MetricRow({
       <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceHigh, overflow: 'hidden' }}>
         <Animated.View style={{ width: widthPct, height: '100%', backgroundColor: color, borderRadius: 3 }} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 

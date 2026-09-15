@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
-import { BarChart, Card, DayStrip, LineChart, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
+import { BarChart, Card, Chip, DayStrip, LineChart, ListRow, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
 import { BodyMap } from '../../src/components/BodyMap';
 import { Icon } from '../../src/components/Icon';
@@ -43,16 +43,38 @@ export default function Progress() {
     [weightByDate, profile.units],
   );
 
-  // Strength: best e1RM per completed workout over time
-  const strengthSeries: Point[] = useMemo(() => {
-    const sorted = [...workouts].sort((a, b) => (a.date < b.date ? -1 : 1)).slice(-14);
-    return sorted.map((w) => {
-      let best = 0;
-      for (const ex of w.exercises)
-        for (const s of ex.sets) if (s.completed && s.weightKg && s.reps) best = Math.max(best, epley1RM(s.weightKg, s.reps));
-      return { label: w.date.slice(5), value: profile.units === 'imperial' ? Math.round(kgToLb(best)) : Math.round(best) };
-    }).filter((p) => p.value > 0);
+  /**
+   * Strength per lift. Plotting the best e1RM of each SESSION compared a
+   * deadlift day against an arm day, so the line sawtoothed between exercises
+   * and said nothing about whether the athlete was getting stronger. Each lift
+   * gets its own series and the chart shows one at a time.
+   */
+  const byExercise = useMemo(() => {
+    const map = new Map<string, { name: string; points: Point[] }>();
+    for (const w of [...workouts].sort((a, b) => (a.date < b.date ? -1 : 1))) {
+      for (const ex of w.exercises) {
+        let best = 0;
+        for (const set of ex.sets) {
+          if (set.completed && set.weightKg && set.reps) best = Math.max(best, epley1RM(set.weightKg, set.reps));
+        }
+        if (best <= 0) continue;
+        const entry = map.get(ex.exerciseId) ?? { name: ex.name, points: [] };
+        entry.points.push({
+          label: w.date.slice(5),
+          value: profile.units === 'imperial' ? Math.round(kgToLb(best)) : Math.round(best),
+        });
+        map.set(ex.exerciseId, entry);
+      }
+    }
+    // Most-logged first, so the default pick is the lift the user actually tracks.
+    return [...map.entries()]
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.points.length - a.points.length)
+      .slice(0, 5);
   }, [workouts, profile.units]);
+
+  const [liftId, setLiftId] = useState<string | null>(null);
+  const activeLift = byExercise.find((e) => e.id === liftId) ?? byExercise[0] ?? null;
 
   // Weekly workout consistency (last 8 weeks)
   const weeklyConsistency: Point[] = useMemo(() => {
@@ -160,9 +182,26 @@ export default function Progress() {
         <LineChart data={weightSeries} width={chartW} color={colors.protein} unit={profile.units === 'imperial' ? ' lb' : ' kg'} />
       </Card>
 
-      <SectionHeader title="Estimated strength (top e1RM)" />
+      <SectionHeader title="Strength · estimated 1RM" />
       <Card>
-        <LineChart data={strengthSeries} width={chartW} color={colors.primary} />
+        {byExercise.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: spacing.md, marginHorizontal: -spacing.lg }}
+            contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
+          >
+            {byExercise.map((e) => (
+              <Chip key={e.id} label={e.name} selected={activeLift?.id === e.id} onPress={() => setLiftId(e.id)} />
+            ))}
+          </ScrollView>
+        )}
+        <LineChart
+          data={activeLift?.points ?? []}
+          width={chartW}
+          color={colors.primary}
+          unit={profile.units === 'imperial' ? ' lb' : ' kg'}
+        />
       </Card>
 
       <SectionHeader title="Workout consistency (8 weeks)" />
@@ -179,26 +218,13 @@ export default function Progress() {
       </Card>
 
       <SectionHeader title="More" />
-      <Card>
-        <MoreRow icon="camera" label="Progress Photos" onPress={() => router.push('/progress/photos')} />
-        <MoreRow icon="progress" label="Body Measurements" onPress={() => router.push('/progress/measurements')} />
-        <MoreRow icon="flame" label="Achievements & Streaks" onPress={() => router.push('/achievements')} />
-        <MoreRow icon="bolt" label="Weekly AI Review" onPress={() => router.push('/weekly-review')} last />
+      <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+        <ListRow icon="camera" tint={colors.fat} title="Progress Photos" onPress={() => router.push('/progress/photos')} />
+        <ListRow icon="scale" tint={colors.water} title="Body Measurements" onPress={() => router.push('/progress/measurements')} />
+        <ListRow icon="trophy" tint={colors.amber} title="Achievements & Streaks" onPress={() => router.push('/achievements')} />
+        <ListRow icon="bolt" tint={colors.primary} title="Weekly AI Review" onPress={() => router.push('/weekly-review')} />
       </Card>
     </Screen>
   );
 }
 
-function MoreRow({ icon, label, onPress, last }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: () => void; last?: boolean }) {
-  return (
-    <View style={{ borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md }} onTouchEnd={onPress}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <Icon name={icon} size={20} color={colors.text} />
-          <Text variant="body">{label}</Text>
-        </View>
-        <Text color={colors.textFaint}>›</Text>
-      </View>
-    </View>
-  );
-}

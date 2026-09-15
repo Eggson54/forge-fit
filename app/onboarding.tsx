@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Chip, Input, LinearProgress, SegmentedControl, Text } from '../src/components/ui';
@@ -332,8 +332,10 @@ function StepShell({
 
 function GoalRow({ label, sub, selected, onPress }: { label: string; sub?: string; selected: boolean; onPress: () => void }) {
   return (
-    <View
-      onTouchEnd={onPress}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
       style={{
         padding: spacing.lg,
         borderRadius: 14,
@@ -351,7 +353,7 @@ function GoalRow({ label, sub, selected, onPress }: { label: string; sub?: strin
           {sub}
         </Text>
       )}
-    </View>
+    </Pressable>
   );
 }
 

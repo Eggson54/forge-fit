@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Button, Card, Input, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
@@ -145,14 +145,20 @@ export default function Goals() {
 
 function Stepper({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <View
-      onTouchEnd={onPress}
-      style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' }}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label === '+' ? 'Increase' : 'Decrease'}
+      hitSlop={6}
+      style={({ pressed }) => [
+        { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' },
+        pressed && { opacity: 0.6 },
+      ]}
     >
       <Text variant="bodyStrong" color={colors.primary}>
         {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
