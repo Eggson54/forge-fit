@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Linking, Pressable, View } from 'react-native';
 import { Card, EmptyState, Input, Screen, SectionHeader, Text, Toggle } from '../src/components/ui';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { colors, radius, spacing } from '../src/theme';
@@ -35,10 +35,15 @@ export default function Reminders() {
       <ScreenHeader title="Reminders" />
 
       {permission === false && (
-        <Card tone="alt" style={{ marginBottom: spacing.md }}>
+        <Card tone="alt" style={{ marginBottom: spacing.md, gap: spacing.sm }}>
           <Text variant="caption" color={colors.warning}>
-            Notifications are disabled. Enable them in system settings to receive reminders.
+            Notifications are disabled. Reminders will not be delivered until you allow them.
           </Text>
+          <Pressable onPress={() => Linking.openSettings().catch(() => {})} hitSlop={8}>
+            <Text variant="label" color={colors.primary}>
+              Open system settings ›
+            </Text>
+          </Pressable>
         </Card>
       )}
 
@@ -56,7 +61,7 @@ export default function Reminders() {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
         {ADDABLE.map((t) => (
           <Pressable key={t} onPress={() => onAdd(t)} style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 0.5, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.pill }}>
-            <Text variant="label">+ {REMINDER_PRESETS[t].title}</Text>
+            <Text variant="label">+ {t === 'custom' ? 'Custom' : REMINDER_PRESETS[t].title}</Text>
           </Pressable>
         ))}
       </View>

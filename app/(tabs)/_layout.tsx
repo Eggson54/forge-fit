@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -31,13 +32,21 @@ export default function TabsLayout() {
               return (
                 <Pressable
                   key={route.key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: focused }}
+                  accessibilityLabel={tab.label}
                   style={styles.tab}
                   onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
                     const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
                     if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
                   }}
                 >
-                  <Icon name={tab.icon} size={24} filled={focused} color={focused ? colors.primary : colors.textFaint} />
+                  {/* An ember pill behind the active glyph: colour alone is a weak
+                      cue at 24px, especially for anyone with reduced colour vision. */}
+                  <View style={[styles.iconSlot, focused && styles.iconSlotActive]}>
+                    <Icon name={tab.icon} size={23} filled={focused} color={focused ? colors.primary : colors.textFaint} />
+                  </View>
                   <Text variant="caption" color={focused ? colors.primary : colors.textFaint} style={{ fontSize: 10 }}>
                     {tab.label}
                   </Text>
@@ -62,5 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(11,11,15,0.85)',
   },
   bar: { flexDirection: 'row', paddingTop: spacing.sm },
-  tab: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 4 },
+  tab: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 2 },
+  iconSlot: { width: 46, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  iconSlotActive: { backgroundColor: 'rgba(255,90,31,0.14)' },
 });

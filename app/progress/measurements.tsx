@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { Button, Card, Input, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { Button, Card, EmptyState, Input, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
 import { cmToIn, inToCm, round } from '../../src/domain/units';
@@ -41,25 +41,35 @@ export default function Measurements() {
     <Screen gradient footer={<Button title="Save Measurements" onPress={save} size="lg" />}>
       <ScreenHeader title="Body Measurements" />
       <Card>
+        {/* Two to a row: six stacked full-width fields filled the screen with
+            empty boxes before any history was visible. */}
         <View style={{ gap: spacing.md }}>
-          {FIELDS.map((f) => (
-            <Input
-              key={f.key as string}
-              label={f.label}
-              value={vals[f.key as string] ?? ''}
-              onChangeText={(t) => setVals((v) => ({ ...v, [f.key as string]: t }))}
-              keyboardType="decimal-pad"
-              suffix={unit}
-            />
+          {pairs(FIELDS).map((row, i) => (
+            <View key={i} style={{ flexDirection: 'row', gap: spacing.md }}>
+              {row.map((f) => (
+                <View key={f.key as string} style={{ flex: 1 }}>
+                  <Input
+                    label={f.label}
+                    value={vals[f.key as string] ?? ''}
+                    onChangeText={(t) => setVals((v) => ({ ...v, [f.key as string]: t }))}
+                    keyboardType="decimal-pad"
+                    suffix={unit}
+                  />
+                </View>
+              ))}
+              {row.length === 1 && <View style={{ flex: 1 }} />}
+            </View>
           ))}
         </View>
       </Card>
 
       <SectionHeader title="History" />
       {measurements.length === 0 ? (
-        <Text variant="caption" color={colors.textFaint}>
-          No measurements logged yet.
-        </Text>
+        <EmptyState
+          icon="scale"
+          title="No measurements yet"
+          subtitle="Fill in what you track above — you can leave the rest blank."
+        />
       ) : (
         <View style={{ gap: spacing.md }}>
           {measurements.slice(0, 12).map((m) => (
@@ -87,4 +97,11 @@ export default function Measurements() {
       )}
     </Screen>
   );
+}
+
+/** Chunk a list into rows of two for a paired form layout. */
+function pairs<T>(items: T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += 2) out.push(items.slice(i, i + 2));
+  return out;
 }

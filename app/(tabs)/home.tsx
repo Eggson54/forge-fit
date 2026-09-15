@@ -150,10 +150,12 @@ export default function Home() {
                 {summary.workoutPlanned ? 'Ready when you are' : 'Plan one or start an empty session'}
               </Text>
             )}
+            {/* The card is tappable, so say where it goes rather than only
+                stating that nothing is planned. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Icon name={w ? 'flame' : 'dumbbell'} size={18} color={w ? colors.success : colors.primary} />
+              <Icon name={w ? 'check' : 'dumbbell'} size={18} color={w ? colors.success : colors.primary} />
               <Text variant="label" color={w ? colors.success : colors.primary}>
-                {w ? 'Completed' : summary.workoutPlanned ? 'Not completed' : 'Nothing planned'}
+                {w ? 'Completed' : summary.workoutPlanned ? 'Start session ›' : 'Start a workout ›'}
               </Text>
             </View>
           </View>
