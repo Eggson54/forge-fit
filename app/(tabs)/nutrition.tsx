@@ -7,7 +7,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, gradients, spacing } from '../../src/theme';
 import { todayISO } from '../../src/domain/date';
 import type { MealSlot, NutritionEntry } from '../../src/domain/types';
-import { scaleMacros } from '../../src/domain/nutrition';
+import { scaleMacros, sumMacros } from '../../src/domain/nutrition';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
@@ -93,9 +93,14 @@ export default function Nutrition() {
       {/* Meals */}
       {SLOTS.map((slot) => {
         const slotEntries = entries.filter((e) => e.slot === slot);
+        const slotCalories = sumMacros(slotEntries).calories;
         return (
           <View key={slot}>
-            <SectionHeader title={SLOT_LABEL[slot]} action="Add" onAction={() => router.push({ pathname: '/nutrition/add', params: { slot } })} />
+            <SectionHeader
+              title={slotCalories > 0 ? `${SLOT_LABEL[slot]} · ${slotCalories} kcal` : SLOT_LABEL[slot]}
+              action="Add"
+              onAction={() => router.push({ pathname: '/nutrition/add', params: { slot } })}
+            />
             {slotEntries.length === 0 ? (
               <Text variant="caption" color={colors.textFaint} style={{ marginBottom: spacing.sm }}>
                 Nothing logged.
@@ -103,7 +108,13 @@ export default function Nutrition() {
             ) : (
               <Card>
                 {slotEntries.map((e, i) => (
-                  <FoodRow key={e.id} entry={e} last={i === slotEntries.length - 1} onDelete={() => confirmDelete(e, removeFood)} />
+                  <FoodRow
+                    key={e.id}
+                    entry={e}
+                    last={i === slotEntries.length - 1}
+                    onPress={() => router.push(`/nutrition/${e.id}`)}
+                    onDelete={() => confirmDelete(e, removeFood)}
+                  />
                 ))}
               </Card>
             )}
@@ -144,11 +155,26 @@ function MacroCard({ label, value, target, color }: { label: string; value: numb
   );
 }
 
-function FoodRow({ entry, last, onDelete }: { entry: NutritionEntry; last: boolean; onDelete: () => void }) {
+function FoodRow({
+  entry,
+  last,
+  onPress,
+  onDelete,
+}: {
+  entry: NutritionEntry;
+  last: boolean;
+  onPress: () => void;
+  onDelete: () => void;
+}) {
   const m = scaleMacros(entry.macros, entry.quantity);
   return (
-    <Pressable onLongPress={onDelete} style={{ paddingVertical: spacing.md, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between' }}>
-      <View style={{ flex: 1 }}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onDelete}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${entry.name}`}
+      style={{ paddingVertical: spacing.md, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Text variant="body" style={{ flexShrink: 1 }}>
             {entry.name}
@@ -160,6 +186,7 @@ function FoodRow({ entry, last, onDelete }: { entry: NutritionEntry; last: boole
         </Text>
       </View>
       <Text variant="bodyStrong">{m.calories}</Text>
+      <Icon name="chevron_right" size={14} color={colors.textFaint} strokeWidth={1.8} />
     </Pressable>
   );
 }
