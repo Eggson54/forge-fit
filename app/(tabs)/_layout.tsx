@@ -37,7 +37,7 @@ export default function TabsLayout() {
                     if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
                   }}
                 >
-                  <Icon name={tab.icon} size={24} color={focused ? colors.primary : colors.textFaint} />
+                  <Icon name={tab.icon} size={24} filled={focused} color={focused ? colors.primary : colors.textFaint} />
                   <Text variant="caption" color={focused ? colors.primary : colors.textFaint} style={{ fontSize: 10 }}>
                     {tab.label}
                   </Text>

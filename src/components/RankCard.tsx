@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgGradient, Path, Rect, Stop } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
 import type { RankResult } from '../domain/rank';
 import { Text } from './ui/Text';
@@ -43,14 +43,22 @@ export function RankCard({ rank, compact }: { rank: RankResult; compact?: boolea
   );
 }
 
-/** Faceted shield emblem, tinted by tier color. */
+/** Hex rank insignia: chevron + rank bars, tinted by tier. */
 function Emblem({ color }: { color: string }) {
+  const gid = React.useId();
   return (
-    <Svg width={56} height={56} viewBox="0 0 48 48">
-      <Path d="M24 3 L42 10 V24 Q42 38 24 45 Q6 38 6 24 V10 Z" fill={color + '22'} stroke={color} strokeWidth={2} />
-      <Path d="M24 12 L31 24 L24 30 L17 24 Z" fill={color} />
-      <Path d="M24 30 L31 24 L28 34 Z" fill={color} opacity={0.6} />
-      <Path d="M24 30 L17 24 L20 34 Z" fill={color} opacity={0.6} />
+    <Svg width={58} height={58} viewBox="0 0 48 48">
+      <Defs>
+        <SvgGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={color} />
+          <Stop offset="1" stopColor={color} stopOpacity="0.55" />
+        </SvgGradient>
+      </Defs>
+      <Path d="M24 2 L42 12 V36 L24 46 L6 36 V12 Z" fill="#0E1017" stroke={`url(#${gid})`} strokeWidth={2.2} strokeLinejoin="round" />
+      <Path d="M24 9 L36 15.5 V32.5 L24 39 L12 32.5 V15.5 Z" fill={color} opacity={0.1} />
+      <Path d="M13 27 L24 13 L35 27 L28.5 27 L24 21 L19.5 27 Z" fill={`url(#${gid})`} />
+      <Rect x="17" y="30" width="14" height="3.4" rx="1.7" fill={color} opacity={0.85} />
+      <Rect x="20" y="35.5" width="8" height="3" rx="1.5" fill={color} opacity={0.5} />
     </Svg>
   );
 }
