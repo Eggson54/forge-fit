@@ -5,7 +5,7 @@ import { Card, EmptyState, Screen, Text } from '../../src/components/ui';
 import { Stagger } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
-import { formatDurationShort } from '../../src/domain/date';
+import { formatDateWithWeekday, formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayVolume } from '../../src/domain/units';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -38,7 +38,7 @@ export default function History() {
                   <View>
                     <Text variant="bodyStrong">{wk.name}</Text>
                     <Text variant="caption" color={colors.textDim}>
-                      {new Date(wk.completedAt ?? wk.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {formatDurationShort(wk.durationSeconds ?? 0)}
+                      {formatDateWithWeekday(wk.completedAt ?? wk.date)} · {formatDurationShort(wk.durationSeconds ?? 0)}
                     </Text>
                   </View>
                   <Text variant="bodyStrong" color={colors.primary}>

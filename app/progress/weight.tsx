@@ -6,6 +6,7 @@ import { colors, spacing } from '../../src/theme';
 import { displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { formatDateWithWeekday } from '../../src/domain/date';
 
 export default function WeightLog() {
   const units = useProfileStore((s) => s.profile.units);
@@ -49,7 +50,7 @@ export default function WeightLog() {
           return (
             <View key={w.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm, borderBottomWidth: i === Math.min(19, weightLogs.length - 1) ? 0 : 0.5, borderBottomColor: colors.border }}>
               <Text variant="body" color={colors.textDim}>
-                {new Date(`${w.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                {formatDateWithWeekday(w.date)}
               </Text>
               <Text variant="bodyStrong">
                 {d.value} {d.unit}

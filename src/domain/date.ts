@@ -77,3 +77,33 @@ export function longestRunOfDays(dates: Set<ISODate>): number {
   }
   return best;
 }
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * A bare YYYY-MM-DD is a calendar date, not an instant. Parsing it directly
+ * reads it as UTC midnight, which lands on the previous day anywhere west of
+ * Greenwich; a full timestamp is an instant and converts to local normally.
+ */
+function toLocalDate(value: string): Date {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
+}
+
+/** "Sep 14" */
+export function formatDayMonth(value: string): string {
+  const d = toLocalDate(value);
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
+}
+
+/** "Sep 14, 2026" */
+export function formatDateLong(value: string): string {
+  const d = toLocalDate(value);
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+/** "Mon, Sep 14" */
+export function formatDateWithWeekday(value: string): string {
+  const d = toLocalDate(value);
+  return `${WEEKDAYS_SHORT[d.getDay()]}, ${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
+}

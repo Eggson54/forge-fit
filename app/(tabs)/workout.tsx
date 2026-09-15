@@ -5,7 +5,7 @@ import { Button, Card, EmptyState, Screen, SectionHeader, Text, Pill } from '../
 import { Stagger } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
-import { formatDurationShort } from '../../src/domain/date';
+import { formatDayMonth, formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayVolume } from '../../src/domain/units';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -96,7 +96,7 @@ export default function WorkoutTab() {
                   <View style={{ flex: 1 }}>
                     <Text variant="bodyStrong">{wk.name}</Text>
                     <Text variant="caption" color={colors.textDim}>
-                      {new Date(wk.completedAt ?? wk.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ·{' '}
+                      {formatDayMonth(wk.completedAt ?? wk.date)} ·{' '}
                       {formatDurationShort(wk.durationSeconds ?? 0)}
                     </Text>
                   </View>

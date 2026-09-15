@@ -24,6 +24,8 @@ import type { NutritionEntry, Profile, Workout } from '../domain/types';
 import { displayVolume, groupThousands } from '../domain/units';
 import { longestRunOfDays } from '../domain/date';
 import { isWarmupSet, nextSetKind, setKind } from '../domain/sets';
+import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries } from '../domain/measurements';
+import { formatDateLong, formatDateWithWeekday, formatDayMonth } from '../domain/date';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -403,5 +405,90 @@ describe('set kinds', () => {
       seen.push(kind);
     }
     expect(seen).toEqual(['warmup', 'drop', 'failure', 'working']);
+  });
+});
+
+describe('measurement series', () => {
+  // Stored newest-first, and any site can be blank in a given entry.
+  const logs = [
+    { id: 'm4', date: '2026-09-12', chestCm: 106.7, waistCm: 85.1 },
+    { id: 'm3', date: '2026-09-01', chestCm: 105.4 },
+    { id: 'm2', date: '2026-08-18', chestCm: 104.8, waistCm: 87.6 },
+    { id: 'm1', date: '2026-08-04', chestCm: 104.1, waistCm: 88.9 },
+  ];
+
+  it('returns one site oldest-first, skipping blanks', () => {
+    expect(siteSeries(logs, 'chestCm').map((p) => p.cm)).toEqual([104.1, 104.8, 105.4, 106.7]);
+    expect(siteSeries(logs, 'waistCm').map((p) => p.date)).toEqual(['2026-08-04', '2026-08-18', '2026-09-12']);
+    expect(siteSeries(logs, 'armCm')).toEqual([]);
+  });
+
+  it('measures change from first to last reading of that site', () => {
+    const waist = siteChange(logs, 'waistCm')!;
+    expect(waist.first.date).toBe('2026-08-04');
+    expect(waist.last.date).toBe('2026-09-12');
+    expect(waist.deltaCm).toBeCloseTo(-3.8, 5);
+  });
+
+  it('needs two readings to report a change', () => {
+    expect(siteChange([logs[0]!], 'chestCm')).toBeNull();
+    expect(siteChange(logs, 'armCm')).toBeNull();
+  });
+
+  it('takes each site from its own most recent entry', () => {
+    // The newest log has no arm value; the waist one is two entries back.
+    const latest = latestBySite(logs);
+    expect(latest.chestCm!.cm).toBe(106.7);
+    expect(latest.waistCm!.date).toBe('2026-09-12');
+    expect(latest.armCm).toBeUndefined();
+  });
+});
+
+describe('date formatting', () => {
+  it('formats a calendar date in local time, not UTC', () => {
+    // Parsed as UTC this would render as Sep 13 anywhere west of Greenwich.
+    expect(formatDayMonth('2026-09-14')).toBe('Sep 14');
+    expect(formatDateLong('2026-09-14')).toBe('Sep 14, 2026');
+    expect(formatDateWithWeekday('2026-09-14')).toBe('Mon, Sep 14');
+  });
+
+  it('accepts a full timestamp too', () => {
+    const noon = new Date(2026, 0, 5, 12, 0, 0).toISOString();
+    expect(formatDayMonth(noon)).toBe('Jan 5');
+  });
+});
+
+describe('changeVerdict', () => {
+  const site = (key: string) => MEASUREMENT_SITES.find((s) => s.key === key)!;
+  const waist = site('waistCm');
+  const arm = site('armCm');
+
+  it('treats tape noise as neutral whatever the goal', () => {
+    expect(changeVerdict(waist, 0.15, 'lose_fat')).toBe('neutral');
+    expect(changeVerdict(arm, -0.1, 'build_muscle')).toBe('neutral');
+  });
+
+  it('flips the wanted direction for fat sites with the goal', () => {
+    expect(changeVerdict(waist, -2, 'lose_fat')).toBe('toward');
+    expect(changeVerdict(waist, 2, 'lose_fat')).toBe('away');
+    expect(changeVerdict(waist, -2, 'recomposition')).toBe('toward');
+  });
+
+  it('does not call a growing waist a failure while bulking', () => {
+    // It's a side effect of the goal, not a regression against it.
+    expect(changeVerdict(waist, 2, 'gain_weight')).toBe('neutral');
+    expect(changeVerdict(waist, 2, 'build_muscle')).toBe('neutral');
+  });
+
+  it('counts limb size as progress under any goal that wants size', () => {
+    expect(changeVerdict(arm, 1, 'build_muscle')).toBe('toward');
+    expect(changeVerdict(arm, 1, 'athletic_performance')).toBe('toward');
+    // Holding size through a cut is the win, so losing it still reads as away.
+    expect(changeVerdict(arm, -1, 'lose_fat')).toBe('away');
+  });
+
+  it('judges nothing when the goal is maintenance', () => {
+    expect(changeVerdict(arm, 1, 'maintain')).toBe('neutral');
+    expect(changeVerdict(waist, -1, 'maintain')).toBe('neutral');
   });
 });

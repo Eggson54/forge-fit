@@ -9,6 +9,7 @@ import { colors, radius, spacing } from '../../src/theme';
 import { todayISO } from '../../src/domain/date';
 import type { PhotoPose } from '../../src/domain/types';
 import { useLogStore } from '../../src/stores/useLogStore';
+import { formatDateLong } from '../../src/domain/date';
 
 const POSES: PhotoPose[] = ['front', 'side', 'back'];
 
@@ -79,7 +80,7 @@ export default function Photos() {
             >
               <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 0.75, borderRadius: radius.md, backgroundColor: colors.surfaceHigh }} contentFit="cover" />
               <Text variant="caption" color={colors.textDim} style={{ marginTop: 4 }}>
-                {new Date(`${p.date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                {formatDateLong(p.date)}
               </Text>
             </Pressable>
           ))}
