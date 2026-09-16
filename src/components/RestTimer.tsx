@@ -6,10 +6,28 @@ import { Icon } from './Icon';
 import { Text } from './ui/Text';
 
 /** Floating rest countdown shown after completing a set. Self-dismisses at 0. */
-export function RestTimer({ seconds, onDone, onDismiss }: { seconds: number; onDone: () => void; onDismiss: () => void }) {
+export function RestTimer({
+  seconds,
+  label,
+  onDone,
+  onDismiss,
+}: {
+  seconds: number;
+  /** What this rest follows, e.g. "Bench Press · set 2". */
+  label?: string;
+  onDone: () => void;
+  onDismiss: () => void;
+}) {
   const [remaining, setRemaining] = useState(seconds);
   const [total, setTotal] = useState(seconds);
   const doneRef = useRef(false);
+
+  // Counting down one tick at a time assumes the ticks arrive, and they do not:
+  // a backgrounded or throttled tab stops firing intervals, so putting the
+  // phone down mid-rest — which is the entire point of resting — left the timer
+  // reading whatever it happened to reach. The deadline is wall-clock, so the
+  // display simply catches up when the app comes back.
+  const deadlineRef = useRef(Date.now() + seconds * 1000);
 
   // onDone is an inline closure in the workout screen, so its identity changes on
   // every render — and that screen re-renders once a second for its own elapsed
@@ -21,20 +39,19 @@ export function RestTimer({ seconds, onDone, onDismiss }: { seconds: number; onD
   }, [onDone]);
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(t);
-          if (!doneRef.current) {
-            doneRef.current = true;
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-            setTimeout(() => onDoneRef.current(), 400);
-          }
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
+      setRemaining(left);
+      if (left === 0 && !doneRef.current) {
+        doneRef.current = true;
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        setTimeout(() => onDoneRef.current(), 400);
+      }
+    };
+    // Faster than the second it displays, so a resumed app corrects almost
+    // immediately rather than showing a stale number for up to a second.
+    const t = setInterval(tick, 250);
+    tick();
     return () => clearInterval(t);
   }, []);
 
@@ -52,14 +69,18 @@ export function RestTimer({ seconds, onDone, onDismiss }: { seconds: number; onD
         <Text variant="metric" color={colors.text}>
           {mm}:{ss}
         </Text>
-        <Text variant="caption" color={colors.textDim}>
-          rest
-        </Text>
-        <View style={{ flex: 1 }} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="caption" color={colors.textDim} numberOfLines={1}>
+            {label ?? 'rest'}
+          </Text>
+        </View>
         <Pressable
           onPress={() => {
-            setRemaining((r) => r + 15);
+            deadlineRef.current += 15_000;
+            setRemaining(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)));
             setTotal((t) => t + 15);
+            // Adding time after it has already fired means the rest is back on.
+            doneRef.current = false;
           }}
           accessibilityRole="button"
           accessibilityLabel="Add 15 seconds"

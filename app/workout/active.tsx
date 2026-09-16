@@ -28,7 +28,7 @@ export default function ActiveWorkout() {
   const units = useProfileStore((s) => s.profile.units);
 
   const [elapsed, setElapsed] = useState(0);
-  const [restKey, setRestKey] = useState<{ seconds: number; id: number } | null>(null);
+  const [restKey, setRestKey] = useState<{ seconds: number; label: string; id: number } | null>(null);
   const [pr, setPr] = useState<{ name: string; kg: number; id: number } | null>(null);
 
   useEffect(() => {
@@ -113,7 +113,7 @@ export default function ActiveWorkout() {
             key={group.items[0]!.id}
             group={group}
             isLast={gi === groups.length - 1}
-            onRest={(sec) => setRestKey({ seconds: sec, id: Date.now() })}
+            onRest={(sec, label) => setRestKey({ seconds: sec, label, id: Date.now() })}
             onPr={(name, kg) => setPr({ name, kg, id: Date.now() })}
           />
         ))}
@@ -143,7 +143,15 @@ export default function ActiveWorkout() {
           onDone={() => setPr(null)}
         />
       )}
-      {restKey && <RestTimer key={restKey.id} seconds={restKey.seconds} onDone={() => setRestKey(null)} onDismiss={() => setRestKey(null)} />}
+      {restKey && (
+        <RestTimer
+          key={restKey.id}
+          seconds={restKey.seconds}
+          label={restKey.label}
+          onDone={() => setRestKey(null)}
+          onDismiss={() => setRestKey(null)}
+        />
+      )}
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}>
         <Button title="Finish Workout" onPress={onFinish} size="lg" />
@@ -165,7 +173,7 @@ function ExerciseGroupBlock({
 }: {
   group: ExerciseGroup<WorkoutExercise>;
   isLast: boolean;
-  onRest: (seconds: number) => void;
+  onRest: (seconds: number, label: string) => void;
   onPr: (name: string, e1RMKg: number) => void;
 }) {
   const toggleSuperset = useWorkoutStore((s) => s.toggleSupersetWithNext);
@@ -192,7 +200,7 @@ function ExerciseGroupBlock({
           <ExerciseBlock
             exercise={ex}
             letter={isSuperset ? supersetLabel(i) : null}
-            onRest={(seconds) => onRest(restAfterSet(group, i, seconds))}
+            onRest={(seconds, label) => onRest(restAfterSet(group, i, seconds), label)}
             onPr={onPr}
           />
           {/* Sits in the gap between two cards, where the link it makes is. */}
@@ -231,7 +239,7 @@ function ExerciseBlock({
 }: {
   exercise: WorkoutExercise;
   letter: string | null;
-  onRest: (seconds: number) => void;
+  onRest: (seconds: number, label: string) => void;
   onPr: (name: string, e1RMKg: number) => void;
 }) {
   const experience = useProfileStore((s) => s.profile.experience);
@@ -263,14 +271,14 @@ function ExerciseBlock({
             {letter ? <Text variant="title" color={colors.primary}>{letter} </Text> : null}
             {exercise.name}
           </Text>
-          <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: 2 }}>
+          <View style={{ marginTop: 2 }}>
             {prevWeight && (
-              <Text variant="caption" color={colors.textDim}>
+              <Text variant="caption" color={colors.textDim} numberOfLines={1}>
                 Prev: {round(prevWeight.value, 1)} {prevWeight.unit} × {prev!.reps}
               </Text>
             )}
             {recWeight && (
-              <Text variant="caption" color={colors.primary}>
+              <Text variant="caption" color={colors.primary} numberOfLines={1}>
                 Target: {round(recWeight.value, 1)} {recWeight.unit} × {rec!.reps}
               </Text>
             )}
@@ -318,6 +326,7 @@ function ExerciseBlock({
         <SetRow
           key={set.id}
           weId={exercise.id}
+          exerciseName={exercise.name}
           set={set}
           index={i + 1}
           units={units}
@@ -354,6 +363,7 @@ function ExerciseBlock({
 
 function SetRow({
   weId,
+  exerciseName,
   set,
   index,
   units,
@@ -362,11 +372,12 @@ function SetRow({
   onPr,
 }: {
   weId: string;
+  exerciseName: string;
   set: SetEntry;
   index: number;
   units: 'imperial' | 'metric';
   restSeconds: number;
-  onRest: (seconds: number) => void;
+  onRest: (seconds: number, label: string) => void;
   onPr: (name: string, e1RMKg: number) => void;
 }) {
   const updateSet = useWorkoutStore((s) => s.updateSet);
@@ -408,7 +419,9 @@ function SetRow({
     }
     // A warm-up doesn't earn a full working rest; capping it keeps the timer
     // from sitting on screen through the whole ramp.
-    if (!wasComplete) onRest(isWarmupSet(set) ? Math.min(restSeconds, 60) : restSeconds);
+    if (!wasComplete) {
+      onRest(isWarmupSet(set) ? Math.min(restSeconds, 60) : restSeconds, `Set ${index} · ${exerciseName}`);
+    }
   };
 
   return (
