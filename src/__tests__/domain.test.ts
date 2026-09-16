@@ -34,7 +34,7 @@ import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
-import { frequentFoods } from '../domain/nutrition';
+import { frequentFoods, summariseIntake } from '../domain/nutrition';
 import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
 import { answerCoachQuestion, easiestGap, openGaps, type CoachContext } from '../domain/coach';
 import type { CoachSettings } from '../domain/types';
@@ -1271,5 +1271,50 @@ describe('coach intents', () => {
     const softened = answerCoachQuestion(ctx, savage, 'weakest').text;
     expect(softened).not.toBe(answerCoachQuestion(ctx, raw, 'weakest').text);
     expect(softened).toBe(answerCoachQuestion(ctx, settings, 'weakest').text);
+  });
+});
+
+describe('summariseIntake', () => {
+  const targets = { calories: 2600, proteinG: 180, carbsG: 260, fatG: 80, waterOz: 110, steps: 10000, sleepMinutes: 480 };
+  const day = (date: string, calories: number, proteinG: number, logged = true) =>
+    ({ date, calories, proteinG, carbsG: 0, fatG: 0, logged });
+
+  it('averages over logged days only', () => {
+    // Counting the blank day as zero would report 1300 and make a missed day
+    // look like a fast.
+    const out = summariseIntake([day('2026-09-01', 2600, 180), day('2026-09-02', 0, 0, false)], targets);
+    expect(out.avgCalories).toBe(2600);
+    expect(out.loggedDays).toBe(1);
+  });
+
+  it('reports zero rather than NaN when nothing is logged', () => {
+    const out = summariseIntake([day('2026-09-01', 0, 0, false)], targets);
+    expect(out.avgCalories).toBe(0);
+    expect(out.avgProteinG).toBe(0);
+    expect(out.loggedDays).toBe(0);
+  });
+
+  it('counts a protein day as hit at the target, not above it', () => {
+    const out = summariseIntake([day('2026-09-01', 2600, 180), day('2026-09-02', 2600, 179)], targets);
+    expect(out.proteinHits).toBe(1);
+  });
+
+  it('allows calories within ten percent either side', () => {
+    const out = summariseIntake(
+      [
+        day('2026-09-01', 2600, 0),
+        day('2026-09-02', 2860, 0), // +10%
+        day('2026-09-03', 2340, 0), // -10%
+        day('2026-09-04', 2900, 0), // outside
+      ],
+      targets,
+    );
+    expect(out.calorieHits).toBe(3);
+  });
+
+  it('never counts an unlogged day as a hit', () => {
+    const out = summariseIntake([day('2026-09-01', 2600, 180, false)], targets);
+    expect(out.calorieHits).toBe(0);
+    expect(out.proteinHits).toBe(0);
   });
 });

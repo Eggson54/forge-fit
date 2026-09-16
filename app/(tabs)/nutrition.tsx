@@ -5,7 +5,7 @@ import { AdSlot, Button, Card, Screen, SectionHeader, Text } from '../../src/com
 import { AnimatedNumber, AnimatedProgressRing } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { colors, gradients, spacing } from '../../src/theme';
-import { todayISO } from '../../src/domain/date';
+import { lastNDays, todayISO } from '../../src/domain/date';
 import type { MealSlot, NutritionEntry } from '../../src/domain/types';
 import { scaleMacros, sumMacros } from '../../src/domain/nutrition';
 import { useLogStore } from '../../src/stores/useLogStore';
@@ -90,6 +90,11 @@ export default function Nutrition() {
         </View>
       </Card>
 
+      <SectionHeader title="This week" action="Trends" onAction={() => router.push('/nutrition/trends')} />
+      <Card onPress={() => router.push('/nutrition/trends')} style={{ marginBottom: spacing.md }}>
+        <WeekGlance />
+      </Card>
+
       {/* Meals */}
       {SLOTS.map((slot) => {
         const slotEntries = entries.filter((e) => e.slot === slot);
@@ -134,6 +139,61 @@ function confirmDelete(e: NutritionEntry, remove: (id: string) => void) {
     { text: 'Cancel', style: 'cancel' },
     { text: 'Remove', style: 'destructive', onPress: () => remove(e.id) },
   ]);
+}
+
+/**
+ * Seven days of calories against target, small enough to sit above the meal
+ * list. Today alone never answers "am I actually running a deficit".
+ */
+function WeekGlance() {
+  const targets = useProfileStore((s) => s.targets);
+  const nutrition = useLogStore((s) => s.nutrition);
+  const macrosForDate = useLogStore((s) => s.macrosForDate);
+
+  const days = lastNDays(7);
+  const logged = new Set(nutrition.map((n) => n.date));
+  const rows = days.map((date) => ({
+    date,
+    calories: macrosForDate(date).calories,
+    logged: logged.has(date),
+  }));
+  const loggedRows = rows.filter((r) => r.logged);
+  const avg = loggedRows.length
+    ? Math.round(loggedRows.reduce((a, r) => a + r.calories, 0) / loggedRows.length)
+    : 0;
+  const peak = Math.max(targets.calories, ...rows.map((r) => r.calories)) || 1;
+
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+        <Text variant="overline" color={colors.textDim}>
+          {loggedRows.length}/7 days logged
+        </Text>
+        <Text variant="caption" color={colors.textDim}>
+          {loggedRows.length ? `${avg} kcal avg` : 'nothing logged yet'}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 54 }}>
+        {rows.map((r) => (
+          <View key={r.date} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+            <View
+              style={{
+                width: '100%',
+                height: Math.max(3, (r.calories / peak) * 40),
+                borderRadius: 3,
+                // An unlogged day is missing data, not a zero-calorie day, so it
+                // is drawn as an absence rather than a bar at the floor.
+                backgroundColor: r.logged ? colors.calorie : colors.surfaceHigh,
+              }}
+            />
+            <Text variant="caption" color={colors.textFaint} style={{ fontSize: 9 }}>
+              {r.date.slice(8)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
 
 function MacroCard({ label, value, target, color }: { label: string; value: number; target: number; color: string }) {

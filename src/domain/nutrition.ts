@@ -191,3 +191,52 @@ export function frequentFoods(entries: NutritionEntry[], limit = 8): FrequentFoo
     .sort((a, b) => b.count - a.count || (a.lastLogged < b.lastLogged ? 1 : -1))
     .slice(0, limit);
 }
+
+export interface DailyIntake {
+  date: ISODate;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  /** False when nothing was logged at all — distinct from a zero-calorie day. */
+  logged: boolean;
+}
+
+export interface IntakeSummary {
+  days: DailyIntake[];
+  /** Averaged over logged days only; an unlogged day is missing data, not a fast. */
+  avgCalories: number;
+  avgProteinG: number;
+  avgCarbsG: number;
+  avgFatG: number;
+  loggedDays: number;
+  /** Days whose protein reached the target. */
+  proteinHits: number;
+  /** Days within 10% of the calorie target, either side. */
+  calorieHits: number;
+}
+
+/**
+ * Roll a window of daily intake into the numbers worth acting on.
+ *
+ * Averages exclude unlogged days on purpose. Counting a day nobody logged as
+ * zero calories drags the average toward a starvation number and makes anyone
+ * who misses a day look like they are undereating badly — which is exactly
+ * when a nutrition screen should not be shouting.
+ */
+export function summariseIntake(days: DailyIntake[], targets: Targets): IntakeSummary {
+  const logged = days.filter((d) => d.logged);
+  const mean = (pick: (d: DailyIntake) => number) =>
+    logged.length ? Math.round((logged.reduce((a, d) => a + pick(d), 0) / logged.length) * 10) / 10 : 0;
+
+  return {
+    days,
+    avgCalories: Math.round(mean((d) => d.calories)),
+    avgProteinG: mean((d) => d.proteinG),
+    avgCarbsG: mean((d) => d.carbsG),
+    avgFatG: mean((d) => d.fatG),
+    loggedDays: logged.length,
+    proteinHits: logged.filter((d) => d.proteinG >= targets.proteinG).length,
+    calorieHits: logged.filter((d) => Math.abs(d.calories - targets.calories) <= targets.calories * 0.1).length,
+  };
+}
