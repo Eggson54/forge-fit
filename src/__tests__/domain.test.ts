@@ -36,6 +36,7 @@ import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../d
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { balanceMacros, frequentFoods, summariseIntake } from '../domain/nutrition';
 import { isSubscriptionActive } from '../domain/subscription';
+import { amountLabel, effectiveLoadKg, formatSetAmount, isSetLogged, loadLabel, setVolumeKg } from '../domain/tracking';
 import { isStale, programPosition, projectedDates, weekMultiplier } from '../domain/program';
 import { PROGRAMS, programById } from '../data/programs';
 import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
@@ -1480,5 +1481,55 @@ describe('built-in programs', () => {
         }
       }
     }
+  });
+});
+
+describe('exercise tracking modes', () => {
+  const set = (over: Record<string, unknown> = {}) =>
+    ({ id: 's', weightKg: null, reps: null, rpe: null, completed: true, ...over }) as never;
+
+  it('counts the athlete own mass on a bodyweight movement', () => {
+    // Forty hard pull-ups used to register as zero work.
+    expect(setVolumeKg(set({ weightKg: 0, reps: 10 }), 'bodyweight', 80)).toBe(800);
+    expect(setVolumeKg(set({ weightKg: 0, reps: 10 }), 'load', 80)).toBe(0);
+  });
+
+  it('treats entered weight as added load, not total load', () => {
+    expect(effectiveLoadKg(set({ weightKg: 20 }), 'bodyweight', 80)).toBe(100);
+    expect(effectiveLoadKg(set({ weightKg: 20 }), 'load', 80)).toBe(20);
+  });
+
+  it('handles an assisted movement without going negative', () => {
+    // A band or assist machine takes weight off; it cannot take off more than
+    // the athlete weighs.
+    expect(effectiveLoadKg(set({ weightKg: -30 }), 'bodyweight', 80)).toBe(50);
+    expect(effectiveLoadKg(set({ weightKg: -200 }), 'bodyweight', 80)).toBe(0);
+  });
+
+  it('gives a held set no volume rather than a fabricated one', () => {
+    // A 60-second plank and a 100kg squat are not commensurable.
+    expect(setVolumeKg(set({ seconds: 60, reps: 1 }), 'duration', 80)).toBe(0);
+  });
+
+  it('knows when a set of each kind counts as logged', () => {
+    expect(isSetLogged(set({ seconds: 45 }), 'duration')).toBe(true);
+    expect(isSetLogged(set({ reps: 5 }), 'duration')).toBe(false);
+    expect(isSetLogged(set({ reps: 5 }), 'load')).toBe(true);
+    expect(isSetLogged(set({ reps: 5, completed: false }), 'load')).toBe(false);
+  });
+
+  it('formats a hold as time and a rep set as a count', () => {
+    expect(formatSetAmount(set({ seconds: 90 }), 'duration')).toBe('1:30');
+    expect(formatSetAmount(set({ seconds: 45 }), 'duration')).toBe('45s');
+    expect(formatSetAmount(set({ reps: 8 }), 'load')).toBe('8');
+  });
+
+  it('labels the columns for the mode', () => {
+    expect(amountLabel('duration')).toBe('TIME');
+    expect(amountLabel('load')).toBe('REPS');
+    expect(loadLabel('duration', 'LB')).toBeNull();
+    // The plus sign says the number is added to bodyweight, not the whole load.
+    expect(loadLabel('bodyweight', 'LB')).toBe('+LB');
+    expect(loadLabel('load', 'LB')).toBe('LB');
   });
 });

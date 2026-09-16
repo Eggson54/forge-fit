@@ -1,6 +1,8 @@
 import { round } from './units';
 import { isWarmupSet } from './sets';
-import type { MuscleGroup, SetEntry, Workout, WorkoutExercise } from './types';
+import { effectiveLoadKg, setVolumeKg, trackingFor } from './tracking';
+import { exerciseById } from '../data/exercises';
+import type { ExerciseTracking, MuscleGroup, SetEntry, Workout, WorkoutExercise } from './types';
 
 /** Estimated one-rep max (Epley formula). Reps of 1 returns the weight. */
 export function epley1RM(weightKg: number, reps: number): number {
@@ -9,43 +11,57 @@ export function epley1RM(weightKg: number, reps: number): number {
   return round(weightKg * (1 + reps / 30), 1);
 }
 
-/** Volume (kg) for a single set: weight * reps. Warmups excluded by caller. */
-export function setVolume(set: SetEntry): number {
+/**
+ * Volume (kg) for a single set. Warmups excluded by caller.
+ *
+ * `bodyweightKg` lets a bodyweight movement count the athlete's own mass; pass
+ * null and it falls back to whatever was entered, which is the old behaviour
+ * for a loaded lift and zero for an unweighted pull-up.
+ */
+export function setVolume(set: SetEntry, tracking: ExerciseTracking = 'load', bodyweightKg: number | null = null): number {
   if (!set.completed || isWarmupSet(set)) return 0;
-  return (set.weightKg ?? 0) * (set.reps ?? 0);
+  return setVolumeKg(set, tracking, bodyweightKg);
 }
 
-export function exerciseVolume(ex: WorkoutExercise): number {
-  return ex.sets.reduce((sum, s) => sum + setVolume(s), 0);
+export function exerciseVolume(ex: WorkoutExercise, bodyweightKg: number | null = null): number {
+  const tracking = trackingFor(exerciseById(ex.exerciseId));
+  return ex.sets.reduce((sum, s) => sum + setVolume(s, tracking, bodyweightKg), 0);
 }
 
 export interface WorkoutStats {
   totalVolumeKg: number;
   totalSets: number;
   totalReps: number;
+  /** Seconds held, for duration-tracked work. */
+  totalSeconds: number;
   bestE1RM: number;
   muscleVolume: Partial<Record<MuscleGroup, number>>;
 }
 
 /** Aggregate stats for a completed (or in-progress) workout. */
-export function workoutStats(w: Workout): WorkoutStats {
+export function workoutStats(w: Workout, bodyweightKg: number | null = null): WorkoutStats {
   let totalVolumeKg = 0;
   let totalSets = 0;
   let totalReps = 0;
+  let totalSeconds = 0;
   let bestE1RM = 0;
   const muscleVolume: Partial<Record<MuscleGroup, number>> = {};
 
   for (const ex of w.exercises) {
+    const tracking = trackingFor(exerciseById(ex.exerciseId));
     let exVol = 0;
     for (const s of ex.sets) {
       if (!s.completed || isWarmupSet(s)) continue;
-      const v = setVolume(s);
+      const v = setVolume(s, tracking, bodyweightKg);
       exVol += v;
       totalVolumeKg += v;
       totalSets += 1;
-      totalReps += s.reps ?? 0;
-      if (s.weightKg && s.reps) {
-        bestE1RM = Math.max(bestE1RM, epley1RM(s.weightKg, s.reps));
+      totalReps += tracking === 'duration' ? 0 : (s.reps ?? 0);
+      totalSeconds += tracking === 'duration' ? (s.seconds ?? 0) : 0;
+      const load = effectiveLoadKg(s, tracking, bodyweightKg);
+      // A hold has no rep count, so no 1RM can be estimated from it.
+      if (tracking !== 'duration' && load > 0 && s.reps) {
+        bestE1RM = Math.max(bestE1RM, epley1RM(load, s.reps));
       }
     }
     muscleVolume[ex.primaryMuscle] = round((muscleVolume[ex.primaryMuscle] ?? 0) + exVol);
@@ -55,6 +71,7 @@ export function workoutStats(w: Workout): WorkoutStats {
     totalVolumeKg: round(totalVolumeKg),
     totalSets,
     totalReps,
+    totalSeconds,
     bestE1RM: round(bestE1RM, 1),
     muscleVolume,
   };

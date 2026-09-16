@@ -12,8 +12,10 @@ import { colors, noOutline, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayVolume, displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
-import type { SetEntry, WorkoutExercise } from '../../src/domain/types';
+import type { ExerciseTracking, SetEntry, WorkoutExercise } from '../../src/domain/types';
 import { SET_KIND_LABEL, SET_KIND_MARK, isWarmupSet, nextSetKind, setKind } from '../../src/domain/sets';
+import { amountLabel, loadLabel, trackingFor } from '../../src/domain/tracking';
+import { exerciseById } from '../../src/data/exercises';
 import { SUPERSET_TRANSITION_SECONDS, groupExercises, restAfterSet, supersetLabel, type ExerciseGroup } from '../../src/domain/superset';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
@@ -28,6 +30,7 @@ export default function ActiveWorkout() {
   const discardActive = useWorkoutStore((s) => s.discardActive);
 
   const units = useProfileStore((s) => s.profile.units);
+  const bodyweightKg = useProfileStore((s) => s.profile.weightKg ?? null);
 
   const [elapsed, setElapsed] = useState(0);
   const [restKey, setRestKey] = useState<{ seconds: number; label: string; id: number } | null>(null);
@@ -41,7 +44,7 @@ export default function ActiveWorkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id, active?.startedAt]);
 
-  const stats = useMemo(() => (active ? workoutStats(active) : null), [active]);
+  const stats = useMemo(() => (active ? workoutStats(active, bodyweightKg) : null), [active, bodyweightKg]);
   const groups = useMemo(() => groupExercises(active?.exercises ?? []), [active?.exercises]);
 
   if (!active) {
@@ -265,6 +268,7 @@ function ExerciseBlock({
     return kg > 0 ? Math.round(displayWeight(kg, units).value * 10) / 10 : null;
   })();
 
+  const tracking = trackingFor(exerciseById(exercise.exerciseId));
   const prev = previousFor(exercise.exerciseId);
   const rec = recommendationFor(exercise.exerciseId, experience, units);
   const recWeight = rec ? displayWeight(rec.weightKg, units) : null;
@@ -324,8 +328,10 @@ function ExerciseBlock({
       {/* column header */}
       <View style={[styles.setRow, { marginTop: spacing.md }]}>
         <Text variant="caption" color={colors.textFaint} style={{ width: 28 }}>SET</Text>
-        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>{units === 'imperial' ? 'LB' : 'KG'}</Text>
-        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>REPS</Text>
+        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+          {loadLabel(tracking, units === 'imperial' ? 'LB' : 'KG') ?? ''}
+        </Text>
+        <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>{amountLabel(tracking)}</Text>
         <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>RPE</Text>
         <View style={{ width: 36 }} />
       </View>
@@ -335,6 +341,7 @@ function ExerciseBlock({
           key={set.id}
           weId={exercise.id}
           exerciseName={exercise.name}
+          tracking={tracking}
           set={set}
           index={i + 1}
           units={units}
@@ -372,6 +379,7 @@ function ExerciseBlock({
 function SetRow({
   weId,
   exerciseName,
+  tracking,
   set,
   index,
   units,
@@ -381,6 +389,7 @@ function SetRow({
 }: {
   weId: string;
   exerciseName: string;
+  tracking: ExerciseTracking;
   set: SetEntry;
   index: number;
   units: 'imperial' | 'metric';
@@ -396,6 +405,7 @@ function SetRow({
   const [weight, setWeight] = useState(set.weightKg != null ? String(round(units === 'imperial' ? kgToLb(set.weightKg) : set.weightKg, 1)) : '');
   const [reps, setReps] = useState(set.reps != null ? String(set.reps) : '');
   const [rpe, setRpe] = useState(set.rpe != null ? String(set.rpe) : '');
+  const [seconds, setSeconds] = useState(set.seconds != null ? String(set.seconds) : '');
 
   const kind = setKind(set);
   const mark = SET_KIND_MARK[kind];
@@ -410,6 +420,17 @@ function SetRow({
     const num = parseInt(t, 10);
     updateSet(weId, set.id, { reps: isNaN(num) ? null : num });
   };
+  const commitSeconds = (t: string) => {
+    setSeconds(t);
+    // Accept "90" or "1:30"; a hold is spoken either way.
+    const parts = t.split(':');
+    const value =
+      parts.length === 2
+        ? (parseInt(parts[0]!, 10) || 0) * 60 + (parseInt(parts[1]!, 10) || 0)
+        : parseInt(t, 10);
+    updateSet(weId, set.id, { seconds: isNaN(value) ? null : Math.max(0, value) });
+  };
+
   const commitRpe = (t: string) => {
     setRpe(t);
     const num = parseFloat(t);
@@ -445,8 +466,18 @@ function SetRow({
           {set.isPr ? '★' : (mark ?? index)}
         </Text>
       </Pressable>
-      <Cell value={weight} onChange={commitWeight} placeholder="0" />
-      <Cell value={reps} onChange={commitReps} placeholder="0" />
+      {tracking === 'duration' ? (
+        // A hold carries no external load, so the column is left empty rather
+        // than offering a number that means nothing.
+        <View style={{ flex: 1, minWidth: 0 }} />
+      ) : (
+        <Cell value={weight} onChange={commitWeight} placeholder={tracking === 'bodyweight' ? '+0' : '0'} />
+      )}
+      {tracking === 'duration' ? (
+        <Cell value={seconds} onChange={commitSeconds} placeholder="0:45" keyboard="numbers-and-punctuation" />
+      ) : (
+        <Cell value={reps} onChange={commitReps} placeholder="0" />
+      )}
       <Cell value={rpe} onChange={commitRpe} placeholder="-" />
       <Pressable onPress={onToggle} onLongPress={() => removeSet(weId, set.id)} style={[styles.check, set.completed && styles.checkOn]} hitSlop={6}>
         {set.completed ? <Icon name="check" size={16} color="#0B0B0F" strokeWidth={2.6} /> : <View style={styles.checkDot} />}
@@ -455,12 +486,22 @@ function SetRow({
   );
 }
 
-function Cell({ value, onChange, placeholder }: { value: string; onChange: (t: string) => void; placeholder: string }) {
+function Cell({
+  value,
+  onChange,
+  placeholder,
+  keyboard = 'decimal-pad',
+}: {
+  value: string;
+  onChange: (t: string) => void;
+  placeholder: string;
+  keyboard?: 'decimal-pad' | 'numbers-and-punctuation';
+}) {
   return (
     <TextInput
       value={value}
       onChangeText={onChange}
-      keyboardType="decimal-pad"
+      keyboardType={keyboard}
       placeholder={placeholder}
       placeholderTextColor={colors.textFaint}
       style={[styles.cell, noOutline]}

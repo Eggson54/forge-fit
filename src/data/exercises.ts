@@ -38,6 +38,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     category: 'compound',
     difficulty: 'beginner',
     instructions: ['Hands under shoulders, body in a straight line.', 'Lower until your chest is just above the floor.', 'Press back up without letting the hips sag.'],
+    tracking: 'bodyweight',
   },
   {
     id: 'pull_up',
@@ -48,6 +49,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     category: 'compound',
     difficulty: 'intermediate',
     instructions: ['Hang with an overhand grip.', 'Pull your chest toward the bar.', 'Lower under control to a full hang.'],
+    tracking: 'bodyweight',
   },
   {
     id: 'lat_pulldown',
@@ -189,6 +191,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     category: 'isolation',
     difficulty: 'beginner',
     instructions: ['Forearms down, body in a line.', 'Brace your abs and glutes.', 'Hold without letting hips drop.'],
+    tracking: 'duration',
   },
   {
     id: 'hanging_leg_raise',
@@ -199,6 +202,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     category: 'isolation',
     difficulty: 'intermediate',
     instructions: ['Hang from the bar.', 'Raise your legs toward parallel.', 'Lower slowly, no swinging.'],
+    tracking: 'bodyweight',
   },
   {
     id: 'kb_swing',

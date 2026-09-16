@@ -99,7 +99,20 @@ export interface Exercise {
   instructions: string[];
   isCustom?: boolean;
   isUnilateral?: boolean;
+  /**
+   * How a set of this exercise is measured. A plank has no meaningful rep
+   * count — logging it as "3 × 1" was the model shrugging.
+   */
+  tracking?: ExerciseTracking;
 }
+
+export type ExerciseTracking =
+  /** Weight on the bar, for a number of reps. The default. */
+  | 'load'
+  /** Bodyweight, optionally with weight added or assisted. */
+  | 'bodyweight'
+  /** Held or carried for a duration; reps are meaningless. */
+  | 'duration';
 
 /**
  * What a set is *for*. Only warmups are excluded from volume, PRs and
@@ -114,6 +127,8 @@ export interface SetEntry {
   rpe: number | null;
   completed: boolean;
   kind?: SetKind;
+  /** Seconds held, for exercises measured by duration rather than reps. */
+  seconds?: number | null;
   /** @deprecated Superseded by `kind`; still read so older logs keep counting. */
   isWarmup?: boolean;
   isPr?: boolean;

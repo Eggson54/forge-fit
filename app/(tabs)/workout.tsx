@@ -18,6 +18,7 @@ export default function WorkoutTab() {
   const activeId = useWorkoutStore((s) => s.activeId);
   const startEmpty = useWorkoutStore((s) => s.startEmptyWorkout);
   const units = useProfileStore((s) => s.profile.units);
+  const bodyweightKg = useProfileStore((s) => s.profile.weightKg ?? null);
   const enrolment = useProgramStore((s) => s.enrolment);
   const position = useProgramStore((s) => s.position());
   const enrolledProgram = enrolment ? programById(enrolment.programId) : null;
@@ -111,7 +112,7 @@ export default function WorkoutTab() {
         <View style={{ gap: spacing.md }}>
           <Stagger step={45}>
           {completed.map((wk) => {
-            const stats = workoutStats(wk);
+            const stats = workoutStats(wk, bodyweightKg);
             const vol = displayVolume(stats.totalVolumeKg, units);
             return (
               <Card key={wk.id} onPress={() => router.push(`/workout/${wk.id}`)}>

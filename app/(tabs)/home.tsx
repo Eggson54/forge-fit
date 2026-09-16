@@ -141,7 +141,7 @@ export default function Home() {
 
   // Today's session detail for the workout card.
   const todayWorkout = useWorkoutStore((st) => st.workouts.find((x) => x.date === summary.date));
-  const todayStats = todayWorkout ? workoutStats(todayWorkout) : null;
+  const todayStats = todayWorkout ? workoutStats(todayWorkout, profile.weightKg ?? null) : null;
   const todayVol = todayStats ? displayVolume(todayStats.totalVolumeKg, profile.units) : null;
 
   return (

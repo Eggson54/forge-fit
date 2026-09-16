@@ -21,6 +21,7 @@ export default function WorkoutDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const workout = useWorkoutStore((s) => s.workouts.find((w) => w.id === id));
   const units = useProfileStore((s) => s.profile.units);
+  const bodyweightKg = useProfileStore((s) => s.profile.weightKg ?? null);
   const saveRoutine = useRoutineStore((s) => s.saveFromWorkout);
 
   if (!workout) {
@@ -34,7 +35,7 @@ export default function WorkoutDetail() {
     );
   }
 
-  const stats = workoutStats(workout);
+  const stats = workoutStats(workout, bodyweightKg);
   const vol = displayWeight(stats.totalVolumeKg, units);
   const e1rm = displayWeight(stats.bestE1RM, units);
   const prCount = workout.exercises.reduce((a, e) => a + e.sets.filter((s) => s.isPr).length, 0);
