@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { DEFAULT_DISCIPLINE_WEIGHTS } from '../domain/discipline';
 import { FALLBACK_PERSONALITY, isProPersonality } from '../domain/coach';
 import { recommendedTargets } from '../domain/nutrition';
+import { isSubscriptionActive } from '../domain/subscription';
 import type {
   CoachSettings,
   DisciplineWeights,
@@ -86,13 +87,13 @@ export const useProfileStore = create<ProfileState>()(
       subscription: { tier: 'free', productId: null, expiresAt: null },
       protocolFeatureEnabled: false,
 
-      isPro: () => get().subscription.tier === 'pro',
+      isPro: () => isSubscriptionActive(get().subscription),
 
       // A lapsed subscription must not keep delivering a Pro personality, and the
       // settings screen must not show one as chosen while it is locked.
       effectiveCoach: () => {
         const { coach } = get();
-        const pro = get().subscription.tier === 'pro';
+        const pro = isSubscriptionActive(get().subscription);
         if (pro || !isProPersonality(coach.personality)) return coach;
         return { ...coach, personality: FALLBACK_PERSONALITY };
       },

@@ -35,6 +35,7 @@ import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { frequentFoods, summariseIntake } from '../domain/nutrition';
+import { isSubscriptionActive } from '../domain/subscription';
 import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
 import { answerCoachQuestion, easiestGap, openGaps, type CoachContext } from '../domain/coach';
 import type { CoachSettings } from '../domain/types';
@@ -1316,5 +1317,37 @@ describe('summariseIntake', () => {
     const out = summariseIntake([day('2026-09-01', 2600, 180, false)], targets);
     expect(out.calorieHits).toBe(0);
     expect(out.proteinHits).toBe(0);
+  });
+});
+
+describe('isSubscriptionActive', () => {
+  const now = new Date('2026-09-16T12:00:00Z');
+
+  it('is false for the free tier however the dates read', () => {
+    expect(isSubscriptionActive({ tier: 'free', productId: null, expiresAt: null }, now)).toBe(false);
+    expect(isSubscriptionActive({ tier: 'free', productId: null, expiresAt: '2030-01-01T00:00:00Z' }, now)).toBe(false);
+  });
+
+  it('is false once a Pro subscription has expired', () => {
+    // The tier stays 'pro' in whatever was last read from the store, so this is
+    // the case that hands Pro to someone whose access ran out last month.
+    const lapsed = { tier: 'pro' as const, productId: 'p', expiresAt: '2026-08-01T00:00:00Z' };
+    expect(isSubscriptionActive(lapsed, now)).toBe(false);
+  });
+
+  it('is true while a Pro subscription is still running', () => {
+    expect(isSubscriptionActive({ tier: 'pro', productId: 'p', expiresAt: '2026-10-01T00:00:00Z' }, now)).toBe(true);
+  });
+
+  it('treats no expiry as a lifetime entitlement', () => {
+    // Revoking access from a paying customer over missing metadata is worse
+    // than honouring it.
+    expect(isSubscriptionActive({ tier: 'pro', productId: 'p', expiresAt: null }, now)).toBe(true);
+    expect(isSubscriptionActive({ tier: 'pro', productId: 'p', expiresAt: 'not a date' }, now)).toBe(true);
+  });
+
+  it('expires exactly at the boundary, not after it', () => {
+    const atExpiry = { tier: 'pro' as const, productId: 'p', expiresAt: now.toISOString() };
+    expect(isSubscriptionActive(atExpiry, now)).toBe(false);
   });
 });

@@ -7,11 +7,13 @@ import { colors, spacing } from '../../src/theme';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { subscriptions } from '../../src/services/subscriptions';
 import { analytics } from '../../src/services/analytics';
+import { isSubscriptionActive } from '../../src/domain/subscription';
 
 export default function Subscription() {
   const subscription = useProfileStore((s) => s.subscription);
   const setSubscription = useProfileStore((s) => s.setSubscription);
-  const isPro = subscription.tier === 'pro';
+  // Same rule as the rest of the app: an expired Pro tier is not Pro.
+  const isPro = isSubscriptionActive(subscription);
 
   const cancel = () => {
     Alert.alert('Cancel subscription', subscriptions.usingRealBilling ? 'Manage your subscription in your app store account settings.' : 'This will end your Pro access (mock billing).', [
