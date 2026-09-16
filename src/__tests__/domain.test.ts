@@ -33,7 +33,7 @@ import { strengthChangePct } from '../domain/strength';
 import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
-import { movingAverage, ratePerWeek } from '../domain/trend';
+import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { brzycki1RM, percentOfMax, weightForReps } from '../domain/strength';
 
 const baseProfile: Profile = {
@@ -931,5 +931,34 @@ describe('rep max estimates', () => {
     expect(percentOfMax(1)).toBeCloseTo(96.8, 1);
     expect(percentOfMax(10)).toBeCloseTo(75, 1);
     expect(percentOfMax(0)).toBe(0);
+  });
+});
+
+describe('nearestValue', () => {
+  const series = [
+    { date: '2026-08-01', value: 90 },
+    { date: '2026-09-01', value: 86 },
+    { date: '2026-09-10', value: 85 },
+  ];
+
+  it('picks the closest reading in either direction', () => {
+    expect(nearestValue(series, '2026-09-03')!.date).toBe('2026-09-01');
+    expect(nearestValue(series, '2026-09-08')!.date).toBe('2026-09-10');
+  });
+
+  it('refuses to reach beyond the tolerance', () => {
+    // Nothing within a week of mid-August, so no weight belongs to that photo.
+    expect(nearestValue(series, '2026-08-15')).toBeNull();
+    expect(nearestValue(series, '2026-08-15', 30)!.date).toBe('2026-08-01');
+  });
+
+  it('is null for an empty series', () => {
+    expect(nearestValue([], '2026-09-01')).toBeNull();
+  });
+
+  it('counts whole days between dates in either order', () => {
+    expect(daysBetween('2026-09-01', '2026-09-10')).toBe(9);
+    expect(daysBetween('2026-09-10', '2026-09-01')).toBe(9);
+    expect(daysBetween('2026-09-01', '2026-09-01')).toBe(0);
   });
 });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Alert, Pressable, View } from 'react-native';
+import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { Card, EmptyState, Screen, SectionHeader, SegmentedControl, Text } from '../../src/components/ui';
@@ -61,7 +62,11 @@ export default function Photos() {
         </Card>
       </View>
 
-      <SectionHeader title={`${cap(pose)} timeline`} />
+      <SectionHeader
+        title={`${cap(pose)} timeline`}
+        action={posePhotos.length >= 2 ? 'Compare' : undefined}
+        onAction={() => router.push({ pathname: '/progress/compare', params: { pose } })}
+      />
       {posePhotos.length === 0 ? (
         <EmptyState
           icon="camera"
@@ -75,7 +80,15 @@ export default function Photos() {
           {posePhotos.map((p) => (
             <Pressable
               key={p.id}
-              onLongPress={() => Alert.alert('Remove photo?', '', [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removePhoto(p.id) }])}
+              onPress={() => router.push({ pathname: '/progress/compare', params: { pose } })}
+              onLongPress={() =>
+                Alert.alert('Remove photo?', '', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Remove', style: 'destructive', onPress: () => removePhoto(p.id) },
+                ])
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`${cap(pose)} photo from ${formatDateLong(p.date)}. Long press to remove.`}
               style={{ width: '47%' }}
             >
               <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 0.75, borderRadius: radius.md, backgroundColor: colors.surfaceHigh }} contentFit="cover" />
