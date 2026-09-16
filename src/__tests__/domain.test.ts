@@ -36,7 +36,8 @@ import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../d
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { balanceMacros, frequentFoods, summariseIntake } from '../domain/nutrition';
 import { isSubscriptionActive } from '../domain/subscription';
-import { amountLabel, effectiveLoadKg, formatSetAmount, isSetLogged, loadLabel, setVolumeKg } from '../domain/tracking';
+import { amountLabel, effectiveLoadKg, formatSetAmount, isSetLogged, loadLabel, setVolumeKg, substitutesFor } from '../domain/tracking';
+import { EXERCISE_LIBRARY, exerciseById as libraryExercise } from '../data/exercises';
 import { isStale, programPosition, projectedDates, weekMultiplier } from '../domain/program';
 import { PROGRAMS, programById } from '../data/programs';
 import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
@@ -1531,5 +1532,41 @@ describe('exercise tracking modes', () => {
     // The plus sign says the number is added to bodyweight, not the whole load.
     expect(loadLabel('bodyweight', 'LB')).toBe('+LB');
     expect(loadLabel('load', 'LB')).toBe('LB');
+  });
+});
+
+describe('substitutesFor', () => {
+  const bench = libraryExercise('barbell_bench_press')!;
+
+  it('never offers the exercise itself', () => {
+    expect(substitutesFor(bench, EXERCISE_LIBRARY).map((e) => e.id)).not.toContain(bench.id);
+  });
+
+  it('leads with something that trains the same muscle', () => {
+    const [first] = substitutesFor(bench, EXERCISE_LIBRARY);
+    expect(first!.primaryMuscle === bench.primaryMuscle || first!.secondaryMuscles.includes(bench.primaryMuscle)).toBe(true);
+  });
+
+  it('excludes exercises that do not train the muscle at all', () => {
+    for (const option of substitutesFor(bench, EXERCISE_LIBRARY, [], 50)) {
+      const related = option.primaryMuscle === bench.primaryMuscle || option.secondaryMuscles.includes(bench.primaryMuscle);
+      expect(related).toBe(true);
+    }
+  });
+
+  it('prefers equipment the athlete listed', () => {
+    // The point of a swap is usually that the kit is occupied or absent.
+    const dumbbellOnly = substitutesFor(bench, EXERCISE_LIBRARY, ['dumbbells'], 3);
+    const usable = dumbbellOnly.filter((e) => e.equipment === 'dumbbells' || e.equipment === 'bodyweight');
+    expect(usable.length).toBeGreaterThan(0);
+  });
+
+  it('always treats bodyweight as available', () => {
+    const kettlebellOnly = substitutesFor(bench, EXERCISE_LIBRARY, ['kettlebell'], 20);
+    expect(kettlebellOnly.some((e) => e.equipment === 'bodyweight')).toBe(true);
+  });
+
+  it('respects the limit', () => {
+    expect(substitutesFor(bench, EXERCISE_LIBRARY, [], 2)).toHaveLength(2);
   });
 });

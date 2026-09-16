@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { AnimatedNumber, Celebration, FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
@@ -23,6 +24,8 @@ export default function WorkoutDetail() {
   const units = useProfileStore((s) => s.profile.units);
   const bodyweightKg = useProfileStore((s) => s.profile.weightKg ?? null);
   const saveRoutine = useRoutineStore((s) => s.saveFromWorkout);
+  const repeatWorkout = useWorkoutStore((s) => s.repeatWorkout);
+  const activeId = useWorkoutStore((s) => s.activeId);
 
   if (!workout) {
     return (
@@ -44,9 +47,26 @@ export default function WorkoutDetail() {
     <Screen
       gradient
       footer={
+        <View style={{ gap: spacing.md }}>
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
           <Button title="Save as Routine" variant="secondary" onPress={() => { saveRoutine(workout); Alert.alert('Saved', `"${workout.name}" saved as a routine you can reuse.`); }} style={{ flex: 1 }} />
           <Button title="Done" onPress={() => router.replace('/(tabs)/workout')} style={{ flex: 1 }} />
+        </View>
+        <View>
+          <Button
+            title="Do this workout again"
+            variant="secondary"
+            icon={<Icon name="repeat" size={16} color={colors.text} />}
+            onPress={() => {
+              if (activeId) {
+                Alert.alert('Finish the current session first', 'You already have a workout in progress.');
+                return;
+              }
+              const id = repeatWorkout(workout.id);
+              if (id) router.replace('/workout/active');
+            }}
+          />
+        </View>
         </View>
       }
     >
@@ -78,6 +98,17 @@ export default function WorkoutDetail() {
         <StatTile value={`${Math.round(e1rm.value)} ${e1rm.unit}`} label="Top e1RM" accent={colors.protein} />
         <StatTile value={`${prCount}`} label="PRs" accent={colors.amber} />
       </Card>
+
+      {workout.notes ? (
+        <Card tone="alt" style={{ marginTop: spacing.md }}>
+          <Text variant="overline" color={colors.textDim} style={{ marginBottom: spacing.xs }}>
+            Session note
+          </Text>
+          <Text variant="body" color={colors.textDim}>
+            {workout.notes}
+          </Text>
+        </Card>
+      ) : null}
 
       <SectionHeader title="Exercises" />
       {groupExercises(workout.exercises).map((group) => (

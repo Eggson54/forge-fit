@@ -59,3 +59,42 @@ export function loadLabel(tracking: ExerciseTracking, unitLabel: string): string
   // "+LB" says the number is added to bodyweight, not the whole load.
   return tracking === 'bodyweight' ? `+${unitLabel}` : unitLabel;
 }
+
+/**
+ * Alternatives to an exercise, best match first.
+ *
+ * Ranked on what actually makes a swap usable mid-session: the same primary
+ * muscle first, then kit the athlete has to hand — being offered a cable fly
+ * when the cable station is occupied is the situation they are trying to
+ * escape.
+ */
+export function substitutesFor(
+  exercise: Exercise,
+  library: Exercise[],
+  availableEquipment: readonly string[] = [],
+  limit = 8,
+): Exercise[] {
+  const wanted = new Set(availableEquipment);
+
+  // Training the same muscle is a requirement, not a weight. Scored instead, a
+  // candidate could clear the bar on equipment and category alone and be
+  // offered as a swap for a lift it has nothing to do with.
+  const trainsIt = (c: Exercise) =>
+    c.primaryMuscle === exercise.primaryMuscle || c.secondaryMuscles.includes(exercise.primaryMuscle);
+
+  const score = (candidate: Exercise): number => {
+    let points = candidate.primaryMuscle === exercise.primaryMuscle ? 100 : 40;
+    // Bodyweight is always available, whatever the athlete listed.
+    if (candidate.equipment === 'bodyweight' || wanted.size === 0 || wanted.has(candidate.equipment)) points += 25;
+    if (candidate.category === exercise.category) points += 10;
+    if (candidate.difficulty === exercise.difficulty) points += 5;
+    return points;
+  };
+
+  return library
+    .filter((c) => c.id !== exercise.id && trainsIt(c))
+    .map((c) => ({ c, score: score(c) }))
+    .sort((a, b) => b.score - a.score || a.c.name.localeCompare(b.c.name))
+    .slice(0, limit)
+    .map((x) => x.c);
+}

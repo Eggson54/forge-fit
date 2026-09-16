@@ -12,7 +12,7 @@ import { colors, noOutline, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayVolume, displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
-import type { ExerciseTracking, SetEntry, WorkoutExercise } from '../../src/domain/types';
+import type { ExerciseTracking, SetEntry, Workout, WorkoutExercise } from '../../src/domain/types';
 import { SET_KIND_LABEL, SET_KIND_MARK, isWarmupSet, nextSetKind, setKind } from '../../src/domain/sets';
 import { amountLabel, loadLabel, trackingFor } from '../../src/domain/tracking';
 import { exerciseById } from '../../src/data/exercises';
@@ -136,6 +136,9 @@ export default function ActiveWorkout() {
         <View style={{ padding: spacing.xl, gap: spacing.md }}>
           <Button title="Add Exercise" variant="secondary" icon={<Icon name="plus" size={18} color={colors.text} />} onPress={() => router.push('/workout/library?select=1')} />
           {active.exercises.length > 0 && (
+            <SessionNote workout={active} />
+          )}
+          {active.exercises.length > 0 && (
             <Text variant="caption" color={colors.textFaint} center>
               Tap a set number to mark it <Text variant="caption" color={colors.amber}>W</Text>arm-up,{' '}
               <Text variant="caption" color={colors.info}>D</Text>rop or to{' '}
@@ -168,6 +171,38 @@ export default function ActiveWorkout() {
         <Button title="Finish Workout" onPress={onFinish} size="lg" />
       </View>
     </View>
+  );
+}
+
+/**
+ * How the session as a whole went. Per-exercise notes cover a cue or a tweak;
+ * this is for the things that belong to the day — slept badly, gym was packed,
+ * everything felt heavy.
+ */
+function SessionNote({ workout }: { workout: Workout }) {
+  const setNote = useWorkoutStore((s) => s.setWorkoutNote);
+  const [open, setOpen] = useState(workout.notes != null);
+
+  if (!open) {
+    return (
+      <Pressable onPress={() => setOpen(true)} style={styles.noteOpen} hitSlop={6} accessibilityRole="button">
+        <Icon name="document" size={14} color={colors.textFaint} strokeWidth={1.8} />
+        <Text variant="caption" color={colors.textFaint}>
+          How did the session go?
+        </Text>
+      </Pressable>
+    );
+  }
+  return (
+    <TextInput
+      value={workout.notes ?? ''}
+      onChangeText={setNote}
+      placeholder="Slept badly, gym was packed, everything felt heavy…"
+      placeholderTextColor={colors.textFaint}
+      multiline
+      style={[styles.note, noOutline]}
+      selectionColor={colors.primary}
+    />
   );
 }
 
@@ -312,6 +347,15 @@ function ExerciseBlock({
             style={styles.removeExercise}
           >
             <Icon name="sliders" size={16} color={colors.textFaint} strokeWidth={1.8} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push({ pathname: '/workout/swap', params: { weId: exercise.id } })}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Swap ${exercise.name} for something else`}
+            style={styles.removeExercise}
+          >
+            <Icon name="repeat" size={16} color={colors.textFaint} strokeWidth={1.8} />
           </Pressable>
           <Pressable
             onPress={() => removeExercise(exercise.id)}

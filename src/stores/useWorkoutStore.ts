@@ -47,6 +47,11 @@ interface WorkoutState {
   /** Link this exercise with the one below it into a superset, or unlink it. */
   toggleSupersetWithNext: (workoutExerciseId: string) => void;
   setExerciseNote: (workoutExerciseId: string, note: string) => void;
+  /** Replace an exercise with another, keeping its position and set count. */
+  swapExercise: (workoutExerciseId: string, newExerciseId: string) => void;
+  setWorkoutNote: (note: string) => void;
+  /** Start a new session with the same exercises and sets as a past one. */
+  repeatWorkout: (workoutId: string) => string | null;
   /** Returns the new personal record this completion set, if any. */
   toggleSetComplete: (workoutExerciseId: string, setId: string) => NewPr | null;
 
@@ -200,6 +205,57 @@ export const useWorkoutStore = create<WorkoutState>()(
               : e,
           ),
         })),
+
+      swapExercise: (weId, newExerciseId) => {
+        const replacement = get().allExercises().find((e) => e.id === newExerciseId);
+        if (!replacement) return;
+        mutateActive((w) => ({
+          ...w,
+          exercises: w.exercises.map((e) => {
+            if (e.id !== weId) return e;
+            const fresh = toWorkoutExercise(replacement, e.targetReps);
+            return {
+              // Keep the row's identity, its place in any superset, and how many
+              // sets were planned — swapping the movement is not restarting it.
+              ...fresh,
+              id: e.id,
+              supersetGroup: e.supersetGroup,
+              restSeconds: e.restSeconds,
+              sets: Array.from({ length: Math.max(1, e.sets.length) }, newSet),
+            };
+          }),
+        }));
+      },
+
+      setWorkoutNote: (note) => mutateActive((w) => ({ ...w, notes: note.trim() ? note : undefined })),
+
+      repeatWorkout: (workoutId) => {
+        const source = get().workouts.find((w) => w.id === workoutId);
+        if (!source) return null;
+        const id = uid('wk_');
+        const workout: Workout = {
+          id,
+          name: source.name,
+          status: 'in_progress',
+          date: todayISO(),
+          startedAt: new Date().toISOString(),
+          completedAt: null,
+          durationSeconds: null,
+          focus: source.focus,
+          // The structure comes across; the numbers do not. Carrying last
+          // session's weights in pre-filled would have the athlete confirming
+          // them rather than deciding them.
+          exercises: source.exercises.map((e) => ({
+            ...e,
+            id: uid('we_'),
+            notes: undefined,
+            sets: e.sets.map(() => newSet()),
+          })),
+        };
+        set((s) => ({ workouts: [workout, ...s.workouts], activeId: id }));
+        analytics.track('workout_started', { source: 'repeat' });
+        return id;
+      },
 
       setExerciseNote: (weId, note) =>
         mutateActive((w) => ({
