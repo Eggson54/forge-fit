@@ -34,7 +34,7 @@ import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
-import { frequentFoods, summariseIntake } from '../domain/nutrition';
+import { balanceMacros, frequentFoods, summariseIntake } from '../domain/nutrition';
 import { isSubscriptionActive } from '../domain/subscription';
 import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
 import { answerCoachQuestion, easiestGap, openGaps, type CoachContext } from '../domain/coach';
@@ -1349,5 +1349,37 @@ describe('isSubscriptionActive', () => {
   it('expires exactly at the boundary, not after it', () => {
     const atExpiry = { tier: 'pro' as const, productId: 'p', expiresAt: now.toISOString() };
     expect(isSubscriptionActive(atExpiry, now)).toBe(false);
+  });
+});
+
+describe('balanceMacros', () => {
+  it('solves carbs so the three macros hit the calorie target', () => {
+    const out = balanceMacros({ calories: 2650, proteinG: 180, carbsG: 265, fatG: 80 })!;
+    expect(out.proteinG).toBe(180);
+    expect(out.fatG).toBe(80);
+    expect(out.proteinG * 4 + out.carbsG * 4 + out.fatG * 9).toBeCloseTo(2650, -1);
+  });
+
+  it('can solve fat instead, without touching the others', () => {
+    const out = balanceMacros({ calories: 2650, proteinG: 180, carbsG: 265, fatG: 80 }, 'fatG')!;
+    expect(out.carbsG).toBe(265);
+    expect(out.proteinG * 4 + out.carbsG * 4 + out.fatG * 9).toBeCloseTo(2650, -1);
+  });
+
+  it('leaves an already-balanced set alone', () => {
+    // 180p + 80f + 265c is 2500 kcal exactly.
+    const out = balanceMacros({ calories: 2500, proteinG: 180, carbsG: 265, fatG: 80 })!;
+    expect(out.carbsG).toBe(265);
+  });
+
+  it('refuses rather than returning a negative target', () => {
+    // Protein and fat alone already blow past the calorie number.
+    expect(balanceMacros({ calories: 1000, proteinG: 200, carbsG: 100, fatG: 80 })).toBeNull();
+  });
+
+  it('is exactly satisfiable at the boundary', () => {
+    // 200p + 0f = 800 kcal, so carbs land on zero rather than going negative.
+    const out = balanceMacros({ calories: 800, proteinG: 200, carbsG: 50, fatG: 0 })!;
+    expect(out.carbsG).toBe(0);
   });
 });

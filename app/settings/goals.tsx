@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, Input, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import type { DisciplineWeights, Targets } from '../../src/domain/types';
+import { balanceMacros, recommendedTargets } from '../../src/domain/nutrition';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 const TARGET_FIELDS: { key: keyof Targets; label: string; suffix: string; transform?: 'sleepHours' }[] = [
@@ -19,6 +21,7 @@ const TARGET_FIELDS: { key: keyof Targets; label: string; suffix: string; transf
 const WEIGHT_KEYS: (keyof DisciplineWeights)[] = ['workout', 'nutrition', 'protein', 'steps', 'water', 'sleep'];
 
 export default function Goals() {
+  const profile = useProfileStore((s) => s.profile);
   const targets = useProfileStore((s) => s.targets);
   const setTargets = useProfileStore((s) => s.setTargets);
   const weights = useProfileStore((s) => s.disciplineWeights);
@@ -39,6 +42,18 @@ export default function Goals() {
     }
     setTargets(patch);
   };
+
+  /** Overwrite the draft from a computed set of targets. */
+  const applyTargets = (next: Partial<Targets>) =>
+    setDraft((d) => {
+      const out = { ...d };
+      for (const f of TARGET_FIELDS) {
+        const v = next[f.key];
+        if (v == null) continue;
+        out[f.key] = f.transform === 'sleepHours' ? String(v / 60) : String(v);
+      }
+      return out;
+    });
 
   const num = (k: string) => {
     const v = parseFloat(draft[k] ?? '');
@@ -101,7 +116,42 @@ export default function Goals() {
             )}
           </Text>
         </View>
+
+        {macroGap > 60 && (
+          <Pressable
+            onPress={() => {
+              const balanced = balanceMacros(
+                { calories: calorieTarget, proteinG: num('proteinG'), carbsG: num('carbsG'), fatG: num('fatG') },
+                'carbsG',
+              );
+              // Null means protein and fat alone already exceed the calorie
+              // target, so there is no carb number that fixes it.
+              if (balanced) applyTargets(balanced);
+              else setDraft((d) => ({ ...d, calories: String(Math.round(num('proteinG') * 4 + num('fatG') * 9)) }));
+            }}
+            style={styles.fix}
+            accessibilityRole="button"
+          >
+            <Icon name="sliders" size={14} color={colors.primary} strokeWidth={1.9} />
+            <Text variant="label" color={colors.primary}>
+              {balanceMacros({ calories: calorieTarget, proteinG: num('proteinG'), carbsG: num('carbsG'), fatG: num('fatG') })
+                ? 'Balance with carbs'
+                : 'Raise calories to match'}
+            </Text>
+          </Pressable>
+        )}
       </Card>
+
+      <Pressable
+        onPress={() => applyTargets(recommendedTargets(profile))}
+        style={styles.fix}
+        accessibilityRole="button"
+      >
+        <Icon name="repeat" size={14} color={colors.textDim} strokeWidth={1.9} />
+        <Text variant="label" color={colors.textDim}>
+          Reset to recommended for your profile
+        </Text>
+      </Pressable>
 
       <SectionHeader title="Daily habits" />
       <Card style={{ gap: spacing.md }}>
@@ -181,3 +231,13 @@ function Field({
     />
   );
 }
+
+const styles = StyleSheet.create({
+  fix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+});

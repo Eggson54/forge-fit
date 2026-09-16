@@ -240,3 +240,34 @@ export function summariseIntake(days: DailyIntake[], targets: Targets): IntakeSu
     calorieHits: logged.filter((d) => Math.abs(d.calories - targets.calories) <= targets.calories * 0.1).length,
   };
 }
+
+/**
+ * Adjust one macro so the three of them add up to the calorie target.
+ *
+ * Calories and macros are entered independently, so they drift apart. Carbs are
+ * the default lever because protein and fat both have floors worth defending —
+ * protein drives the training result the athlete is here for, and fat below
+ * roughly 20% of intake is a line most guidance treats as a floor. Nothing here
+ * is a prescription: it is arithmetic on targets the user set, offered as a
+ * one-tap fix they can ignore.
+ *
+ * Returns null when the sum cannot be reached without pushing the adjusted
+ * macro below zero — better to say so than to hand back a nonsense target.
+ */
+export function balanceMacros(
+  targets: Pick<Targets, 'calories' | 'proteinG' | 'carbsG' | 'fatG'>,
+  adjust: 'carbsG' | 'fatG' = 'carbsG',
+): Pick<Targets, 'proteinG' | 'carbsG' | 'fatG'> | null {
+  const perGram = adjust === 'fatG' ? 9 : 4;
+  const fixedCalories =
+    targets.proteinG * 4 + (adjust === 'carbsG' ? targets.fatG * 9 : targets.carbsG * 4);
+  const remaining = targets.calories - fixedCalories;
+  if (remaining < 0) return null;
+
+  const grams = Math.round(remaining / perGram);
+  return {
+    proteinG: targets.proteinG,
+    carbsG: adjust === 'carbsG' ? grams : targets.carbsG,
+    fatG: adjust === 'fatG' ? grams : targets.fatG,
+  };
+}
