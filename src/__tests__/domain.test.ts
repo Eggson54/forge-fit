@@ -35,6 +35,7 @@ import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { frequentFoods } from '../domain/nutrition';
+import { personalRecords, recentPrEvents } from '../domain/records';
 import { brzycki1RM, percentOfMax, weightForReps } from '../domain/strength';
 
 const baseProfile: Profile = {
@@ -1013,5 +1014,120 @@ describe('frequentFoods', () => {
     const out = frequentFoods(log);
     expect(out[0]!.name).toBe('B');
     expect(frequentFoods(log, 1)).toHaveLength(1);
+  });
+});
+
+describe('personalRecords', () => {
+  const set = (weightKg: number, reps: number, over: Record<string, unknown> = {}) =>
+    ({ id: `${weightKg}x${reps}`, weightKg, reps, rpe: null, completed: true, ...over });
+  const session = (id: string, date: string, sets: unknown[], name = 'Bench') =>
+    ({
+      id,
+      date,
+      status: 'completed',
+      exercises: [{ exerciseId: 'bench', name, primaryMuscle: 'chest', sets }],
+    }) as never;
+
+  it('keeps the heaviest set and the best estimated max apart', () => {
+    // 80x12 estimates 112, above 100x1, but 100 is still the heavier lift.
+    const history = [session('w1', '2026-09-01', [set(100, 1), set(80, 12)])];
+    const [r] = personalRecords(history);
+    expect(r!.heaviest.weightKg).toBe(100);
+    expect(r!.best.weightKg).toBe(80);
+    expect(r!.best.e1RMKg).toBeGreaterThan(r!.heaviest.e1RMKg);
+  });
+
+  it('ignores warm-ups and incomplete sets', () => {
+    const history = [
+      session('w1', '2026-09-01', [
+        set(200, 5, { kind: 'warmup' }),
+        set(180, 5, { completed: false }),
+        set(100, 5),
+      ]),
+    ];
+    expect(personalRecords(history)[0]!.best.weightKg).toBe(100);
+  });
+
+  it('measures improvement against the first session, not the first set', () => {
+    const history = [
+      session('w1', '2026-09-01', [set(100, 5), set(110, 5)]),
+      session('w2', '2026-09-08', [set(120, 5)]),
+    ];
+    const [r] = personalRecords(history);
+    expect(r!.sessions).toBe(2);
+    expect(r!.improvementPct).toBeGreaterThan(0);
+  });
+
+  it('reports no improvement rather than zero for a single session', () => {
+    const history = [session('w1', '2026-09-01', [set(100, 5)])];
+    expect(personalRecords(history)[0]!.improvementPct).toBeNull();
+  });
+
+  it('reads history in date order whatever the storage order', () => {
+    // Newest-first storage would otherwise compare against the wrong baseline.
+    const history = [
+      session('w2', '2026-09-08', [set(120, 5)]),
+      session('w1', '2026-09-01', [set(100, 5)]),
+    ];
+    expect(personalRecords(history)[0]!.improvementPct).toBeGreaterThan(0);
+  });
+
+  it('sorts the strongest lift first', () => {
+    const history = [
+      session('w1', '2026-09-01', [set(60, 5)], 'Curl'),
+      {
+        id: 'w2',
+        date: '2026-09-02',
+        status: 'completed',
+        exercises: [{ exerciseId: 'dl', name: 'Deadlift', primaryMuscle: 'back', sets: [set(200, 5)] }],
+      } as never,
+    ];
+    expect(personalRecords(history)[0]!.name).toBe('Deadlift');
+  });
+
+  it('finds records without needing an isPr flag on the set', () => {
+    // A restored backup carries no flags; the events still have to be there.
+    const history = [
+      session('w1', '2026-09-01', [set(100, 5)]),
+      session('w2', '2026-09-08', [set(110, 5)]),
+    ];
+    const events = recentPrEvents(history);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.weightKg).toBe(110);
+  });
+
+  it('treats the first session with a lift as a baseline, not a record', () => {
+    expect(recentPrEvents([session('w1', '2026-09-01', [set(100, 5)])])).toEqual([]);
+  });
+
+  it('posts one record per session, not one per set on the way up', () => {
+    const history = [
+      session('w1', '2026-09-01', [set(80, 5)]),
+      session('w2', '2026-09-08', [set(90, 5), set(100, 5), set(105, 5)]),
+    ];
+    const events = recentPrEvents(history);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.weightKg).toBe(105);
+  });
+
+  it('does not post a record for a session that failed to beat the best', () => {
+    const history = [
+      session('w1', '2026-09-01', [set(120, 5)]),
+      session('w2', '2026-09-08', [set(100, 5)]),
+      session('w3', '2026-09-15', [set(125, 5)]),
+    ];
+    const events = recentPrEvents(history);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.date).toBe('2026-09-15');
+  });
+
+  it('returns newest first and respects the limit', () => {
+    const history = [
+      session('w1', '2026-09-01', [set(100, 5)]),
+      session('w2', '2026-09-08', [set(110, 5)]),
+      session('w3', '2026-09-15', [set(120, 5)]),
+    ];
+    expect(recentPrEvents(history)[0]!.date).toBe('2026-09-15');
+    expect(recentPrEvents(history, 1)).toHaveLength(1);
   });
 });

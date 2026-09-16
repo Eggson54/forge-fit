@@ -75,7 +75,7 @@ export default function WorkoutTab() {
       </View>
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md }}>
         <StartCard icon="target" title="Rep Max" subtitle="Estimate and percentages" onPress={() => router.push('/tools/one-rep-max')} />
-        <StartCard icon="scale" title="Measurements" subtitle="Tape and trends" onPress={() => router.push('/progress/measurements')} />
+        <StartCard icon="trophy" title="Records" subtitle="Your best lifts" onPress={() => router.push('/workout/records')} />
       </View>
 
       <SectionHeader title="Recent workouts" action={allCompleted.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />
