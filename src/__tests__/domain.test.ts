@@ -36,6 +36,8 @@ import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../d
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { frequentFoods } from '../domain/nutrition';
 import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
+import { answerCoachQuestion, easiestGap, openGaps, type CoachContext } from '../domain/coach';
+import type { CoachSettings } from '../domain/types';
 import { brzycki1RM, percentOfMax, weightForReps } from '../domain/strength';
 
 const baseProfile: Profile = {
@@ -1198,5 +1200,76 @@ describe('exerciseSessions', () => {
   it('respects the limit', () => {
     const history = [1, 2, 3].map((i) => session(`w${i}`, `2026-09-0${i}`, [set(100, 5)]));
     expect(exerciseSessions(history, 'bench', 2)).toHaveLength(2);
+  });
+});
+
+describe('coach intents', () => {
+  const settings: CoachSettings = {
+    personality: 'motivational',
+    aggression: 60,
+    allowAggressiveLanguage: true,
+    enabled: true,
+  };
+  const ctx: CoachContext = {
+    disciplineScore: 55,
+    dailyStreak: 3,
+    workoutPlanned: true,
+    workoutCompleted: false,
+    proteinRemainingG: 60,
+    waterRemainingOz: 20,
+    stepsRemaining: 3000,
+    missedWorkoutsThisWeek: 0,
+    timeOfDay: 'afternoon',
+  };
+
+  it('puts training above everything else that is open', () => {
+    // A missed session cannot be made up with a glass of water.
+    expect(openGaps(ctx)[0]!.key).toBe('workout');
+  });
+
+  it('picks the quickest gap to close as the next win, not the biggest', () => {
+    expect(easiestGap(ctx)!.key).toBe('water');
+  });
+
+  it('reports nothing open once every target is met', () => {
+    const done = { ...ctx, workoutCompleted: true, proteinRemainingG: 0, waterRemainingOz: 0, stepsRemaining: 0 };
+    expect(openGaps(done)).toEqual([]);
+    expect(easiestGap(done)).toBeNull();
+  });
+
+  it('gives a different answer to each question', () => {
+    const asked = (['weakest', 'push', 'next_win', 'on_track'] as const).map(
+      (intent) => answerCoachQuestion(ctx, settings, intent).text,
+    );
+    expect(new Set(asked).size).toBe(asked.length);
+  });
+
+  it('answers the question from the real context, unmodified', () => {
+    // The screen used to inflate protein-remaining to force variety; the same
+    // context must now produce the protein number the athlete actually has.
+    const proteinOnly = { ...ctx, workoutPlanned: false, waterRemainingOz: 0, stepsRemaining: 0 };
+    expect(answerCoachQuestion(proteinOnly, settings, 'weakest').text).toContain('60g');
+  });
+
+  it('never claims work is outstanding when it is not', () => {
+    const done = { ...ctx, workoutCompleted: true, proteinRemainingG: 0, waterRemainingOz: 0, stepsRemaining: 0, disciplineScore: 100 };
+    for (const intent of ['weakest', 'next_win', 'push'] as const) {
+      expect(answerCoachQuestion(done, settings, intent).tone).not.toBe('nudge');
+    }
+  });
+
+  it('stays quiet when the coach is switched off, whatever is asked', () => {
+    const off = { ...settings, enabled: false };
+    for (const intent of ['weakest', 'push', 'next_win', 'on_track'] as const) {
+      expect(answerCoachQuestion(ctx, off, intent).text).toContain('Coach is off');
+    }
+  });
+
+  it('softens aggressive personalities when the user has asked it to', () => {
+    const savage: CoachSettings = { ...settings, personality: 'savage', allowAggressiveLanguage: false };
+    const raw: CoachSettings = { ...settings, personality: 'savage', allowAggressiveLanguage: true };
+    const softened = answerCoachQuestion(ctx, savage, 'weakest').text;
+    expect(softened).not.toBe(answerCoachQuestion(ctx, raw, 'weakest').text);
+    expect(softened).toBe(answerCoachQuestion(ctx, settings, 'weakest').text);
   });
 });

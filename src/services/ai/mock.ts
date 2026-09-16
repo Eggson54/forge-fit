@@ -1,4 +1,4 @@
-import { selectCoachMessage, weeklyReviewSummary } from '../../domain/coach';
+import { answerCoachQuestion, weeklyReviewSummary } from '../../domain/coach';
 import { sanitizeMacros } from '../../domain/nutrition';
 import { EXERCISE_LIBRARY } from '../../data/exercises';
 import { FOOD_DB } from '../../data/foods';
@@ -81,7 +81,7 @@ export class MockAIService implements AIService {
 
   async coachMessage(req: CoachMessageRequest): Promise<CoachMessageResult> {
     await delay(250);
-    const m = selectCoachMessage(req.context, req.settings);
+    const m = answerCoachQuestion(req.context, req.settings, req.intent ?? 'daily');
     return { text: m.text, tone: m.tone };
   }
 

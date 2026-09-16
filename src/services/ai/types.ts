@@ -6,7 +6,7 @@ import type {
   MuscleGroup,
   Profile,
 } from '../../domain/types';
-import type { CoachContext, WeeklyStats } from '../../domain/coach';
+import type { CoachContext, CoachIntent, WeeklyStats } from '../../domain/coach';
 
 /** Structured contracts for every AI function. Responses are validated before use. */
 
@@ -52,6 +52,8 @@ export interface WorkoutGenResult {
 export interface CoachMessageRequest {
   context: CoachContext;
   settings: CoachSettings;
+  /** What the athlete asked. Omitted for the unprompted daily message. */
+  intent?: CoachIntent;
 }
 export interface CoachMessageResult {
   text: string;

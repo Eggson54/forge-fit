@@ -210,3 +210,180 @@ export function weeklyReviewSummary(s: WeeklyStats, settings: CoachSettings): st
 
   return `${strongPart}${weakPart}${tone}`;
 }
+
+/**
+ * What the athlete actually asked. Without this every question collapsed to the
+ * same branch of the priority cascade, so the coach answered "where am I
+ * slacking?" and "what's my next win?" with identical text.
+ *
+ * The screen previously faked variety by inflating the numbers it passed in —
+ * telling the engine the athlete had 30g more protein left than they did, to
+ * steer it. An intent is the honest version of that: the context stays true and
+ * the question decides which part of it to answer.
+ */
+export type CoachIntent = 'daily' | 'weakest' | 'push' | 'next_win' | 'on_track';
+
+export interface CoachGap {
+  key: 'workout' | 'protein' | 'water' | 'steps';
+  label: string;
+  /** Remaining amount, in that gap's own units. */
+  remaining: number;
+  text: string;
+}
+
+/**
+ * Everything still open today, biggest first. Training outranks the rest: a
+ * missed session cannot be made up with a glass of water.
+ */
+export function openGaps(ctx: CoachContext): CoachGap[] {
+  const gaps: CoachGap[] = [];
+  if (ctx.workoutPlanned && !ctx.workoutCompleted) {
+    gaps.push({ key: 'workout', label: 'Training', remaining: 1, text: 'your workout is still unlogged' });
+  }
+  if (ctx.proteinRemainingG > 0) {
+    gaps.push({ key: 'protein', label: 'Protein', remaining: ctx.proteinRemainingG, text: `${Math.round(ctx.proteinRemainingG)}g of protein to go` });
+  }
+  if (ctx.stepsRemaining > 0) {
+    gaps.push({ key: 'steps', label: 'Steps', remaining: ctx.stepsRemaining, text: `${Math.round(ctx.stepsRemaining).toLocaleString()} steps short` });
+  }
+  if (ctx.waterRemainingOz > 0) {
+    gaps.push({ key: 'water', label: 'Water', remaining: ctx.waterRemainingOz, text: `${Math.round(ctx.waterRemainingOz)}oz of water left` });
+  }
+  return gaps;
+}
+
+/** The gap that is quickest to close — the one worth naming as a next win. */
+export function easiestGap(ctx: CoachContext): CoachGap | null {
+  const order: CoachGap['key'][] = ['water', 'protein', 'steps', 'workout'];
+  const gaps = openGaps(ctx);
+  return [...gaps].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))[0] ?? null;
+}
+
+/** Answer a specific question, or fall through to the daily priority cascade. */
+export function answerCoachQuestion(
+  ctx: CoachContext,
+  settings: CoachSettings,
+  intent: CoachIntent,
+): CoachMessage {
+  if (!settings.enabled || intent === 'daily') return selectCoachMessage(ctx, settings);
+
+  const p = settings.personality;
+  const gaps = openGaps(ctx);
+
+  if (intent === 'weakest') {
+    const worst = gaps[0];
+    if (!worst) {
+      return {
+        personality: p,
+        tone: 'praise',
+        text: phrase(
+          {
+            friendly: "Nothing's slacking today — every target is met. Enjoy it.",
+            motivational: 'Nothing to fix today. Every box is ticked.',
+            savage: "Nothing's slipping today. Rare. Do it again tomorrow.",
+            no_mercy: 'No gaps today. That is the standard, not a milestone.',
+          },
+          settings,
+        ),
+      };
+    }
+    const others = gaps.slice(1, 3).map((g) => g.label.toLowerCase());
+    const also = others.length ? ` Also open: ${others.join(' and ')}.` : '';
+    return {
+      personality: p,
+      tone: 'nudge',
+      text: phrase(
+        {
+          friendly: `Biggest gap right now is ${worst.label.toLowerCase()} — ${worst.text}.${also}`,
+          motivational: `${worst.label} is where you're losing the day: ${worst.text}.${also} Close it.`,
+          savage: `You're slacking on ${worst.label.toLowerCase()}. ${capitalize(worst.text)}.${also} Fix it before you ask again.`,
+          no_mercy: `${worst.label}. ${capitalize(worst.text)}.${also} You already knew that.`,
+        },
+        settings,
+      ),
+    };
+  }
+
+  if (intent === 'next_win') {
+    const easiest = easiestGap(ctx);
+    if (!easiest) {
+      return {
+        personality: p,
+        tone: 'praise',
+        text: phrase(
+          {
+            friendly: "Everything's done. The next win is tomorrow — protect your sleep tonight.",
+            motivational: 'Day complete. Next win is showing up again tomorrow.',
+            savage: "Everything's closed out. Next win: do it again without needing to be asked.",
+            no_mercy: 'Nothing left today. Tomorrow is the next test.',
+          },
+          settings,
+        ),
+      };
+    }
+    return {
+      personality: p,
+      tone: 'nudge',
+      text: phrase(
+        {
+          friendly: `Quickest win on the board: ${easiest.text}. That one's within reach right now.`,
+          motivational: `Next win is ${easiest.label.toLowerCase()} — ${easiest.text}. Take it.`,
+          savage: `Easiest thing you're leaving on the table: ${easiest.text}. Go get it.`,
+          no_mercy: `${capitalize(easiest.text)}. Smallest gap on the board. No reason it's still open.`,
+        },
+        settings,
+      ),
+    };
+  }
+
+  if (intent === 'on_track') {
+    const done = gaps.length === 0;
+    const streak = ctx.dailyStreak > 1 ? ` ${ctx.dailyStreak}-day streak.` : '';
+    return {
+      personality: p,
+      tone: done ? 'praise' : 'reflect',
+      text: phrase(
+        {
+          friendly: done
+            ? `Yes — ${ctx.disciplineScore}% discipline with everything closed out.${streak}`
+            : `Partly. ${ctx.disciplineScore}% so far, with ${gaps.length} thing${gaps.length === 1 ? '' : 's'} still open.${streak}`,
+          motivational: done
+            ? `On track. ${ctx.disciplineScore}% and nothing left open.${streak}`
+            : `${ctx.disciplineScore}% so far. ${gaps.length} still open — the day isn't finished yet.${streak}`,
+          savage: done
+            ? `${ctx.disciplineScore}% and clean. You're on track.`
+            : `${ctx.disciplineScore}%. ${gaps.length} open. You're not on track yet — you're on pace to almost make it.`,
+          no_mercy: done
+            ? `${ctx.disciplineScore}%. On track. Hold it.`
+            : `${ctx.disciplineScore}% with ${gaps.length} open. Answer that yourself at midnight.`,
+        },
+        settings,
+      ),
+    };
+  }
+
+  // 'push' — asked for directly, so it never defers to a calmer branch.
+  return {
+    personality: p,
+    tone: 'push',
+    text: phrase(
+      {
+        friendly: gaps.length
+          ? `Right now: ${gaps[0]!.text}. Start with that — you don't have to finish everything at once.`
+          : 'Everything is done. Rest is part of the work — take it.',
+        motivational: gaps.length
+          ? `Move. ${capitalize(gaps[0]!.text)}. Do it in the next ten minutes.`
+          : 'Nothing left to chase today. Bank the recovery.',
+        savage: gaps.length
+          ? `Stop reading. ${capitalize(gaps[0]!.text)}. Ten minutes, starting now.`
+          : "Everything's done. Go rest — you earned it, briefly.",
+        no_mercy: gaps.length
+          ? `${capitalize(gaps[0]!.text)}. Close the app and handle it.`
+          : 'Nothing open. Rest, then do it again tomorrow.',
+      },
+      settings,
+    ),
+  };
+}
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
