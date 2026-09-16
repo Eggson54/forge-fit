@@ -34,6 +34,7 @@ import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { movingAverage, ratePerWeek } from '../domain/trend';
+import { brzycki1RM, percentOfMax, weightForReps } from '../domain/strength';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -892,5 +893,43 @@ describe('trend maths', () => {
     expect(ratePerWeek([at(1, 80)])).toBeNull();
     // Every reading on the same day: no slope exists.
     expect(ratePerWeek([at(1, 80), at(1, 81)])).toBeNull();
+  });
+});
+
+describe('rep max estimates', () => {
+  it('returns the weight itself at one rep, under either formula', () => {
+    expect(epley1RM(100, 1)).toBe(100);
+    expect(brzycki1RM(100, 1)).toBe(100);
+  });
+
+  it('is undefined where Brzycki diverges', () => {
+    // The 37 - reps denominator hits zero at 37 and flips sign past it.
+    expect(brzycki1RM(50, 36)).toBeNull();
+    expect(brzycki1RM(50, 40)).toBeNull();
+    expect(brzycki1RM(50, 35)).not.toBeNull();
+  });
+
+  it('rejects nonsense input rather than returning a number', () => {
+    expect(brzycki1RM(0, 5)).toBeNull();
+    expect(brzycki1RM(100, 0)).toBeNull();
+    expect(epley1RM(100, 0)).toBe(0);
+    expect(weightForReps(0, 5)).toBe(0);
+  });
+
+  it('round-trips a max back to the weight that produced it', () => {
+    const max = epley1RM(100, 5);
+    expect(weightForReps(max, 5)).toBeCloseTo(100, 1);
+  });
+
+  it('asks for less weight as the reps go up', () => {
+    const max = epley1RM(140, 3);
+    const weights = [1, 3, 5, 8, 12].map((r) => weightForReps(max, r));
+    expect([...weights].sort((a, b) => b - a)).toEqual(weights);
+  });
+
+  it('expresses a rep count as a percentage of max', () => {
+    expect(percentOfMax(1)).toBeCloseTo(96.8, 1);
+    expect(percentOfMax(10)).toBeCloseTo(75, 1);
+    expect(percentOfMax(0)).toBe(0);
   });
 });

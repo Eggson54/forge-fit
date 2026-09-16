@@ -69,9 +69,13 @@ export default function WorkoutTab() {
         <StartCard icon="trophy" title="Leaderboard" subtitle="Ranked rivals" onPress={() => router.push('/leaderboard')} />
         <StartCard icon="clock" title="History" subtitle="Past sessions" onPress={() => router.push('/workout/history')} />
       </View>
-      <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
         <StartCard icon="sliders" title="Plate Math" subtitle="What goes on the bar" onPress={() => router.push('/tools/plates')} />
         <StartCard icon="chart" title="Warm-Up" subtitle="Ramp to your work set" onPress={() => router.push('/tools/warmup')} />
+      </View>
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md }}>
+        <StartCard icon="target" title="Rep Max" subtitle="Estimate and percentages" onPress={() => router.push('/tools/one-rep-max')} />
+        <StartCard icon="scale" title="Measurements" subtitle="Tape and trends" onPress={() => router.push('/progress/measurements')} />
       </View>
 
       <SectionHeader title="Recent workouts" action={allCompleted.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />

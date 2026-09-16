@@ -121,3 +121,28 @@ export function strengthChangePct(workouts: Workout[]): number | null {
   if (changes.length === 0) return null;
   return round(changes.reduce((a, b) => a + b, 0) / changes.length, 1);
 }
+
+/**
+ * Brzycki one-rep max. It reads lower than Epley in the middle of the rep
+ * range and is the more conservative of the two past about five reps, which is
+ * why both are shown rather than one being presented as the answer.
+ *
+ * The formula diverges above 36 reps, so it is only defined below that.
+ */
+export function brzycki1RM(weightKg: number, reps: number): number | null {
+  if (reps <= 0 || weightKg <= 0 || reps >= 36) return null;
+  if (reps === 1) return weightKg;
+  return round(weightKg * (36 / (37 - reps)), 1);
+}
+
+/** Weight you could expect to move for `reps`, inverting Epley. */
+export function weightForReps(oneRepMaxKg: number, reps: number): number {
+  if (oneRepMaxKg <= 0 || reps <= 0) return 0;
+  return round(oneRepMaxKg / (1 + reps / 30), 1);
+}
+
+/** Percentage of 1RM that Epley implies for a given rep count. */
+export function percentOfMax(reps: number): number {
+  if (reps <= 0) return 0;
+  return Math.round((1 / (1 + reps / 30)) * 1000) / 10;
+}
