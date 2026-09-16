@@ -23,6 +23,7 @@ import { analytics } from '../../src/services/analytics';
 import type { CoachMessageResult } from '../../src/services/ai/types';
 import { useProgramStore } from '../../src/stores/useProgramStore';
 import { programById } from '../../src/data/programs';
+import { waterQuickAdds } from '../../src/domain/nutrition';
 
 const GREETING: Record<ReturnType<typeof timeOfDay>, string> = {
   morning: 'Good morning',
@@ -37,6 +38,9 @@ export default function Home() {
   const summary = useDailySummary();
   const streak = useGamificationStore((s) => s.streaks.daily);
   const addWater = useLogStore((s) => s.addWater);
+  // The largest configured amount: the quick action is for the common case of
+  // finishing a bottle, not for sipping.
+  const waterAdd = waterQuickAdds(profile.waterQuickAddOz).slice(-1)[0] ?? 16;
   const completed = useWorkoutStore((s) => s.completedWorkouts());
   const routines = useRoutineStore((s) => s.routines);
   const startRoutine = useRoutineStore((s) => s.start);
@@ -123,6 +127,10 @@ export default function Home() {
       nutritionHit,
       hydrationHit,
       dayComplete: summary.discipline.score >= 80,
+      // Rest days are the ones the week's target does not call for. Hitting
+      // four of four planned sessions should not read as a broken streak on
+      // the three days off.
+      restDay: !summary.workoutPlanned,
     });
     g.noteDisciplineScore(summary.discipline.score);
     const streaks = useGamificationStore.getState().streaks;
@@ -135,7 +143,7 @@ export default function Home() {
       progressPhotos: useLogStore.getState().photos.length,
       bestDisciplineScore: useGamificationStore.getState().bestDisciplineScore,
     });
-  }, [summary.date, summary.discipline.score, summary.workoutCompleted, summary.proteinG, summary.caloriesTarget, summary.calories, summary.waterOz, summary.proteinTarget, summary.waterTarget]);
+  }, [summary.date, summary.discipline.score, summary.workoutCompleted, summary.proteinG, summary.caloriesTarget, summary.calories, summary.waterOz, summary.proteinTarget, summary.waterTarget, summary.workoutPlanned]);
 
   const w = summary.workoutCompleted;
 
@@ -313,7 +321,19 @@ export default function Home() {
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
         <QuickAction icon="dumbbell" tint={colors.primary} label="Workout" onPress={() => router.push('/(tabs)/workout')} />
         <QuickAction icon="nutrition" tint={colors.calorie} label="Food" onPress={() => router.push('/nutrition/add')} />
-        <QuickAction icon="water" tint={colors.water} label="+16 oz" onPress={() => addWater(16)} />
+        {/* The athlete's own bottle size, not a hardcoded 16oz. */}
+        <QuickAction
+          icon="water"
+          tint={colors.water}
+          label={`+${waterAdd} oz`}
+          onPress={() => addWater(waterAdd)}
+        />
+        <QuickAction
+          icon="steps"
+          tint={colors.steps}
+          label="Steps"
+          onPress={() => router.push({ pathname: '/log', params: { focus: 'steps' } })}
+        />
         <QuickAction
           icon="scale"
           tint={colors.protein}

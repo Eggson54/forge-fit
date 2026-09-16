@@ -25,6 +25,15 @@ export interface DailyOutcome {
   hydrationHit: boolean;
   /** A "complete" day (e.g. discipline >= threshold) advances the daily streak. */
   dayComplete: boolean;
+  /**
+   * A day the athlete was not due to train.
+   *
+   * Without this a rest day reset the workout streak, so training four days a
+   * week — exactly as planned — could never show a streak above one. Recovery
+   * is part of the programme; a streak that punishes it is measuring the wrong
+   * thing.
+   */
+  restDay?: boolean;
 }
 
 /**
@@ -45,7 +54,9 @@ export function applyDailyOutcome(prev: StreakState, o: DailyOutcome): StreakSta
 
   const bump = (streak: number, hit: boolean) => (hit ? (continuous ? streak + 1 : 1) : 0);
 
-  next.workout = bump(prev.workout, o.workoutDone);
+  // A rest day holds the workout streak rather than ending it. A gap of more
+  // than a day still resets: that is absence, not planned recovery.
+  next.workout = o.restDay && !o.workoutDone ? (continuous ? prev.workout : 0) : bump(prev.workout, o.workoutDone);
   next.protein = bump(prev.protein, o.proteinHit);
   next.nutrition = bump(prev.nutrition, o.nutritionHit);
   next.hydration = bump(prev.hydration, o.hydrationHit);
@@ -59,9 +70,10 @@ export function applyDailyOutcome(prev: StreakState, o: DailyOutcome): StreakSta
 function recomputeSameDay(prev: StreakState, o: DailyOutcome): StreakState {
   // On same-day recompute, a metric that was counted but is now unmet drops by 1.
   const adjust = (streak: number, hit: boolean) => (hit ? Math.max(streak, 1) : Math.max(0, streak - 1));
+  const workout = o.restDay && !o.workoutDone ? prev.workout : adjust(prev.workout, o.workoutDone);
   const daily = o.dayComplete ? Math.max(prev.daily, 1) : Math.max(0, prev.daily - 1);
   return {
-    workout: adjust(prev.workout, o.workoutDone),
+    workout,
     protein: adjust(prev.protein, o.proteinHit),
     nutrition: adjust(prev.nutrition, o.nutritionHit),
     hydration: adjust(prev.hydration, o.hydrationHit),

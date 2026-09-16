@@ -52,14 +52,22 @@ export default function ExerciseLibrary() {
   // train beat scrolling sixty entries — but only while nothing is filtered,
   // where they'd otherwise contradict the filter the user just set.
   const completed = useWorkoutStore((s) => s.completedWorkouts());
+  const favouriteIds = useWorkoutStore((s) => s.favouriteExerciseIds);
+  const toggleFavourite = useWorkoutStore((s) => s.toggleFavourite);
   const unfiltered = !query.trim() && muscle === 'all' && equipment === 'all';
   const recent = useMemo(() => {
     if (!unfiltered) return [];
     const byId = new Map(allExercises.map((e) => [e.id, e]));
-    return recentExerciseIds(completed, 8)
+    // Starred lifts lead, then the ones trained most recently. A favourite is
+    // an explicit choice; a recent is an inference, and the explicit one wins.
+    const favourites = favouriteIds.map((id) => byId.get(id)).filter((e): e is Exercise => !!e);
+    const seen = new Set(favourites.map((e) => e.id));
+    const recents = recentExerciseIds(completed, 8)
+      .filter((id) => !seen.has(id))
       .map((id) => byId.get(id))
       .filter((e): e is Exercise => !!e);
-  }, [completed, allExercises, unfiltered]);
+    return [...favourites, ...recents].slice(0, 10);
+  }, [completed, allExercises, unfiltered, favouriteIds]);
 
   // In select mode the tap adds straight to the session; otherwise it opens the
   // full detail screen, which used to be a system alert with the instructions
@@ -146,7 +154,11 @@ export default function ExerciseLibrary() {
               <Pressable key={e.id} onPress={() => onPick(e)} style={styles.recent}>
                 {/* A dot rather than the figure: at chip size the body reads as
                     noise, and the tint already carries the muscle group. */}
-                <View style={[styles.dot, { backgroundColor: muscleTint(e.primaryMuscle) }]} />
+                {favouriteIds.includes(e.id) ? (
+                  <Icon name="star" size={11} filled color={colors.amber} />
+                ) : (
+                  <View style={[styles.dot, { backgroundColor: muscleTint(e.primaryMuscle) }]} />
+                )}
                 <Text variant="label" numberOfLines={1} style={{ maxWidth: 150 }}>
                   {e.name}
                 </Text>
@@ -191,6 +203,20 @@ export default function ExerciseLibrary() {
                     {label(e.primaryMuscle)} · {e.equipment} · {e.difficulty}
                   </Text>
                 </View>
+                <Pressable
+                  onPress={() => toggleFavourite(e.id)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${favouriteIds.includes(e.id) ? 'Unstar' : 'Star'} ${e.name}`}
+                >
+                  <Icon
+                    name="star"
+                    size={17}
+                    filled={favouriteIds.includes(e.id)}
+                    color={favouriteIds.includes(e.id) ? colors.amber : colors.textFaint}
+                    strokeWidth={1.7}
+                  />
+                </Pressable>
                 {selectMode || pickMode ? <Icon name="plus" size={20} color={colors.primary} /> : <Text color={colors.textFaint}>›</Text>}
               </Pressable>
             ))}

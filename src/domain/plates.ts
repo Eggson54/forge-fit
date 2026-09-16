@@ -20,6 +20,16 @@ export const BAR_OPTIONS: Record<Unit, number[]> = {
   metric: [20, 15, 10, 7, 0],
 };
 
+/**
+ * Plates to load from, honouring the athlete's own inventory when they have
+ * set one. Values are sorted heaviest-first because the greedy pass depends on
+ * that order, and anything non-positive is dropped rather than looping forever.
+ */
+export function availablePlates(unit: Unit, custom?: number[]): number[] {
+  const usable = (custom ?? []).filter((p) => p > 0);
+  return usable.length ? [...new Set(usable)].sort((a, b) => b - a) : PLATES[unit]!;
+}
+
 export interface PlatePlan {
   /** Plates for ONE side, heaviest first. */
   perSide: { weight: number; count: number }[];
@@ -33,12 +43,17 @@ export interface PlatePlan {
 
 /**
  * Loads heaviest-first, which is both how a bar is actually loaded and — for
- * these two denomination sets — exact: a test walks the whole reachable range
- * in each unit and checks the greedy pass never strands a remainder that the
- * smaller plates could have covered.
+ * the two default denomination sets — exact: a test walks the whole reachable
+ * range in each unit and checks the greedy pass never strands a remainder that
+ * the smaller plates could have covered.
+ *
+ * With a custom inventory that guarantee does not hold: a gym missing its 10s
+ * can leave a remainder the greedy pass cannot fill. The plan reports the
+ * shortfall in `delta` either way, so the result stays honest — it just may not
+ * be optimal for an unusual set.
  */
-export function planPlates(target: number, bar: number, unit: Unit): PlatePlan {
-  const available = PLATES[unit]!;
+export function planPlates(target: number, bar: number, unit: Unit, plates?: number[]): PlatePlan {
+  const available = availablePlates(unit, plates);
   if (!Number.isFinite(target) || target <= bar) {
     return { perSide: [], achievable: bar, delta: bar - Math.max(0, target || 0), belowBar: true };
   }

@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Card, Chip, Input, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Barbell } from '../../src/components/Barbell';
 import { colors, layout, radius, spacing } from '../../src/theme';
-import { BAR_OPTIONS, PLATES, planPlates, totalPlates } from '../../src/domain/plates';
+import { BAR_OPTIONS, PLATES, availablePlates, planPlates, totalPlates } from '../../src/domain/plates';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 /**
@@ -16,6 +16,8 @@ import { useProfileStore } from '../../src/stores/useProfileStore';
 export default function PlateCalculator() {
   const params = useLocalSearchParams<{ target?: string }>();
   const units = useProfileStore((s) => s.profile.units);
+  const plates = useProfileStore((s) => s.profile.availablePlates);
+  const setProfile = useProfileStore((s) => s.setProfile);
   const { width } = useWindowDimensions();
 
   const bars = BAR_OPTIONS[units]!;
@@ -24,7 +26,7 @@ export default function PlateCalculator() {
 
   const unitLabel = units === 'imperial' ? 'lb' : 'kg';
   const value = parseFloat(target);
-  const plan = useMemo(() => planPlates(isNaN(value) ? 0 : value, bar, units), [value, bar, units]);
+  const plan = useMemo(() => planPlates(isNaN(value) ? 0 : value, bar, units, plates), [value, bar, units, plates]);
   const step = PLATES[units]![PLATES[units]!.length - 1]! * 2;
 
   const nudge = (d: number) => {
@@ -114,9 +116,49 @@ export default function PlateCalculator() {
         )}
       </Card>
 
+      <SectionHeader title="Plates in your gym" />
+      <Card>
+        <Text variant="caption" color={colors.textDim} style={{ marginBottom: spacing.md }}>
+          Deselect anything your gym does not have. The calculator only ever suggests plates you can actually reach for.
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {PLATES[units]!.map((plate) => {
+            // An empty list means "the standard set", so every plate reads as
+            // selected until the athlete deselects one.
+            const owned = !plates?.length || plates.includes(plate);
+            return (
+              <Pressable
+                key={plate}
+                onPress={() => {
+                  const current = plates?.length ? plates : PLATES[units]!;
+                  const next = owned ? current.filter((p) => p !== plate) : [...current, plate];
+                  // Refusing to empty the list entirely: a bar with no plates
+                  // is not a state the calculator can say anything useful about.
+                  setProfile({ availablePlates: next.length ? next.sort((a, b) => b - a) : undefined });
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: owned }}
+                style={[styles.plateChip, owned && styles.plateChipOn]}
+              >
+                <Text variant="label" color={owned ? colors.onPrimary : colors.textDim}>
+                  {plate}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {plates?.length ? (
+          <Pressable onPress={() => setProfile({ availablePlates: undefined })} style={{ paddingTop: spacing.md }}>
+            <Text variant="label" color={colors.textDim}>
+              Reset to the standard set
+            </Text>
+          </Pressable>
+        ) : null}
+      </Card>
+
       <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.md }}>
-        {totalPlates(plan)} plates total, {plan.perSide.reduce((a, p) => a + p.count, 0)} per side. Assumes a standard
-        set of {PLATES[units]!.join(', ')} {unitLabel} plates.
+        {totalPlates(plan)} plates total, {plan.perSide.reduce((a, p) => a + p.count, 0)} per side. Loading from{' '}
+        {availablePlates(units, plates).join(', ')} {unitLabel} plates.
       </Text>
     </Screen>
   );
@@ -147,3 +189,15 @@ function Nudge({ label, onPress }: { label: string; onPress: () => void }) {
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  plateChip: {
+    minWidth: 52,
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceHigh,
+  },
+  plateChipOn: { backgroundColor: colors.primary },
+});

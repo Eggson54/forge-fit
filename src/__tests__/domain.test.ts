@@ -34,7 +34,8 @@ import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
-import { balanceMacros, frequentFoods, summariseIntake } from '../domain/nutrition';
+import { balanceMacros, frequentFoods, summariseIntake, waterQuickAdds } from '../domain/nutrition';
+import { availablePlates } from '../domain/plates';
 import { isSubscriptionActive } from '../domain/subscription';
 import { amountLabel, effectiveLoadKg, formatSetAmount, isSetLogged, loadLabel, setVolumeKg, substitutesFor } from '../domain/tracking';
 import { EXERCISE_LIBRARY, exerciseById as libraryExercise } from '../data/exercises';
@@ -1568,5 +1569,87 @@ describe('substitutesFor', () => {
 
   it('respects the limit', () => {
     expect(substitutesFor(bench, EXERCISE_LIBRARY, [], 2)).toHaveLength(2);
+  });
+});
+
+describe('rest days and the workout streak', () => {
+  const day = (date: string, over: Record<string, unknown> = {}) => ({
+    date,
+    workoutDone: false,
+    proteinHit: true,
+    nutritionHit: true,
+    hydrationHit: true,
+    dayComplete: true,
+    ...over,
+  });
+
+  it('holds the workout streak through a planned rest day', () => {
+    // Training four days a week as planned could never show a streak above one.
+    let s = emptyStreaks();
+    s = applyDailyOutcome(s, day('2026-01-01', { workoutDone: true }));
+    s = applyDailyOutcome(s, day('2026-01-02', { restDay: true }));
+    s = applyDailyOutcome(s, day('2026-01-03', { workoutDone: true }));
+    expect(s.workout).toBe(2);
+  });
+
+  it('still breaks the streak on a day that was meant for training', () => {
+    let s = emptyStreaks();
+    s = applyDailyOutcome(s, day('2026-01-01', { workoutDone: true }));
+    s = applyDailyOutcome(s, day('2026-01-02', { restDay: false }));
+    expect(s.workout).toBe(0);
+  });
+
+  it('does not treat a long absence as rest', () => {
+    // A week away is absence, not planned recovery.
+    let s = emptyStreaks();
+    s = applyDailyOutcome(s, day('2026-01-01', { workoutDone: true }));
+    s = applyDailyOutcome(s, day('2026-01-09', { restDay: true }));
+    expect(s.workout).toBe(0);
+  });
+
+  it('is idempotent when the same rest day is recomputed', () => {
+    let s = emptyStreaks();
+    s = applyDailyOutcome(s, day('2026-01-01', { workoutDone: true }));
+    s = applyDailyOutcome(s, day('2026-01-02', { restDay: true }));
+    const once = s.workout;
+    s = applyDailyOutcome(s, day('2026-01-02', { restDay: true }));
+    expect(s.workout).toBe(once);
+  });
+});
+
+describe('personalised amounts', () => {
+  it('falls back to the standard plate set when nothing is chosen', () => {
+    expect(availablePlates('imperial')).toEqual([45, 35, 25, 10, 5, 2.5]);
+    expect(availablePlates('imperial', [])).toEqual([45, 35, 25, 10, 5, 2.5]);
+  });
+
+  it('uses the gym inventory heaviest-first, since the greedy pass depends on it', () => {
+    expect(availablePlates('imperial', [5, 45, 25])).toEqual([45, 25, 5]);
+  });
+
+  it('drops nonsense plate values rather than looping on them', () => {
+    expect(availablePlates('metric', [0, -5])).toEqual([25, 20, 15, 10, 5, 2.5, 1.25]);
+    expect(availablePlates('metric', [20, 20, 10])).toEqual([20, 10]);
+  });
+
+  it('loads only from the plates the gym has', () => {
+    // No 10s: 225 lb is unreachable from a 45 bar, and the plan says so.
+    const without10s = planPlates(225, 45, 'imperial', [45, 35, 25, 5, 2.5]);
+    expect(without10s.perSide.every((p) => p.weight !== 10)).toBe(true);
+    expect(without10s.achievable).toBe(225);
+  });
+
+  it('keeps the default water amounts until the athlete sets their own', () => {
+    expect(waterQuickAdds()).toEqual([8, 16]);
+    expect(waterQuickAdds([])).toEqual([8, 16]);
+  });
+
+  it('sorts custom water amounts small to large and caps the row', () => {
+    expect(waterQuickAdds([24, 12])).toEqual([12, 24]);
+    expect(waterQuickAdds([1, 2, 3, 4, 5])).toHaveLength(4);
+  });
+
+  it('ignores implausible water amounts', () => {
+    expect(waterQuickAdds([0, -8, 5000])).toEqual([8, 16]);
   });
 });

@@ -60,6 +60,14 @@ export interface Profile {
   dietaryPreferences: DietaryPreference[];
   units: Units;
   onboardedAt: ISODateTime | null;
+  /**
+   * Plate denominations this gym actually has, in display units. Empty means
+   * "the usual set" — most people never think about it, and the calculator
+   * should not make them before it works.
+   */
+  availablePlates?: number[];
+  /** Quick-add water amounts in oz, e.g. the size of the bottle they carry. */
+  waterQuickAddOz?: number[];
 }
 
 export interface Targets {

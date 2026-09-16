@@ -30,8 +30,11 @@ interface WorkoutState {
   activeId: string | null;
   customExercises: Exercise[];
   prs: Record<string, number>; // exerciseId -> best e1RM (kg)
+  favouriteExerciseIds: string[];
 
   allExercises: () => Exercise[];
+  toggleFavourite: (exerciseId: string) => void;
+  isFavourite: (exerciseId: string) => boolean;
   addCustomExercise: (e: Omit<Exercise, 'id' | 'isCustom'>) => Exercise;
 
   startEmptyWorkout: (name?: string) => string;
@@ -96,8 +99,18 @@ export const useWorkoutStore = create<WorkoutState>()(
       activeId: null,
       customExercises: [],
       prs: {},
+      favouriteExerciseIds: [],
 
       allExercises: () => [...get().customExercises, ...EXERCISE_LIBRARY],
+
+      toggleFavourite: (exerciseId) =>
+        set((s) => ({
+          favouriteExerciseIds: s.favouriteExerciseIds.includes(exerciseId)
+            ? s.favouriteExerciseIds.filter((id) => id !== exerciseId)
+            : [...s.favouriteExerciseIds, exerciseId],
+        })),
+
+      isFavourite: (exerciseId) => get().favouriteExerciseIds.includes(exerciseId),
 
       addCustomExercise: (e) => {
         const created: Exercise = { ...e, id: uid('cust_'), isCustom: true };
@@ -326,13 +339,19 @@ export const useWorkoutStore = create<WorkoutState>()(
 
       completedWorkouts: () => get().workouts.filter((w) => w.status === 'completed'),
 
-      reset: () => set({ workouts: [], activeId: null, customExercises: [], prs: {} }),
+      reset: () => set({ workouts: [], activeId: null, customExercises: [], prs: {}, favouriteExerciseIds: [] }),
       };
     },
     {
       name: STORE_KEYS.workouts,
       storage: jsonStorage(),
-      partialize: (s) => ({ workouts: s.workouts, customExercises: s.customExercises, prs: s.prs, activeId: s.activeId }),
+      partialize: (s) => ({
+        workouts: s.workouts,
+        customExercises: s.customExercises,
+        prs: s.prs,
+        activeId: s.activeId,
+        favouriteExerciseIds: s.favouriteExerciseIds,
+      }),
     },
   ),
 );

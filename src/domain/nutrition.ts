@@ -271,3 +271,16 @@ export function balanceMacros(
     fatG: adjust === 'fatG' ? grams : targets.fatG,
   };
 }
+
+/** Default water quick-add amounts, in oz: a glass and a small bottle. */
+export const DEFAULT_WATER_QUICK_ADD_OZ = [8, 16];
+
+/**
+ * Quick-add amounts for water, honouring the athlete's own if they set them.
+ * Sorted ascending and de-duplicated so the row reads small-to-large however
+ * the values were entered.
+ */
+export function waterQuickAdds(custom?: number[]): number[] {
+  const usable = (custom ?? []).filter((n) => n > 0 && n <= 200);
+  return usable.length ? [...new Set(usable)].sort((a, b) => a - b).slice(0, 4) : DEFAULT_WATER_QUICK_ADD_OZ;
+}

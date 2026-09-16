@@ -7,7 +7,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, gradients, spacing } from '../../src/theme';
 import { lastNDays, todayISO } from '../../src/domain/date';
 import type { MealSlot, NutritionEntry } from '../../src/domain/types';
-import { scaleMacros, sumMacros } from '../../src/domain/nutrition';
+import { scaleMacros, sumMacros, waterQuickAdds } from '../../src/domain/nutrition';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
@@ -21,6 +21,7 @@ export default function Nutrition() {
   const macros = useLogStore((s) => s.macrosForDate(date));
   const waterOz = useLogStore((s) => s.waterForDate(date));
   const addWater = useLogStore((s) => s.addWater);
+  const quickAdds = waterQuickAdds(useProfileStore((s) => s.profile.waterQuickAddOz));
   const removeFood = useLogStore((s) => s.removeFood);
 
   const remaining = targets.calories - macros.calories;
@@ -81,8 +82,9 @@ export default function Nutrition() {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <WaterBtn label="+8" onPress={() => addWater(8)} />
-            <WaterBtn label="+16" onPress={() => addWater(16)} />
+            {quickAdds.map((oz) => (
+              <WaterBtn key={oz} label={`+${oz}`} onPress={() => addWater(oz)} />
+            ))}
           </View>
         </View>
         <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surfaceHigh, marginTop: spacing.md, overflow: 'hidden' }}>
