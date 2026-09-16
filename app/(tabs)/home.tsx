@@ -1,14 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Pressable, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { AdSlot, Card, IconButton, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing, FadeIn } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { CoachCard } from '../../src/components/CoachCard';
+import { WeekStrip, type WeekDay } from '../../src/components/WeekStrip';
 import { colors, gradients, spacing } from '../../src/theme';
-import { formatSleep, timeOfDay } from '../../src/domain/date';
+import { addDaysISO, formatSleep, lastNDays, timeOfDay, todayISO, weekdayIndex } from '../../src/domain/date';
 import { displayVolume } from '../../src/domain/units';
 import { workoutStats } from '../../src/domain/strength';
+import { suggestToday } from '../../src/domain/suggestion';
+import { exerciseById } from '../../src/data/exercises';
+import { useRoutineStore } from '../../src/stores/useRoutineStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -31,6 +35,44 @@ export default function Home() {
   const summary = useDailySummary();
   const streak = useGamificationStore((s) => s.streaks.daily);
   const addWater = useLogStore((s) => s.addWater);
+  const completed = useWorkoutStore((s) => s.completedWorkouts());
+  const routines = useRoutineStore((s) => s.routines);
+  const startRoutine = useRoutineStore((s) => s.start);
+
+  const today = todayISO();
+  // Sunday-anchored, to match the calendar on Progress and the strip's letters.
+  const weekDates = useMemo(() => {
+    const offset = weekdayIndex(today);
+    return lastNDays(7, addDaysISO(today, 6 - offset));
+  }, [today]);
+
+  const weekDays: WeekDay[] = useMemo(() => {
+    const trained = new Set(completed.map((w) => w.date));
+    return weekDates.map((date) => ({
+      date,
+      trained: trained.has(date),
+      isToday: date === today,
+      isFuture: date > today,
+    }));
+  }, [weekDates, completed, today]);
+
+  const suggestion = useMemo(
+    () =>
+      suggestToday({
+        workouts: completed,
+        today,
+        weekDates,
+        trainingDaysPerWeek: profile.trainingDaysPerWeek,
+        routines: routines.map((r) => ({
+          id: r.id,
+          name: r.name,
+          // Routines store only the primary muscle per exercise; pull the
+          // secondaries from the library so a push day counts as triceps work.
+          muscles: r.exercises.flatMap((e) => [e.primaryMuscle, ...(exerciseById(e.exerciseId)?.secondaryMuscles ?? [])]),
+        })),
+      }),
+    [completed, today, weekDates, profile.trainingDaysPerWeek, routines],
+  );
 
   const [coachMsg, setCoachMsg] = useState<CoachMessageResult | null>(null);
   const [coachLoading, setCoachLoading] = useState(true);
@@ -128,12 +170,24 @@ export default function Home() {
           </Text>
         </Card>
 
-        <Card style={{ flex: 1, justifyContent: 'space-between' }} onPress={() => router.push('/(tabs)/workout')}>
+        <Card
+          style={{ flex: 1, justifyContent: 'space-between' }}
+          onPress={() => {
+            if (suggestion.kind === 'routine' && suggestion.routineId) {
+              startRoutine(suggestion.routineId, profile.experience);
+              router.push('/workout/active');
+            } else {
+              router.push('/(tabs)/workout');
+            }
+          }}
+        >
           <View style={{ gap: 4 }}>
             <Text variant="overline" color={colors.textDim}>
-              TODAY'S WORKOUT
+              {summary.workoutName ? "TODAY'S WORKOUT" : 'SUGGESTED'}
             </Text>
-            <Text variant="h3">{summary.workoutName ?? 'Rest / Open'}</Text>
+            <Text variant="h3" numberOfLines={2}>
+              {summary.workoutName ?? suggestion.title}
+            </Text>
           </View>
           <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
             {todayStats && todayStats.totalSets > 0 ? (
@@ -147,18 +201,37 @@ export default function Home() {
               </View>
             ) : (
               <Text variant="caption" color={colors.textDim}>
-                {summary.workoutPlanned ? 'Ready when you are' : 'Plan one or start an empty session'}
+                {suggestion.reason}
               </Text>
             )}
             {/* The card is tappable, so say where it goes rather than only
                 stating that nothing is planned. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Icon name={w ? 'check' : 'dumbbell'} size={18} color={w ? colors.success : colors.primary} />
-              <Text variant="label" color={w ? colors.success : colors.primary}>
-                {w ? 'Completed' : summary.workoutPlanned ? 'Start session ›' : 'Start a workout ›'}
+              <Icon
+                name={w ? 'check' : suggestion.kind === 'rest' ? 'moon' : 'dumbbell'}
+                size={18}
+                color={w ? colors.success : suggestion.kind === 'rest' ? colors.sleep : colors.primary}
+              />
+              <Text
+                variant="label"
+                color={w ? colors.success : suggestion.kind === 'rest' ? colors.sleep : colors.primary}
+              >
+                {w
+                  ? 'Completed'
+                  : suggestion.kind === 'routine'
+                    ? 'Start this routine ›'
+                    : suggestion.kind === 'rest'
+                      ? 'Train anyway ›'
+                      : 'Start a workout ›'}
               </Text>
             </View>
           </View>
+        </Card>
+      </FadeIn>
+
+      <FadeIn delay={80}>
+        <Card style={{ marginTop: spacing.md }}>
+          <WeekStrip days={weekDays} target={profile.trainingDaysPerWeek} onPress={() => router.push('/(tabs)/progress')} />
         </Card>
       </FadeIn>
 

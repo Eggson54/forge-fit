@@ -30,6 +30,7 @@ import { formatDateLong, formatDateWithWeekday, formatDayMonth } from '../domain
 import { groupExercises, restAfterSet, toggleSupersetAt } from '../domain/superset';
 import { recentExerciseIds } from '../domain/history';
 import { strengthChangePct } from '../domain/strength';
+import { suggestToday, volumeDeficits } from '../domain/suggestion';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -669,5 +670,68 @@ describe('strengthChangePct', () => {
       } as never,
     ];
     expect(strengthChangePct(history)).toBeCloseTo(10, 0);
+  });
+});
+
+describe('suggestToday', () => {
+  const WEEK = ['2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13', '2026-09-14', '2026-09-15', '2026-09-16'];
+  const TODAY = '2026-09-16';
+
+  const session = (date: string, muscle: string, sets = 10) =>
+    ({
+      date,
+      status: 'completed',
+      exercises: [
+        {
+          exerciseId: `${muscle}-lift`,
+          primaryMuscle: muscle,
+          secondaryMuscles: [],
+          sets: Array.from({ length: sets }, (_, i) => ({ id: `${date}${i}`, weightKg: 50, reps: 8, rpe: null, completed: true })),
+        },
+      ],
+    }) as never;
+
+  const base = { today: TODAY, weekDates: WEEK, trainingDaysPerWeek: 4, routines: [] };
+
+  it('says nothing to do once today is logged', () => {
+    const s = suggestToday({ ...base, workouts: [session(TODAY, 'chest')] });
+    expect(s.kind).toBe('logged');
+  });
+
+  it('does not nag someone who already hit their weekly target', () => {
+    const workouts = WEEK.slice(0, 4).map((d) => session(d, 'chest'));
+    const s = suggestToday({ ...base, workouts });
+    expect(s.kind).toBe('rest');
+    expect(s.reason).toContain('4 of 4');
+  });
+
+  it('names the muscle furthest behind when there is no routine', () => {
+    // A week of chest only: chest is covered, everything else is not.
+    const s = suggestToday({ ...base, workouts: [session(WEEK[0]!, 'chest', 12)] });
+    expect(s.kind).toBe('focus');
+    expect(s.title).not.toContain('Chest');
+    expect(s.focus.length).toBeGreaterThan(0);
+  });
+
+  it('prefers a routine that covers what is behind', () => {
+    const routines = [
+      { id: 'r1', name: 'Chest day', muscles: ['chest'] as never },
+      { id: 'r2', name: 'Leg day', muscles: ['quads', 'hamstrings'] as never },
+    ];
+    const s = suggestToday({ ...base, workouts: [session(WEEK[0]!, 'chest', 20)], routines });
+    expect(s.kind).toBe('routine');
+    expect(s.routineId).toBe('r2');
+  });
+
+  it('only counts sessions inside the week window', () => {
+    // Four sessions, but all of them last week.
+    const workouts = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'].map((d) => session(d, 'chest'));
+    expect(suggestToday({ ...base, workouts }).kind).not.toBe('rest');
+  });
+
+  it('ranks deficits by how far below the minimum they are', () => {
+    const deficits = volumeDeficits({ chest: 10, back: 2 });
+    expect(deficits.find((d) => d.muscle === 'chest')).toBeUndefined();
+    expect(deficits[0]!.missing).toBeGreaterThanOrEqual(deficits[deficits.length - 1]!.missing);
   });
 });
