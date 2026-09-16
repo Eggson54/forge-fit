@@ -284,8 +284,21 @@ export interface Achievement {
   icon: string;
   /** Hex tint for the badge medallion. */
   tint: string;
+  /** Which tracked number this badge measures. */
+  metric: AchievementMetric;
+  /** The value of that metric which unlocks it. */
+  target: number;
   unlockedAt: ISODateTime | null;
 }
+
+export type AchievementMetric =
+  | 'workoutsCompleted'
+  | 'currentDailyStreak'
+  | 'proteinStreak'
+  | 'hydrationStreak'
+  | 'prsSet'
+  | 'progressPhotos'
+  | 'bestDisciplineScore';
 
 export interface StreakState {
   workout: number;

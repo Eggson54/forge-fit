@@ -1,41 +1,65 @@
-import type { Achievement } from './types';
+import type { Achievement, AchievementMetric } from './types';
 
-/** Achievement catalog. `unlockedAt` is filled per-user at runtime. */
+/**
+ * Achievement catalog. `unlockedAt` is filled per-user at runtime.
+ *
+ * Each badge names the metric it measures and the value that unlocks it, so
+ * the unlock rule and the progress bar are the same fact. They used to be a
+ * list of if-statements next to a list of descriptions, which is two places to
+ * change a threshold and one of them silently lying.
+ */
 export const ACHIEVEMENT_CATALOG: Omit<Achievement, 'unlockedAt'>[] = [
-  { id: 'first_workout', title: 'First Rep', description: 'Complete your first workout', icon: 'dumbbell', tint: '#F2530F' },
-  { id: 'streak_7', title: '7-Day Streak', description: '7 days of completed goals in a row', icon: 'flame', tint: '#FFB020' },
-  { id: 'streak_30', title: '30-Day Machine', description: '30-day discipline streak', icon: 'trophy', tint: '#FFD062' },
-  { id: 'workouts_10', title: 'Consistent', description: 'Log 10 workouts', icon: 'repeat', tint: '#12A181' },
-  { id: 'workouts_100', title: 'Centurion', description: 'Log 100 workouts', icon: 'shield', tint: '#C084FC' },
-  { id: 'first_pr', title: 'New PR', description: 'Set your first personal record', icon: 'chart', tint: '#2E9BE0' },
-  { id: 'protein_week', title: 'Protein Locked In', description: 'Hit protein 7 days straight', icon: 'bolt', tint: '#12A181' },
-  { id: 'hydrated_week', title: 'Hydrated', description: 'Hit water goal 7 days straight', icon: 'water', tint: '#2E9BE0' },
-  { id: 'first_photo', title: 'Documented', description: 'Add your first progress photo', icon: 'camera', tint: '#D2529E' },
-  { id: 'perfect_day', title: 'Perfect Day', description: 'Reach 100% discipline in a day', icon: 'target', tint: '#C6F135' },
+  { id: 'first_workout', title: 'First Rep', description: 'Complete your first workout', icon: 'dumbbell', tint: '#F2530F', metric: 'workoutsCompleted', target: 1 },
+  { id: 'workouts_10', title: 'Consistent', description: 'Log 10 workouts', icon: 'repeat', tint: '#12A181', metric: 'workoutsCompleted', target: 10 },
+  { id: 'workouts_100', title: 'Centurion', description: 'Log 100 workouts', icon: 'shield', tint: '#C084FC', metric: 'workoutsCompleted', target: 100 },
+  { id: 'streak_7', title: '7-Day Streak', description: '7 days of completed goals in a row', icon: 'flame', tint: '#FFB020', metric: 'currentDailyStreak', target: 7 },
+  { id: 'streak_30', title: '30-Day Machine', description: '30-day discipline streak', icon: 'trophy', tint: '#FFD062', metric: 'currentDailyStreak', target: 30 },
+  { id: 'first_pr', title: 'New PR', description: 'Set your first personal record', icon: 'chart', tint: '#2E9BE0', metric: 'prsSet', target: 1 },
+  { id: 'protein_week', title: 'Protein Locked In', description: 'Hit protein 7 days straight', icon: 'bolt', tint: '#12A181', metric: 'proteinStreak', target: 7 },
+  { id: 'hydrated_week', title: 'Hydrated', description: 'Hit water goal 7 days straight', icon: 'water', tint: '#2E9BE0', metric: 'hydrationStreak', target: 7 },
+  { id: 'first_photo', title: 'Documented', description: 'Add your first progress photo', icon: 'camera', tint: '#D2529E', metric: 'progressPhotos', target: 1 },
+  { id: 'perfect_day', title: 'Perfect Day', description: 'Reach 100% discipline in a day', icon: 'target', tint: '#C6F135', metric: 'bestDisciplineScore', target: 100 },
 ];
 
-export interface AchievementInputs {
-  workoutsCompleted: number;
-  currentDailyStreak: number;
-  proteinStreak: number;
-  hydrationStreak: number;
-  prsSet: number;
-  progressPhotos: number;
-  bestDisciplineScore: number;
+export type AchievementInputs = Record<AchievementMetric, number>;
+
+export interface AchievementProgress {
+  current: number;
+  target: number;
+  /** 0-1, clamped. */
+  ratio: number;
+  remaining: number;
+}
+
+/** How close the athlete is to a badge, in the badge's own units. */
+export function achievementProgress(
+  achievement: Pick<Achievement, 'metric' | 'target'>,
+  inputs: AchievementInputs,
+): AchievementProgress {
+  const current = Math.max(0, inputs[achievement.metric] ?? 0);
+  const target = Math.max(1, achievement.target);
+  return {
+    current: Math.min(current, target),
+    target,
+    ratio: Math.min(1, current / target),
+    remaining: Math.max(0, target - current),
+  };
 }
 
 /** Return achievement ids that should be unlocked given current stats. */
-export function evaluateAchievements(i: AchievementInputs): string[] {
-  const unlocked: string[] = [];
-  if (i.workoutsCompleted >= 1) unlocked.push('first_workout');
-  if (i.workoutsCompleted >= 10) unlocked.push('workouts_10');
-  if (i.workoutsCompleted >= 100) unlocked.push('workouts_100');
-  if (i.currentDailyStreak >= 7) unlocked.push('streak_7');
-  if (i.currentDailyStreak >= 30) unlocked.push('streak_30');
-  if (i.prsSet >= 1) unlocked.push('first_pr');
-  if (i.proteinStreak >= 7) unlocked.push('protein_week');
-  if (i.hydrationStreak >= 7) unlocked.push('hydrated_week');
-  if (i.progressPhotos >= 1) unlocked.push('first_photo');
-  if (i.bestDisciplineScore >= 100) unlocked.push('perfect_day');
-  return unlocked;
+export function evaluateAchievements(inputs: AchievementInputs): string[] {
+  return ACHIEVEMENT_CATALOG.filter((a) => (inputs[a.metric] ?? 0) >= a.target).map((a) => a.id);
+}
+
+/**
+ * Locked badges ordered by how close they are, nearest first. Ties break on the
+ * smaller target, so "one more workout" beats "one more of a bigger thing".
+ */
+export function nextAchievements(achievements: Achievement[], inputs: AchievementInputs, limit = 3): Achievement[] {
+  return achievements
+    .filter((a) => !a.unlockedAt)
+    .map((a) => ({ a, p: achievementProgress(a, inputs) }))
+    .sort((x, y) => y.p.ratio - x.p.ratio || x.p.target - y.p.target)
+    .slice(0, limit)
+    .map((x) => x.a);
 }

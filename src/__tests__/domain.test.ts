@@ -32,6 +32,7 @@ import { recentExerciseIds } from '../domain/history';
 import { strengthChangePct } from '../domain/strength';
 import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
+import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -791,5 +792,61 @@ describe('protocol adherence', () => {
     const logs = Array.from({ length: 10 }, (_, i) => log(`2026-09-${String(21 + i).padStart(2, '0')}`));
     const a = adherence(proto({ frequency: 'weekly' }), logs, 30, TODAY);
     expect(a.ratio).toBe(1);
+  });
+});
+
+describe('achievements', () => {
+  const inputs = {
+    workoutsCompleted: 12,
+    currentDailyStreak: 5,
+    proteinStreak: 7,
+    hydrationStreak: 2,
+    prsSet: 3,
+    progressPhotos: 0,
+    bestDisciplineScore: 88,
+  };
+
+  it('unlocks exactly the badges whose target is met', () => {
+    const ids = evaluateAchievements(inputs);
+    expect(ids).toContain('first_workout');
+    expect(ids).toContain('workouts_10');
+    expect(ids).toContain('protein_week');
+    expect(ids).not.toContain('workouts_100');
+    expect(ids).not.toContain('streak_7');
+    expect(ids).not.toContain('perfect_day');
+  });
+
+  it('reports progress in the badge\'s own units', () => {
+    const centurion = ACHIEVEMENT_CATALOG.find((a) => a.id === 'workouts_100')!;
+    const p = achievementProgress(centurion, inputs);
+    expect(p).toEqual({ current: 12, target: 100, ratio: 0.12, remaining: 88 });
+  });
+
+  it('never shows more than the target, or a ratio above 1', () => {
+    const first = ACHIEVEMENT_CATALOG.find((a) => a.id === 'first_workout')!;
+    const p = achievementProgress(first, inputs);
+    expect(p.current).toBe(1);
+    expect(p.ratio).toBe(1);
+    expect(p.remaining).toBe(0);
+  });
+
+  it('agrees with the unlock rule at the threshold', () => {
+    // One table drives both, so this can only break if that stops being true.
+    for (const a of ACHIEVEMENT_CATALOG) {
+      const atTarget = { ...inputs, [a.metric]: a.target };
+      const belowTarget = { ...inputs, [a.metric]: a.target - 1 };
+      expect(evaluateAchievements(atTarget)).toContain(a.id);
+      expect(achievementProgress(a, atTarget).ratio).toBe(1);
+      expect(evaluateAchievements(belowTarget)).not.toContain(a.id);
+    }
+  });
+
+  it('orders locked badges by how close they are', () => {
+    const locked = ACHIEVEMENT_CATALOG.map((a) => ({ ...a, unlockedAt: null }));
+    const next = nextAchievements(locked, inputs, 3);
+    // first_workout is already at its target, so it leads; centurion is last.
+    expect(next[0]!.id).not.toBe('workouts_100');
+    const ratios = next.map((a) => achievementProgress(a, inputs).ratio);
+    expect([...ratios].sort((x, y) => y - x)).toEqual(ratios);
   });
 });
