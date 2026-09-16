@@ -35,7 +35,7 @@ import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { frequentFoods } from '../domain/nutrition';
-import { personalRecords, recentPrEvents } from '../domain/records';
+import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
 import { brzycki1RM, percentOfMax, weightForReps } from '../domain/strength';
 
 const baseProfile: Profile = {
@@ -1129,5 +1129,74 @@ describe('personalRecords', () => {
     ];
     expect(recentPrEvents(history)[0]!.date).toBe('2026-09-15');
     expect(recentPrEvents(history, 1)).toHaveLength(1);
+  });
+});
+
+describe('repMaxes', () => {
+  const set = (weightKg: number, reps: number, over: Record<string, unknown> = {}) =>
+    ({ id: `${weightKg}x${reps}`, weightKg, reps, rpe: null, completed: true, ...over });
+  const session = (id: string, date: string, sets: unknown[]) =>
+    ({ id, date, status: 'completed', exercises: [{ exerciseId: 'bench', name: 'Bench', primaryMuscle: 'chest', sets }] }) as never;
+
+  it('counts a heavier set for every rep count at or below it', () => {
+    // Eight reps at 100 proves five at 100; a table of exact matches would be
+    // almost entirely blank for anyone training in ranges.
+    const out = repMaxes([session('w1', '2026-09-01', [set(100, 8)])], 'bench');
+    const at = (reps: number) => out.find((m) => m.reps === reps);
+    expect(at(1)!.weightKg).toBe(100);
+    expect(at(5)!.weightKg).toBe(100);
+    expect(at(8)!.weightKg).toBe(100);
+    expect(at(10)).toBeUndefined();
+  });
+
+  it('takes the heaviest weight per rep count across sessions', () => {
+    const history = [
+      session('w1', '2026-09-01', [set(140, 1)]),
+      session('w2', '2026-09-08', [set(100, 10)]),
+    ];
+    const out = repMaxes(history, 'bench');
+    expect(out.find((m) => m.reps === 1)!.weightKg).toBe(140);
+    expect(out.find((m) => m.reps === 10)!.weightKg).toBe(100);
+  });
+
+  it('ignores warm-ups and other exercises', () => {
+    const history = [session('w1', '2026-09-01', [set(300, 5, { kind: 'warmup' }), set(100, 5)])];
+    expect(repMaxes(history, 'bench').find((m) => m.reps === 5)!.weightKg).toBe(100);
+    expect(repMaxes(history, 'squat')).toEqual([]);
+  });
+});
+
+describe('exerciseSessions', () => {
+  const set = (weightKg: number, reps: number, over: Record<string, unknown> = {}) =>
+    ({ id: `${weightKg}x${reps}`, weightKg, reps, rpe: null, completed: true, ...over });
+  const session = (id: string, date: string, sets: unknown[]) =>
+    ({ id, date, name: 'Push', status: 'completed', exercises: [{ exerciseId: 'bench', name: 'Bench', primaryMuscle: 'chest', sets }] }) as never;
+
+  it('returns sessions newest first with the sets as logged', () => {
+    const history = [
+      session('w1', '2026-09-01', [set(100, 5)]),
+      session('w2', '2026-09-08', [set(105, 5), set(105, 4)]),
+    ];
+    const out = exerciseSessions(history, 'bench');
+    expect(out[0]!.date).toBe('2026-09-08');
+    expect(out[0]!.sets).toHaveLength(2);
+  });
+
+  it('excludes warm-ups from volume but still lists them', () => {
+    const history = [session('w1', '2026-09-01', [set(60, 10, { kind: 'warmup' }), set(100, 5)])];
+    const [s] = exerciseSessions(history, 'bench');
+    expect(s!.sets).toHaveLength(2);
+    expect(s!.volumeKg).toBe(500);
+    expect(s!.sets[0]!.warmup).toBe(true);
+  });
+
+  it('skips sessions where nothing was completed', () => {
+    const history = [session('w1', '2026-09-01', [set(100, 5, { completed: false })])];
+    expect(exerciseSessions(history, 'bench')).toEqual([]);
+  });
+
+  it('respects the limit', () => {
+    const history = [1, 2, 3].map((i) => session(`w${i}`, `2026-09-0${i}`, [set(100, 5)]));
+    expect(exerciseSessions(history, 'bench', 2)).toHaveLength(2);
   });
 });

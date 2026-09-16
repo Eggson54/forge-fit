@@ -1,13 +1,15 @@
 import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, EmptyState, LineChart, Pill, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
-import { colors, spacing } from '../../src/theme';
+import { colors, radius, spacing } from '../../src/theme';
 import { epley1RM } from '../../src/domain/strength';
-import { displayWeight, kgToLb } from '../../src/domain/units';
+import { displayVolume, displayWeight, kgToLb } from '../../src/domain/units';
+import { formatDateWithWeekday, formatDayMonth } from '../../src/domain/date';
+import { exerciseSessions, repMaxes } from '../../src/domain/records';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 
@@ -43,6 +45,9 @@ export default function ExerciseDetail() {
         return [{ label: w.date.slice(5), value: units === 'imperial' ? Math.round(kgToLb(best)) : Math.round(best) }];
       });
   }, [exercise, workouts, units]);
+
+  const maxes = useMemo(() => (exercise ? repMaxes(workouts, exercise.id) : []), [workouts, exercise]);
+  const history = useMemo(() => (exercise ? exerciseSessions(workouts, exercise.id) : []), [workouts, exercise]);
 
   if (!exercise) {
     return (
@@ -143,6 +148,77 @@ export default function ExerciseDetail() {
         <LineChart data={series} color={colors.primary} unit={units === 'imperial' ? ' lb' : ' kg'} />
       </Card>
 
+      {maxes.length > 0 && (
+        <>
+          <SectionHeader title="Rep maxes" />
+          <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+            {maxes.map((m, i) => {
+              const w = displayWeight(m.weightKg, units);
+              return (
+                <View key={m.reps} style={[styles.row, i < maxes.length - 1 && styles.rowBorder]}>
+                  <Text variant="bodyStrong" style={{ width: 66 }}>
+                    {m.reps} {m.reps === 1 ? 'rep' : 'reps'}
+                  </Text>
+                  <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0 }}>
+                    {formatDayMonth(m.date)}
+                  </Text>
+                  <Text variant="bodyStrong" color={colors.amber}>
+                    {w.value} {w.unit}
+                  </Text>
+                </View>
+              );
+            })}
+          </Card>
+          <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.sm }}>
+            Weights you have actually lifted for at least that many reps — a set of eight counts towards your five.
+          </Text>
+        </>
+      )}
+
+      {history.length > 0 && (
+        <>
+          <SectionHeader title={`Session history · ${history.length}`} />
+          <View style={{ gap: spacing.md }}>
+            {history.map((session) => {
+              const vol = displayVolume(session.volumeKg, units);
+              return (
+                <Card key={session.workoutId} onPress={() => router.push(`/workout/${session.workoutId}`)}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text variant="bodyStrong" numberOfLines={1}>
+                        {formatDateWithWeekday(session.date)}
+                      </Text>
+                      <Text variant="caption" color={colors.textFaint} numberOfLines={1}>
+                        {session.workoutName}
+                      </Text>
+                    </View>
+                    <Text variant="caption" color={colors.textDim}>
+                      {vol.value} {vol.unit}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
+                    {session.sets.map((set, i) => {
+                      const w = set.weightKg != null ? displayWeight(set.weightKg, units) : null;
+                      return (
+                        <View
+                          key={i}
+                          style={[styles.setChip, set.isPr && styles.setChipPr, set.warmup && styles.setChipWarmup]}
+                        >
+                          <Text variant="caption" color={set.isPr ? colors.amber : set.warmup ? colors.textFaint : colors.text}>
+                            {w ? `${Math.round(w.value * 10) / 10}` : '—'} × {set.reps ?? '—'}
+                            {set.rpe ? ` @${set.rpe}` : ''}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </Card>
+              );
+            })}
+          </View>
+        </>
+      )}
+
       <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.md }}>
         Estimated 1RM is a calculation from your logged sets, not a tested max. Train within your own limits and get
         coaching on technique if you are unsure.
@@ -152,3 +228,16 @@ export default function ExerciseDetail() {
 }
 
 const label = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  setChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceHigh,
+  },
+  setChipPr: { backgroundColor: 'rgba(255,176,32,0.14)', borderWidth: 1, borderColor: 'rgba(255,176,32,0.4)' },
+  setChipWarmup: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+});

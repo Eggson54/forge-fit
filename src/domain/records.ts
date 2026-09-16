@@ -150,3 +150,91 @@ export function recentPrEvents(workouts: Workout[], limit = 12): PrEvent[] {
 
   return events.reverse().slice(0, limit);
 }
+
+export interface RepMax {
+  reps: number;
+  weightKg: number;
+  date: string;
+}
+
+/** Rep counts worth reporting a best for. */
+export const REP_MAX_TARGETS = [1, 2, 3, 5, 8, 10, 12, 15];
+
+/**
+ * Heaviest weight actually moved at each rep count, or better.
+ *
+ * "At or above" matters: a set of eight at 100kg is proof you can do five at
+ * 100kg, and a table that only counted exact rep matches would leave most rows
+ * blank for anyone who trains in ranges. These are lifts that happened, which
+ * is what separates them from the estimate on the same screen.
+ */
+export function repMaxes(workouts: Workout[], exerciseId: string): RepMax[] {
+  const best = new Map<number, RepMax>();
+
+  for (const workout of workouts) {
+    if (workout.status !== 'completed') continue;
+    for (const exercise of workout.exercises) {
+      if (exercise.exerciseId !== exerciseId) continue;
+      for (const set of exercise.sets) {
+        if (!set.completed || isWarmupSet(set) || !set.weightKg || !set.reps) continue;
+        for (const target of REP_MAX_TARGETS) {
+          if (set.reps < target) continue;
+          const current = best.get(target);
+          if (!current || set.weightKg > current.weightKg) {
+            best.set(target, { reps: target, weightKg: set.weightKg, date: workout.date });
+          }
+        }
+      }
+    }
+  }
+
+  return REP_MAX_TARGETS.map((reps) => best.get(reps)).filter((r): r is RepMax => !!r);
+}
+
+export interface ExerciseSession {
+  workoutId: string;
+  workoutName: string;
+  date: string;
+  sets: { weightKg: number | null; reps: number | null; rpe: number | null; isPr: boolean; warmup: boolean }[];
+  volumeKg: number;
+  topSetE1RMKg: number;
+}
+
+/** Every session containing this lift, newest first, with the sets as logged. */
+export function exerciseSessions(workouts: Workout[], exerciseId: string, limit = 20): ExerciseSession[] {
+  const sessions: ExerciseSession[] = [];
+
+  for (const workout of workouts) {
+    if (workout.status !== 'completed') continue;
+    for (const exercise of workout.exercises) {
+      if (exercise.exerciseId !== exerciseId) continue;
+      const done = exercise.sets.filter((s) => s.completed);
+      if (done.length === 0) continue;
+
+      let volumeKg = 0;
+      let topSetE1RMKg = 0;
+      for (const s of done) {
+        if (isWarmupSet(s) || !s.weightKg || !s.reps) continue;
+        volumeKg += s.weightKg * s.reps;
+        topSetE1RMKg = Math.max(topSetE1RMKg, epley1RM(s.weightKg, s.reps));
+      }
+
+      sessions.push({
+        workoutId: workout.id,
+        workoutName: workout.name,
+        date: workout.date,
+        sets: done.map((s) => ({
+          weightKg: s.weightKg,
+          reps: s.reps,
+          rpe: s.rpe,
+          isPr: !!s.isPr,
+          warmup: isWarmupSet(s),
+        })),
+        volumeKg: Math.round(volumeKg * 10) / 10,
+        topSetE1RMKg,
+      });
+    }
+  }
+
+  return sessions.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, limit);
+}
