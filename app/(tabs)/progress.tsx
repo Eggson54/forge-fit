@@ -12,6 +12,7 @@ import { VOLUME_LANDMARKS, volumeStatus, weeklySetsPerMuscle } from '../../src/d
 import type { MuscleGroup } from '../../src/domain/types';
 import { displayWeight, kgToLb } from '../../src/domain/units';
 import { epley1RM } from '../../src/domain/strength';
+import { movingAverage } from '../../src/domain/trend';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -35,13 +36,23 @@ export default function Progress() {
     [weightLogs],
   );
 
-  // Weight series (chronological)
+  // Weight series (chronological), with the same 7-day average the weight
+  // screen draws — a raw scale line reads as chaos at this size.
+  const weightWindow = useMemo(() => weightByDate.slice(-14), [weightByDate]);
+  const toDisplayKg = (kg: number) => (profile.units === 'imperial' ? Math.round(kgToLb(kg) * 10) / 10 : Math.round(kg * 10) / 10);
   const weightSeries: Point[] = useMemo(
+    () => weightWindow.map((w) => ({ label: w.date.slice(5), value: toDisplayKg(w.weightKg) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weightWindow, profile.units],
+  );
+  const weightAverage: Point[] = useMemo(
     () =>
-      weightByDate
-        .slice(-14)
-        .map((w) => ({ label: w.date.slice(5), value: profile.units === 'imperial' ? Math.round(kgToLb(w.weightKg) * 10) / 10 : w.weightKg })),
-    [weightByDate, profile.units],
+      movingAverage(weightWindow.map((w) => ({ date: w.date, value: w.weightKg })), 7).map((p) => ({
+        label: p.date.slice(5),
+        value: toDisplayKg(p.value),
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weightWindow, profile.units],
   );
 
   /**
@@ -203,7 +214,17 @@ export default function Progress() {
 
       <SectionHeader title="Weight" action="Log" onAction={() => router.push('/progress/weight')} />
       <Card>
-        <LineChart data={weightSeries} width={chartW} color={colors.protein} unit={profile.units === 'imperial' ? ' lb' : ' kg'} />
+        <LineChart
+          data={weightSeries}
+          overlay={weightAverage}
+          overlayColor={colors.protein}
+          color={colors.textDim}
+          width={chartW}
+          unit={profile.units === 'imperial' ? ' lb' : ' kg'}
+        />
+        <Text variant="caption" color={colors.textFaint} center style={{ marginTop: spacing.sm }}>
+          Solid line is the 7-day average.
+        </Text>
       </Card>
 
       <SectionHeader title="Strength · estimated 1RM" />

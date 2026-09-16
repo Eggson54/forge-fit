@@ -51,12 +51,21 @@ export function LineChart({
   color = colors.primary,
   width = 320,
   unit = '',
+  overlay,
+  overlayColor = colors.text,
 }: {
   data: Point[];
   height?: number;
   color?: string;
   width?: number;
   unit?: string;
+  /**
+   * A second series over the same x positions — a smoothed version of `data`,
+   * drawn on top. Must be the same length; anything else is ignored rather
+   * than silently misaligned against the raw points.
+   */
+  overlay?: Point[];
+  overlayColor?: string;
 }) {
   const gid = React.useId();
   if (data.length < 2) return <EmptyPlot height={height} message="Log at least two entries to see your trend" />;
@@ -67,7 +76,8 @@ export function LineChart({
   const padB = 22;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
-  const { lo, hi } = niceBounds(data.map((d) => d.value));
+  const smoothed = overlay && overlay.length === data.length ? overlay : null;
+  const { lo, hi } = niceBounds([...data.map((d) => d.value), ...(smoothed ?? []).map((d) => d.value)]);
   const span = hi - lo || 1;
 
   const x = (i: number) => padL + (i / (data.length - 1)) * plotW;
@@ -98,7 +108,27 @@ export function LineChart({
       ))}
 
       <Path d={area} fill={`url(#${gid})`} />
-      <Path d={line} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+      {/* With a trend line present the raw series steps back to being context:
+          it is the noise the average is there to see through. */}
+      <Path
+        d={line}
+        stroke={color}
+        strokeWidth={smoothed ? 1.25 : 2}
+        strokeOpacity={smoothed ? 0.45 : 1}
+        fill="none"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {smoothed && (
+        <Path
+          d={smoothed.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(d.value)}`).join(' ')}
+          stroke={overlayColor}
+          strokeWidth={2.4}
+          fill="none"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      )}
 
       {/* only the latest point is marked + labelled */}
       <Circle cx={x(data.length - 1)} cy={y(last.value)} r={4.5} fill={color} stroke={colors.card} strokeWidth={2} />

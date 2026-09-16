@@ -33,6 +33,7 @@ import { strengthChangePct } from '../domain/strength';
 import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
+import { movingAverage, ratePerWeek } from '../domain/trend';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -848,5 +849,48 @@ describe('achievements', () => {
     expect(next[0]!.id).not.toBe('workouts_100');
     const ratios = next.map((a) => achievementProgress(a, inputs).ratio);
     expect([...ratios].sort((x, y) => y - x)).toEqual(ratios);
+  });
+});
+
+describe('trend maths', () => {
+  const at = (day: number, value: number) => ({ date: `2026-09-${String(day).padStart(2, '0')}`, value });
+
+  it('averages over what exists rather than dropping the start', () => {
+    const out = movingAverage([at(1, 10), at(2, 20), at(3, 30)], 3);
+    expect(out.map((p) => p.value)).toEqual([10, 15, 20]);
+    expect(out).toHaveLength(3);
+  });
+
+  it('only looks backwards', () => {
+    // The last point must not be pulled by values that have not happened.
+    const out = movingAverage([at(1, 10), at(2, 10), at(3, 100)], 2);
+    expect(out[out.length - 1]!.value).toBe(55);
+    expect(out[0]!.value).toBe(10);
+  });
+
+  it('smooths a spike without erasing the level', () => {
+    const flat = [at(1, 80), at(2, 80), at(3, 84), at(4, 80), at(5, 80)];
+    const avg = movingAverage(flat, 5);
+    expect(avg[avg.length - 1]!.value).toBeCloseTo(80.8, 5);
+  });
+
+  it('fits a rate across every reading, not the first and last', () => {
+    // A clean 1 per day is 7 per week.
+    const series = [at(1, 100), at(2, 101), at(3, 102), at(4, 103)];
+    expect(ratePerWeek(series)).toBeCloseTo(7, 5);
+  });
+
+  it('is not thrown by one unlucky weigh-in the way first-vs-last is', () => {
+    // Falling steadily, but the last reading is high. First-vs-last says +1.
+    const series = [at(1, 80), at(2, 79.5), at(3, 79), at(4, 78.5), at(5, 81)];
+    expect(series[series.length - 1]!.value - series[0]!.value).toBe(1);
+    expect(ratePerWeek(series)!).toBeLessThan(1.5);
+  });
+
+  it('returns null when a rate is undefined', () => {
+    expect(ratePerWeek([])).toBeNull();
+    expect(ratePerWeek([at(1, 80)])).toBeNull();
+    // Every reading on the same day: no slope exists.
+    expect(ratePerWeek([at(1, 80), at(1, 81)])).toBeNull();
   });
 });
