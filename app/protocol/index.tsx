@@ -1,15 +1,18 @@
 import React from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, Card, EmptyState, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
+import { Icon, type IconName } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { todayISO } from '../../src/domain/date';
+import { FREQUENCY_LABEL } from '../../src/domain/protocol';
 import type { Protocol } from '../../src/domain/types';
 import { useProtocolStore } from '../../src/stores/useProtocolStore';
 
 export default function ProtocolHome() {
   const protocols = useProtocolStore((s) => s.protocols.filter((p) => p.active));
+  const archived = useProtocolStore((s) => s.protocols.filter((p) => !p.active));
 
   return (
     <Screen gradient footer={<Button title="Add Protocol Entry" onPress={() => router.push('/protocol/add')} size="lg" />}>
@@ -24,7 +27,30 @@ export default function ProtocolHome() {
       </Card>
 
       {protocols.length === 0 ? (
-        <EmptyState icon="bolt" title="Nothing tracked" subtitle="Add an item you want to keep a personal log and reminders for." />
+        <>
+          {/* A blank slate on a screen this sensitive is worse than useless: it
+              leaves the user guessing at what the tool is for, and the honest
+              answer is short enough to just say. */}
+          <Card>
+            <Text variant="h3" style={{ marginBottom: spacing.md }}>
+              Nothing tracked yet
+            </Text>
+            <Capability icon="check" title="Keeps your own log" body="What you took, how much, and when — exactly as you enter it." />
+            <Capability icon="bell" title="Reminds you" body="An optional nudge at the time of day you set." />
+            <Capability icon="chart" title="Shows your history" body="A calendar of logged days and how it compares to the schedule you set." />
+            <Capability icon="download" title="Exports on request" body="Your records, in plain text, whenever you want them." />
+          </Card>
+
+          <Card tone="alt" style={{ marginTop: spacing.md }}>
+            <Text variant="overline" color={colors.textDim} style={{ marginBottom: spacing.sm }}>
+              What it will never do
+            </Text>
+            <Text variant="caption" color={colors.textDim}>
+              Suggest a compound, a dose, a cycle or a combination. Tell you to start, stop, raise or lower anything.
+              Interpret how you feel. Those are decisions for you and a qualified healthcare professional.
+            </Text>
+          </Card>
+        </>
       ) : (
         <View style={{ gap: spacing.md }}>
           {protocols.map((p) => (
@@ -33,17 +59,37 @@ export default function ProtocolHome() {
         </View>
       )}
 
-      {/* The history hint describes tapping an item, so it only belongs on screen
-          once there is an item to tap. */}
       {protocols.length > 0 && (
+        <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.md }}>
+          Tap any item for its full history, adherence against the schedule you set, and export.
+        </Text>
+      )}
+
+      {archived.length > 0 && (
         <>
-          <SectionHeader title="History" />
-          <Text variant="caption" color={colors.textFaint}>
-            Tap any item to view its calendar history, adherence, and export your personal records.
-          </Text>
+          <SectionHeader title="Archived" />
+          <View style={{ gap: spacing.md }}>
+            {archived.map((p) => (
+              <ProtocolCard key={p.id} protocol={p} />
+            ))}
+          </View>
         </>
       )}
     </Screen>
+  );
+}
+
+function Capability({ icon, title, body }: { icon: IconName; title: string; body: string }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
+      <Icon name={icon} size={16} color={colors.primary} strokeWidth={1.9} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="bodyStrong">{title}</Text>
+        <Text variant="caption" color={colors.textDim}>
+          {body}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -54,12 +100,12 @@ function ProtocolCard({ protocol }: { protocol: Protocol }) {
   const today = logs.find((l) => l.date === todayISO());
 
   return (
-    <Card>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <View style={{ flex: 1 }}>
+    <Card onPress={() => router.push(`/protocol/${protocol.id}`)}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="bodyStrong">{protocol.name}</Text>
           <Text variant="caption" color={colors.textDim}>
-            {protocol.dose ? `${protocol.dose} ${protocol.unit}` : protocol.unit} · {freqLabel(protocol.frequency)}
+            {protocol.dose ? `${protocol.dose} ${protocol.unit}` : protocol.unit} · {FREQUENCY_LABEL[protocol.frequency]}
             {protocol.timeOfDay ? ` · ${protocol.timeOfDay}` : ''}
           </Text>
           {protocol.notes ? (
@@ -68,24 +114,34 @@ function ProtocolCard({ protocol }: { protocol: Protocol }) {
             </Text>
           ) : null}
         </View>
-        <Text variant="metric" color={adherence >= 0.8 ? colors.success : colors.textDim}>
-          {Math.round(adherence * 100)}%
-        </Text>
+        <View style={{ alignItems: 'flex-end' }}>
+          {/* A 'custom' schedule has no implied number of doses, so there is
+              nothing honest to take a percentage of — show the count instead. */}
+          <Text variant="metric" color={adherence.ratio != null && adherence.ratio >= 0.8 ? colors.success : colors.textDim}>
+            {adherence.ratio != null ? `${Math.round(adherence.ratio * 100)}%` : adherence.taken}
+          </Text>
+          <Text variant="caption" color={colors.textFaint}>
+            {adherence.expected != null ? `of ${adherence.expected} · 30d` : 'logged · 30d'}
+          </Text>
+        </View>
       </View>
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
         <Button
-          title={today?.taken ? 'Logged ✓' : "Log today"}
+          title={today?.taken ? 'Logged ✓' : 'Log today'}
           size="sm"
           variant={today?.taken ? 'ghost' : 'primary'}
           onPress={() => logDose(protocol.id, true)}
           style={{ flex: 1 }}
         />
-        <Button title="Skip" size="sm" variant="ghost" onPress={() => logDose(protocol.id, false)} style={{ flex: 1 }} />
+        <Button
+          title={today && !today.taken ? 'Skipped' : 'Skip'}
+          size="sm"
+          variant="ghost"
+          onPress={() => logDose(protocol.id, false)}
+          style={{ flex: 1 }}
+        />
       </View>
     </Card>
   );
 }
-
-const freqLabel = (f: Protocol['frequency']) =>
-  ({ daily: 'Daily', eod: 'Every other day', weekly: 'Weekly', '2x_week': '2×/week', '3x_week': '3×/week', custom: 'Custom' })[f];

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { todayISO } from '../domain/date';
 import type { Protocol, ProtocolLog } from '../domain/types';
+import { adherence as computeAdherence, type Adherence } from '../domain/protocol';
 import { uid } from '../lib/uid';
 import { analytics } from '../services/analytics';
 import { jsonStorage, STORE_KEYS } from './persist';
@@ -22,7 +23,7 @@ interface ProtocolState {
 
   logDose: (protocolId: string, taken: boolean, date?: string, notes?: string) => void;
   logsForProtocol: (protocolId: string) => ProtocolLog[];
-  adherence: (protocolId: string, windowDays?: number) => number; // 0-1
+  adherence: (protocolId: string, windowDays?: number) => Adherence;
   reset: () => void;
 }
 
@@ -70,13 +71,9 @@ export const useProtocolStore = create<ProtocolState>()(
         get().logs.filter((l) => l.protocolId === protocolId).sort((a, b) => (a.date < b.date ? 1 : -1)),
 
       adherence: (protocolId, windowDays = 30) => {
-        const cutoff = Date.now() - windowDays * 86_400_000;
-        const logs = get().logs.filter(
-          (l) => l.protocolId === protocolId && Date.parse(`${l.date}T00:00:00`) >= cutoff,
-        );
-        if (!logs.length) return 0;
-        const taken = logs.filter((l) => l.taken).length;
-        return taken / logs.length;
+        const protocol = get().protocols.find((p) => p.id === protocolId);
+        if (!protocol) return { taken: 0, expected: null, ratio: null };
+        return computeAdherence(protocol, get().logs, windowDays, todayISO());
       },
 
       reset: () => set({ protocols: [], logs: [] }),

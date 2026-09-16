@@ -31,6 +31,7 @@ import { groupExercises, restAfterSet, toggleSupersetAt } from '../domain/supers
 import { recentExerciseIds } from '../domain/history';
 import { strengthChangePct } from '../domain/strength';
 import { suggestToday, volumeDeficits } from '../domain/suggestion';
+import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 
 const baseProfile: Profile = {
   id: 'u1',
@@ -733,5 +734,62 @@ describe('suggestToday', () => {
     const deficits = volumeDeficits({ chest: 10, back: 2 });
     expect(deficits.find((d) => d.muscle === 'chest')).toBeUndefined();
     expect(deficits[0]!.missing).toBeGreaterThanOrEqual(deficits[deficits.length - 1]!.missing);
+  });
+});
+
+describe('protocol adherence', () => {
+  const TODAY = '2026-09-30';
+  const proto = (over: Record<string, unknown> = {}) =>
+    ({
+      id: 'p1',
+      name: 'Item',
+      dose: 1,
+      unit: 'mg',
+      frequency: 'daily',
+      reminderEnabled: false,
+      startedAt: '2026-09-01',
+      active: true,
+      ...over,
+    }) as never;
+  const log = (date: string, taken = true) => ({ id: date, protocolId: 'p1', date, taken, dose: 1, unit: 'mg', time: '08:00' }) as never;
+
+  it('counts only the days the protocol has been running', () => {
+    expect(activeDaysInWindow('2026-09-01', 30, TODAY)).toBe(30);
+    // Started inside the window: 25th to 30th inclusive.
+    expect(activeDaysInWindow('2026-09-25', 30, TODAY)).toBe(6);
+    expect(activeDaysInWindow('2026-12-01', 30, TODAY)).toBe(0);
+  });
+
+  it('derives expected doses from the schedule the user set', () => {
+    expect(expectedDoses(proto(), 30, TODAY)).toBe(30);
+    expect(expectedDoses(proto({ frequency: 'eod' }), 30, TODAY)).toBe(15);
+    expect(expectedDoses(proto({ frequency: '2x_week' }), 28, TODAY)).toBe(8);
+  });
+
+  it('has no expected count for a custom schedule', () => {
+    expect(expectedDoses(proto({ frequency: 'custom' }), 30, TODAY)).toBeNull();
+    const a = adherence(proto({ frequency: 'custom' }), [log('2026-09-29')], 30, TODAY);
+    expect(a.ratio).toBeNull();
+    expect(a.taken).toBe(1);
+  });
+
+  it('measures against the schedule, not against the log', () => {
+    // Three days logged, all taken. The old "taken / logged" read 100%.
+    const logs = [log('2026-09-28'), log('2026-09-29'), log('2026-09-30')];
+    const a = adherence(proto(), logs, 30, TODAY);
+    expect(a.taken).toBe(3);
+    expect(a.expected).toBe(30);
+    expect(a.ratio).toBeCloseTo(0.1, 5);
+  });
+
+  it('ignores logs outside the window and skipped days', () => {
+    const logs = [log('2026-07-01'), log('2026-09-29', false), log('2026-09-30')];
+    expect(adherence(proto(), logs, 30, TODAY).taken).toBe(1);
+  });
+
+  it('never reports more than 100%', () => {
+    const logs = Array.from({ length: 10 }, (_, i) => log(`2026-09-${String(21 + i).padStart(2, '0')}`));
+    const a = adherence(proto({ frequency: 'weekly' }), logs, 30, TODAY);
+    expect(a.ratio).toBe(1);
   });
 });
