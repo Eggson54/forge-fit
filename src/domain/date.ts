@@ -107,3 +107,8 @@ export function formatDateWithWeekday(value: string): string {
   const d = toLocalDate(value);
   return `${WEEKDAYS_SHORT[d.getDay()]}, ${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
 }
+
+/** Whole days from `a` to `b`; negative when `b` is earlier. */
+export function daysBetweenDates(a: ISODate, b: ISODate): number {
+  return Math.round((Date.parse(`${b}T00:00:00`) - Date.parse(`${a}T00:00:00`)) / 86_400_000);
+}

@@ -10,12 +10,22 @@ import { workoutStats } from '../../src/domain/strength';
 import { displayVolume } from '../../src/domain/units';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { useProgramStore } from '../../src/stores/useProgramStore';
+import { programById } from '../../src/data/programs';
 
 export default function WorkoutTab() {
   const workouts = useWorkoutStore((s) => s.workouts);
   const activeId = useWorkoutStore((s) => s.activeId);
   const startEmpty = useWorkoutStore((s) => s.startEmptyWorkout);
   const units = useProfileStore((s) => s.profile.units);
+  const enrolment = useProgramStore((s) => s.enrolment);
+  const position = useProgramStore((s) => s.position());
+  const enrolledProgram = enrolment ? programById(enrolment.programId) : null;
+  const planSubtitle = position && enrolledProgram
+    ? position.finished
+      ? 'Plan complete'
+      : `W${position.week} · ${position.day?.name ?? 'next up'}`
+    : 'Structured blocks';
 
   // "Recent" means recent: ten sessions is the History screen, which "See all"
   // already links to, and it buried the start button under a full duplicate list.
@@ -76,6 +86,15 @@ export default function WorkoutTab() {
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md }}>
         <StartCard icon="target" title="Rep Max" subtitle="Estimate and percentages" onPress={() => router.push('/tools/one-rep-max')} />
         <StartCard icon="trophy" title="Records" subtitle="Your best lifts" onPress={() => router.push('/workout/records')} />
+      </View>
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.md }}>
+        <StartCard
+          icon="calendar"
+          title={enrolment ? 'Your Plan' : 'Training Plans'}
+          subtitle={planSubtitle}
+          onPress={() => router.push(enrolment ? '/workout/program' : '/workout/programs')}
+        />
+        <StartCard icon="scale" title="Measurements" subtitle="Tape and trends" onPress={() => router.push('/progress/measurements')} />
       </View>
 
       <SectionHeader title="Recent workouts" action={allCompleted.length ? 'See all' : undefined} onAction={() => router.push('/workout/history')} />

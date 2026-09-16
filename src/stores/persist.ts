@@ -19,4 +19,5 @@ export const STORE_KEYS = {
   reminders: 'forgefit.reminders',
   protocols: 'forgefit.protocols',
   coach: 'forgefit.coach',
+  programs: 'forgefit.programs',
 } as const;

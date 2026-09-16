@@ -36,6 +36,8 @@ import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../d
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
 import { balanceMacros, frequentFoods, summariseIntake } from '../domain/nutrition';
 import { isSubscriptionActive } from '../domain/subscription';
+import { isStale, programPosition, projectedDates, weekMultiplier } from '../domain/program';
+import { PROGRAMS, programById } from '../data/programs';
 import { exerciseSessions, personalRecords, recentPrEvents, repMaxes } from '../domain/records';
 import { answerCoachQuestion, easiestGap, openGaps, type CoachContext } from '../domain/coach';
 import type { CoachSettings } from '../domain/types';
@@ -1381,5 +1383,102 @@ describe('balanceMacros', () => {
     // 200p + 0f = 800 kcal, so carbs land on zero rather than going negative.
     const out = balanceMacros({ calories: 800, proteinG: 200, carbsG: 50, fatG: 0 })!;
     expect(out.carbsG).toBe(0);
+  });
+});
+
+describe('program position', () => {
+  const program = programById('upper_lower_4')!;
+  const enrolment = (done: number) => ({
+    programId: program.id,
+    startedOn: '2026-09-01',
+    completedDates: Array.from({ length: done }, (_, i) => `2026-09-${String(i + 1).padStart(2, '0')}`),
+    completedDayIndices: [],
+  });
+
+  it('advances on sessions completed, not on days elapsed', () => {
+    // A plan driven by the calendar marks a missed Tuesday failed; this one
+    // simply waits.
+    expect(programPosition(program, enrolment(0)).day!.name).toBe(program.days[0]!.name);
+    expect(programPosition(program, enrolment(1)).day!.name).toBe(program.days[1]!.name);
+  });
+
+  it('rolls into the next week after a full week of sessions', () => {
+    expect(programPosition(program, enrolment(3)).week).toBe(1);
+    expect(programPosition(program, enrolment(4)).week).toBe(2);
+    expect(programPosition(program, enrolment(4)).day!.name).toBe(program.days[0]!.name);
+  });
+
+  it('finishes once every session is done and offers no next day', () => {
+    const total = program.weeks * program.daysPerWeek;
+    const end = programPosition(program, enrolment(total));
+    expect(end.finished).toBe(true);
+    expect(end.day).toBeNull();
+    expect(end.week).toBe(program.weeks);
+  });
+
+  it('does not run past the end when extra sessions are logged', () => {
+    const total = program.weeks * program.daysPerWeek;
+    const over = programPosition(program, enrolment(total + 10));
+    expect(over.sessionsDone).toBe(total);
+    expect(over.week).toBe(program.weeks);
+  });
+
+  it('starts week one at the athlete own weights', () => {
+    expect(weekMultiplier(program, 1)).toBe(1);
+    expect(weekMultiplier(program, 3)).toBeGreaterThan(1);
+  });
+
+  it('keeps progression modest across a whole block', () => {
+    // A plan promising a big weekly jump for two months is selling something.
+    for (const p of PROGRAMS) {
+      expect(weekMultiplier(p, p.weeks)).toBeLessThan(1.2);
+    }
+  });
+
+  it('spreads projected sessions across the week rather than stacking them', () => {
+    const dates = projectedDates(program, '2026-09-16', 3);
+    expect(dates[0]).toBe('2026-09-16');
+    expect(new Set(dates).size).toBe(3);
+  });
+
+  it('flags a plan left idle for weeks', () => {
+    const idle = { ...enrolment(2), completedDates: ['2026-08-01', '2026-08-02'] };
+    expect(isStale(idle, '2026-09-16')).toBe(true);
+    expect(isStale({ ...enrolment(2), completedDates: ['2026-09-15'] }, '2026-09-16')).toBe(false);
+  });
+
+  it('measures idleness from the start date when nothing has been done', () => {
+    const never = { programId: program.id, startedOn: '2026-08-01', completedDates: [], completedDayIndices: [] };
+    expect(isStale(never, '2026-09-16')).toBe(true);
+  });
+});
+
+describe('built-in programs', () => {
+  it('declares as many days as it lists', () => {
+    for (const p of PROGRAMS) expect(p.days).toHaveLength(p.daysPerWeek);
+  });
+
+  it('references exercises that exist in the library', () => {
+    for (const p of PROGRAMS) {
+      for (const day of p.days) {
+        for (const e of day.exercises) {
+          // A name falling back to the raw id means the library lookup missed.
+          expect(e.name).not.toBe(e.exerciseId);
+        }
+      }
+    }
+  });
+
+  it('pairs superset tags only with an adjacent partner', () => {
+    for (const p of PROGRAMS) {
+      for (const day of p.days) {
+        const tagged = day.exercises.filter((e) => e.supersetGroup);
+        for (const e of tagged) {
+          const i = day.exercises.indexOf(e);
+          const neighbours = [day.exercises[i - 1], day.exercises[i + 1]];
+          expect(neighbours.some((n) => n?.supersetGroup === e.supersetGroup)).toBe(true);
+        }
+      }
+    }
   });
 });

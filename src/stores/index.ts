@@ -4,6 +4,7 @@ import { useGamificationStore } from './useGamificationStore';
 import { useIntegrationStore } from './useIntegrationStore';
 import { useLogStore } from './useLogStore';
 import { useProfileStore } from './useProfileStore';
+import { useProgramStore } from './useProgramStore';
 import { useProtocolStore } from './useProtocolStore';
 import { useReminderStore } from './useReminderStore';
 import { useRoutineStore } from './useRoutineStore';
@@ -20,6 +21,7 @@ export {
   useProtocolStore,
   useIntegrationStore,
   useRoutineStore,
+  useProgramStore,
 };
 export * from './useDailySummary';
 
@@ -36,4 +38,5 @@ export function resetAllStores(): void {
   // The coach thread is personal data like any other log: account deletion has
   // to take it too.
   useCoachStore.getState().reset();
+  useProgramStore.getState().reset();
 }

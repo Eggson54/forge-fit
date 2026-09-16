@@ -21,6 +21,8 @@ import { buildCoachContext, useDailySummary } from '../../src/stores/useDailySum
 import { ai } from '../../src/services/ai';
 import { analytics } from '../../src/services/analytics';
 import type { CoachMessageResult } from '../../src/services/ai/types';
+import { useProgramStore } from '../../src/stores/useProgramStore';
+import { programById } from '../../src/data/programs';
 
 const GREETING: Record<ReturnType<typeof timeOfDay>, string> = {
   morning: 'Good morning',
@@ -55,6 +57,20 @@ export default function Home() {
       isFuture: date > today,
     }));
   }, [weekDates, completed, today]);
+
+  const programPos = useProgramStore((s) => s.position());
+  const enrolment = useProgramStore((s) => s.enrolment);
+  const startProgramSession = useProgramStore((s) => s.startNextSession);
+  const enrolledProgram = enrolment ? programById(enrolment.programId) : null;
+
+  // Null unless a plan is running and has a session waiting.
+  const planSuggestion =
+    enrolledProgram && programPos && !programPos.finished && programPos.day
+      ? {
+          title: programPos.day.name,
+          reason: `${enrolledProgram.name} · week ${programPos.week} of ${enrolledProgram.weeks} · ${programPos.day.exercises.length} exercises`,
+        }
+      : null;
 
   const suggestion = useMemo(
     () =>
@@ -173,6 +189,13 @@ export default function Home() {
         <Card
           style={{ flex: 1, justifyContent: 'space-between' }}
           onPress={() => {
+            // An enrolled plan already answers "what today is for", so it wins
+            // over a gap-based guess.
+            if (planSuggestion) {
+              const id = startProgramSession(profile.experience);
+              if (id) router.push('/workout/active');
+              return;
+            }
             if (suggestion.kind === 'routine' && suggestion.routineId) {
               startRoutine(suggestion.routineId, profile.experience);
               router.push('/workout/active');
@@ -183,10 +206,10 @@ export default function Home() {
         >
           <View style={{ gap: 4 }}>
             <Text variant="overline" color={colors.textDim}>
-              {summary.workoutName ? "TODAY'S WORKOUT" : 'SUGGESTED'}
+              {summary.workoutName ? "TODAY'S WORKOUT" : planSuggestion ? 'YOUR PLAN' : 'SUGGESTED'}
             </Text>
             <Text variant="h3" numberOfLines={2}>
-              {summary.workoutName ?? suggestion.title}
+              {summary.workoutName ?? planSuggestion?.title ?? suggestion.title}
             </Text>
           </View>
           <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
@@ -201,7 +224,7 @@ export default function Home() {
               </View>
             ) : (
               <Text variant="caption" color={colors.textDim}>
-                {suggestion.reason}
+                {planSuggestion?.reason ?? suggestion.reason}
               </Text>
             )}
             {/* The card is tappable, so say where it goes rather than only
@@ -218,6 +241,8 @@ export default function Home() {
               >
                 {w
                   ? 'Completed'
+                  : planSuggestion
+                    ? 'Start this session ›'
                   : suggestion.kind === 'routine'
                     ? 'Start this routine ›'
                     : suggestion.kind === 'rest'

@@ -18,6 +18,8 @@ import { SUPERSET_TRANSITION_SECONDS, groupExercises, restAfterSet, supersetLabe
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
+import { useProgramStore } from '../../src/stores/useProgramStore';
+import { programById } from '../../src/data/programs';
 
 export default function ActiveWorkout() {
   const insets = useSafeAreaInsets();
@@ -59,6 +61,12 @@ export default function ActiveWorkout() {
     }
     const done = finishActive();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // A session started from the plan advances it. Matching on the generated
+    // name keeps the plan out of the workout model — a workout is a workout
+    // whether or not a plan asked for it.
+    const programState = useProgramStore.getState();
+    const program = programState.enrolment ? programById(programState.enrolment.programId) : null;
+    if (done && program && done.name.startsWith(`${program.name} · `)) programState.markSessionDone(done.date);
     // Achievement sync
     const g = useGamificationStore.getState();
     const completedCount = useWorkoutStore.getState().completedWorkouts().length;
