@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { todayISO } from '../domain/date';
 import { health } from '../services/health';
 import { strava, type StravaActivity } from '../services/strava';
-import { jsonStorage } from './persist';
+import { jsonStorage, STORE_KEYS } from './persist';
 import { useLogStore } from './useLogStore';
 
 interface IntegrationState {
@@ -79,6 +79,6 @@ export const useIntegrationStore = create<IntegrationState>()(
 
       reset: () => set({ appleWatchConnected: false, stravaConnected: false, stravaAthlete: null, activities: [], lastHeartRate: null, activeEnergyKcal: null }),
     }),
-    { name: 'forgefit.integrations', storage: jsonStorage() },
+    { name: STORE_KEYS.integrations, storage: jsonStorage() },
   ),
 );

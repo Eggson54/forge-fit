@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Experience, MuscleGroup, Workout } from '../domain/types';
 import type { WorkoutGenResult } from '../services/ai/types';
 import { uid } from '../lib/uid';
-import { jsonStorage } from './persist';
+import { jsonStorage, STORE_KEYS } from './persist';
 import { useWorkoutStore } from './useWorkoutStore';
 import { isWarmupSet } from '../domain/sets';
 
@@ -147,7 +147,7 @@ export const useRoutineStore = create<RoutineState>()(
       reset: () => set({ routines: [], draft: emptyDraft() }),
     }),
     {
-      name: 'forgefit.routines',
+      name: STORE_KEYS.routines,
       storage: jsonStorage(),
       // The draft is scratch state for one editing session; persisting it would
       // reopen a half-built routine days later with no way to tell why.

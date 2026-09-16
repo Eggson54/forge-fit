@@ -10,14 +10,4 @@ export function jsonStorage<T>(): PersistStorage<T> | undefined {
   return createJSONStorage<T>(() => AsyncStorage);
 }
 
-export const STORE_KEYS = {
-  auth: 'forgefit.auth',
-  profile: 'forgefit.profile',
-  logs: 'forgefit.logs',
-  workouts: 'forgefit.workouts',
-  gamification: 'forgefit.gamification',
-  reminders: 'forgefit.reminders',
-  protocols: 'forgefit.protocols',
-  coach: 'forgefit.coach',
-  programs: 'forgefit.programs',
-} as const;
+export { STORE_KEYS, UNEXPORTED_STORES, type StoreKey } from '../domain/storeKeys';
