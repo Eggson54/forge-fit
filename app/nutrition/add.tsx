@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, EmptyState, Input, Screen, SegmentedControl, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
-import { colors, spacing } from '../../src/theme';
+import { colors, radius, spacing } from '../../src/theme';
 import type { FoodMacros, MealSlot, SavedFood } from '../../src/domain/types';
-import { caloriesFromMacros, sanitizeMacros } from '../../src/domain/nutrition';
+import { caloriesFromMacros, frequentFoods, sanitizeMacros, scaleMacros } from '../../src/domain/nutrition';
 import { searchFoods } from '../../src/data/foods';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { ai } from '../../src/services/ai';
@@ -52,14 +52,65 @@ type AddFn = ReturnType<typeof useLogStore.getState>['addFood'];
 
 function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () => void; addFood: AddFn }) {
   const [q, setQ] = useState('');
+  const history = useLogStore((s) => s.nutrition);
   const results = searchFoods(q);
+
+  // Most people eat the same dozen things, so searching a database is the slow
+  // path for nearly every entry. Hidden once a query is typed, where it would
+  // sit above results that answer the question better.
+  const frequent = useMemo(() => (q.trim() ? [] : frequentFoods(history, 8)), [history, q]);
+
   const save = (f: SavedFood) => {
     addFood({ slot, name: f.name, quantity: 1, servingLabel: f.servingLabel, macros: f, source: 'search', isEstimate: false });
     onSaved();
   };
+
   return (
     <View style={{ gap: spacing.sm }}>
       <Input icon="search" value={q} onChangeText={setQ} placeholder="Search foods (e.g. chicken)" autoFocus autoCapitalize="none" />
+
+      {frequent.length > 0 && (
+        <View style={{ marginTop: spacing.xs }}>
+          <Text variant="overline" color={colors.textDim} style={{ marginBottom: spacing.sm }}>
+            You log these
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {frequent.map((f) => {
+              const total = scaleMacros(f.macros, f.quantity);
+              return (
+                <Pressable
+                  key={`${f.name}|${f.servingLabel}`}
+                  onPress={() => {
+                    // Re-logged at the portion used last time, into the meal
+                    // chosen above rather than the one it was first eaten in.
+                    addFood({
+                      slot,
+                      name: f.name,
+                      quantity: f.quantity,
+                      servingLabel: f.servingLabel,
+                      macros: f.macros,
+                      source: 'search',
+                      isEstimate: f.isEstimate,
+                    });
+                    onSaved();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Log ${f.name}, ${total.calories} calories`}
+                  style={styles.frequent}
+                >
+                  <Icon name="plus" size={13} color={colors.primary} strokeWidth={2.4} />
+                  <Text variant="label" numberOfLines={1} style={{ maxWidth: 150 }}>
+                    {f.name}
+                  </Text>
+                  <Text variant="caption" color={colors.textFaint}>
+                    {total.calories}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
       {results.length === 0 ? (
         <EmptyState
           icon="search"
@@ -206,3 +257,15 @@ function currentSlot(): MealSlot {
   if (h < 21) return 'dinner';
   return 'snack';
 }
+
+const styles = StyleSheet.create({
+  frequent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceHigh,
+  },
+});

@@ -34,6 +34,7 @@ import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
 import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
+import { frequentFoods } from '../domain/nutrition';
 import { brzycki1RM, percentOfMax, weightForReps } from '../domain/strength';
 
 const baseProfile: Profile = {
@@ -960,5 +961,57 @@ describe('nearestValue', () => {
     expect(daysBetween('2026-09-01', '2026-09-10')).toBe(9);
     expect(daysBetween('2026-09-10', '2026-09-01')).toBe(9);
     expect(daysBetween('2026-09-01', '2026-09-01')).toBe(0);
+  });
+});
+
+describe('frequentFoods', () => {
+  const entry = (name: string, date: string, over: Record<string, unknown> = {}) =>
+    ({
+      id: `${name}${date}`,
+      date,
+      slot: 'lunch',
+      name,
+      quantity: 1,
+      servingLabel: '100 g',
+      macros: { calories: 165, proteinG: 31, carbsG: 0, fatG: 3.6, fiberG: 0 },
+      source: 'search',
+      isEstimate: false,
+      loggedAt: `${date}T12:00:00Z`,
+      ...over,
+    }) as never;
+
+  it('ranks by how often each food is logged', () => {
+    const log = [entry('Chicken', '2026-09-01'), entry('Rice', '2026-09-01'), entry('Chicken', '2026-09-02')];
+    const out = frequentFoods(log);
+    expect(out[0]!.name).toBe('Chicken');
+    expect(out[0]!.count).toBe(2);
+    expect(out[1]!.name).toBe('Rice');
+  });
+
+  it('keeps different servings of the same food apart', () => {
+    // Re-logging "1 breast" when you meant "100 g" logs the wrong portion.
+    const log = [entry('Chicken', '2026-09-01'), entry('Chicken', '2026-09-02', { servingLabel: '1 breast' })];
+    expect(frequentFoods(log)).toHaveLength(2);
+  });
+
+  it('groups case and whitespace differences', () => {
+    const log = [entry('Chicken', '2026-09-01'), entry(' chicken ', '2026-09-02')];
+    expect(frequentFoods(log)).toHaveLength(1);
+  });
+
+  it('offers the portion used most recently, not the first one', () => {
+    const log = [
+      entry('Chicken', '2026-09-01', { quantity: 1 }),
+      entry('Chicken', '2026-09-05', { quantity: 2.5 }),
+      entry('Chicken', '2026-09-03', { quantity: 2 }),
+    ];
+    expect(frequentFoods(log)[0]!.quantity).toBe(2.5);
+  });
+
+  it('breaks ties on recency and respects the limit', () => {
+    const log = [entry('A', '2026-09-01'), entry('B', '2026-09-09')];
+    const out = frequentFoods(log);
+    expect(out[0]!.name).toBe('B');
+    expect(frequentFoods(log, 1)).toHaveLength(1);
   });
 });

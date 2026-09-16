@@ -3,6 +3,8 @@ import type {
   ActivityLevel,
   FoodMacros,
   Goal,
+  ISODate,
+  MealSlot,
   NutritionEntry,
   Profile,
   Targets,
@@ -135,4 +137,57 @@ export function sanitizeMacros(m: Partial<FoodMacros>): { macros: FoodMacros; pl
   const calories = given > 0 && Math.abs(given - derived) <= derived * 0.25 ? given : derived;
   const plausible = calories > 0 && calories <= 3000;
   return { macros: { calories, proteinG, carbsG, fatG, fiberG }, plausible };
+}
+
+export interface FrequentFood {
+  name: string;
+  servingLabel: string;
+  quantity: number;
+  macros: FoodMacros;
+  slot: MealSlot;
+  isEstimate: boolean;
+  /** How many times this has been logged in the window. */
+  count: number;
+  lastLogged: ISODate;
+}
+
+/**
+ * The foods this person actually eats, most-logged first.
+ *
+ * People rotate through a short list, so a database search is the slow path
+ * for almost every entry. Grouping is by name and serving together: "100 g" of
+ * chicken and "1 breast" of chicken are different rows to re-add, and merging
+ * them would re-log the wrong portion.
+ */
+export function frequentFoods(entries: NutritionEntry[], limit = 8): FrequentFood[] {
+  const byKey = new Map<string, FrequentFood>();
+  for (const e of entries) {
+    const key = `${e.name.trim().toLowerCase()}|${e.servingLabel.trim().toLowerCase()}`;
+    const found = byKey.get(key);
+    if (found) {
+      found.count += 1;
+      // Keep the most recent portion: what you ate last time is the better
+      // guess at what you are about to eat.
+      if (e.date > found.lastLogged) {
+        found.lastLogged = e.date;
+        found.quantity = e.quantity;
+        found.macros = e.macros;
+        found.slot = e.slot;
+      }
+    } else {
+      byKey.set(key, {
+        name: e.name,
+        servingLabel: e.servingLabel,
+        quantity: e.quantity,
+        macros: e.macros,
+        slot: e.slot,
+        isEstimate: e.isEstimate,
+        count: 1,
+        lastLogged: e.date,
+      });
+    }
+  }
+  return [...byKey.values()]
+    .sort((a, b) => b.count - a.count || (a.lastLogged < b.lastLogged ? 1 : -1))
+    .slice(0, limit);
 }
