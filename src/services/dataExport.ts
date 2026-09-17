@@ -35,6 +35,7 @@ export function collectUserData(): ExportDocument {
       sleep: logs.sleep,
       steps: logs.steps,
       measurements: logs.measurements,
+      savedMeals: logs.savedMeals,
       // Photo bytes live on the device; exporting references keeps the file a
       // readable document rather than tens of megabytes of base64.
       photos: logs.photos.map((p) => ({ ...p, uri: '[stored on device]' })),

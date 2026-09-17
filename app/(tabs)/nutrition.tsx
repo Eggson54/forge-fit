@@ -5,10 +5,11 @@ import { AdSlot, Button, Card, Screen, SectionHeader, Text } from '../../src/com
 import { AnimatedNumber, AnimatedProgressRing } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { Masthead } from '../../src/components/Masthead';
-import { colors, domainAccent, gradients, spacing } from '../../src/theme';
+import { colors, domainAccent, gradients, radius, spacing } from '../../src/theme';
 import { lastNDays, todayISO } from '../../src/domain/date';
 import type { MealSlot, NutritionEntry } from '../../src/domain/types';
 import { scaleMacros, sumMacros, waterQuickAdds } from '../../src/domain/nutrition';
+import { itemsFromEntries, mealMacros, mealsForSlot, suggestMealName } from '../../src/domain/savedMeals';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
@@ -19,6 +20,19 @@ export default function Nutrition() {
   const date = todayISO();
   const targets = useProfileStore((s) => s.targets);
   const entries = useLogStore((s) => s.nutritionForDate(date));
+  const savedMeals = useLogStore((s) => s.savedMeals);
+  const saveMeal = useLogStore((s) => s.saveMeal);
+  const logSavedMeal = useLogStore((s) => s.logSavedMeal);
+
+  const onSaveMeal = (slot: MealSlot, slotEntries: NutritionEntry[]) => {
+    const items = itemsFromEntries(slotEntries);
+    const suggested = suggestMealName(items, slot);
+    const meal = saveMeal({ name: suggested, slot, items });
+    Alert.alert(
+      'Saved',
+      `"${meal.name}" is now one tap away whenever this slot is empty. Rename it from Saved meals.`,
+    );
+  };
   const macros = useLogStore((s) => s.macrosForDate(date));
   const waterOz = useLogStore((s) => s.waterForDate(date));
   const addWater = useLogStore((s) => s.addWater);
@@ -34,7 +48,18 @@ export default function Nutrition() {
         title="Nutrition"
         accent={domainAccent.nutrition}
         right={
-          <Button title="Add" fullWidth={false} size="sm" icon={<Icon name="plus" size={16} color={colors.onPrimary} />} onPress={() => router.push('/nutrition/add')} />
+          <>
+            <Pressable
+              onPress={() => router.push('/nutrition/meals')}
+              hitSlop={8}
+              accessibilityRole="link"
+              accessibilityLabel="Saved meals"
+              style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="star" size={19} color={colors.text} strokeWidth={1.8} />
+            </Pressable>
+            <Button title="Add" fullWidth={false} size="sm" icon={<Icon name="plus" size={16} color={colors.onPrimary} />} onPress={() => router.push('/nutrition/add')} />
+          </>
         }
       />
 
@@ -114,21 +139,60 @@ export default function Nutrition() {
               onAction={() => router.push({ pathname: '/nutrition/add', params: { slot } })}
             />
             {slotEntries.length === 0 ? (
-              <Text variant="caption" color={colors.textFaint} style={{ marginBottom: spacing.sm }}>
-                Nothing logged.
-              </Text>
+              <>
+                <Text variant="caption" color={colors.textFaint} style={{ marginBottom: spacing.sm }}>
+                  Nothing logged.
+                </Text>
+                {/* The meals you eat again and again, one tap each. Offering
+                    them at the empty slot is the moment they are useful. */}
+                {mealsForSlot(savedMeals, slot).slice(0, 3).length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+                    {mealsForSlot(savedMeals, slot)
+                      .slice(0, 3)
+                      .map((m) => (
+                        <Pressable
+                          key={m.id}
+                          onPress={() => logSavedMeal(m.id, slot)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Log ${m.name}, ${mealMacros(m.items).calories} calories`}
+                          style={styles.mealChip}
+                        >
+                          <Icon name="plus" size={12} color={colors.calorie} strokeWidth={2.4} />
+                          <Text variant="caption" color={colors.text} numberOfLines={1}>{m.name}</Text>
+                          <Text variant="caption" color={colors.textFaint}>
+                            {mealMacros(m.items).calories}
+                          </Text>
+                        </Pressable>
+                      ))}
+                  </View>
+                )}
+              </>
             ) : (
-              <Card>
-                {slotEntries.map((e, i) => (
-                  <FoodRow
-                    key={e.id}
-                    entry={e}
-                    last={i === slotEntries.length - 1}
-                    onPress={() => router.push(`/nutrition/${e.id}`)}
-                    onDelete={() => confirmDelete(e, removeFood)}
-                  />
-                ))}
-              </Card>
+              <>
+                <Card>
+                  {slotEntries.map((e, i) => (
+                    <FoodRow
+                      key={e.id}
+                      entry={e}
+                      last={i === slotEntries.length - 1}
+                      onPress={() => router.push(`/nutrition/${e.id}`)}
+                      onDelete={() => confirmDelete(e, removeFood)}
+                    />
+                  ))}
+                </Card>
+                {slotEntries.length > 1 && (
+                  <Pressable
+                    onPress={() => onSaveMeal(slot, slotEntries)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Save this ${SLOT_LABEL[slot].toLowerCase()} as a meal`}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: spacing.sm, alignSelf: 'flex-start' }}
+                  >
+                    <Icon name="star" size={13} color={colors.textFaint} strokeWidth={1.8} />
+                    <Text variant="caption" color={colors.textFaint}>Save this as a meal</Text>
+                  </Pressable>
+                )}
+              </>
             )}
           </View>
         );
@@ -285,3 +349,18 @@ function WaterBtn({ label, onPress }: { label: string; onPress: () => void }) {
     </Pressable>
   );
 }
+
+const styles = {
+  mealChip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    maxWidth: '100%' as const,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+};

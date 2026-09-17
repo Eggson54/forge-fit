@@ -51,3 +51,32 @@ describe('data export shape', () => {
     expect(exportFilename(new Date('2026-09-16T10:00:00Z'))).toBe('forgefit-export-2026-09-16.json');
   });
 });
+
+/**
+ * Store-level coverage is not enough on its own: `logs` holds seven different
+ * record types and a new one added inside it would pass every test above while
+ * never reaching the file. This lists what that section must carry.
+ */
+describe('the logs section', () => {
+  const LOG_RECORD_TYPES = [
+    'nutrition',
+    'water',
+    'weight',
+    'sleep',
+    'steps',
+    'measurements',
+    'photos',
+    'savedMeals',
+  ] as const;
+
+  it('names every kind of record the log store keeps', () => {
+    // Read the assembler's source rather than running it, so this stays a pure
+    // test: importing the stores would pull in React Native.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const src = require('fs').readFileSync(`${__dirname}/../services/dataExport.ts`, 'utf8');
+    const section = src.slice(src.indexOf('logs: {'), src.indexOf('workouts: {'));
+    for (const kind of LOG_RECORD_TYPES) {
+      expect(section).toContain(`${kind}:`);
+    }
+  });
+});

@@ -16,6 +16,7 @@ import type {
 import { uid } from '../lib/uid';
 import { analytics } from '../services/analytics';
 import { jsonStorage, STORE_KEYS } from './persist';
+import { suggestMealName, type SavedMeal, type SavedMealItem } from '../domain/savedMeals';
 
 interface LogState {
   nutrition: NutritionEntry[];
@@ -39,6 +40,13 @@ interface LogState {
   updateFood: (id: string, patch: Partial<NutritionEntry>) => void;
   removeFood: (id: string) => void;
 
+  savedMeals: SavedMeal[];
+  saveMeal: (input: { name: string; slot: MealSlot; items: SavedMealItem[] }) => SavedMeal;
+  renameMeal: (id: string, name: string) => void;
+  removeMeal: (id: string) => void;
+  /** Logs every item of a saved meal into the given slot and date. */
+  logSavedMeal: (id: string, slot?: MealSlot, date?: string) => number;
+
   addWater: (amountOz: number, date?: string) => void;
   logWeight: (weightKg: number, date?: string) => void;
   logSleep: (minutes: number, quality?: number, date?: string) => void;
@@ -61,6 +69,7 @@ export const useLogStore = create<LogState>()(
   persist(
     (set, get) => ({
       nutrition: [],
+      savedMeals: [],
       water: [],
       weight: [],
       sleep: [],
@@ -90,6 +99,59 @@ export const useLogStore = create<LogState>()(
         set((s) => ({ nutrition: s.nutrition.map((n) => (n.id === id ? { ...n, ...patch } : n)) })),
 
       removeFood: (id) => set((s) => ({ nutrition: s.nutrition.filter((n) => n.id !== id) })),
+
+      saveMeal: ({ name, slot, items }) => {
+        const meal: SavedMeal = {
+          id: uid('sm_'),
+          name: name.trim() || suggestMealName(items, slot),
+          slot,
+          // Copied, not referenced: editing tonight's dinner entry must not
+          // rewrite the meal you saved last month.
+          items: items.map((i) => ({ ...i, macros: { ...i.macros } })),
+          createdAt: new Date().toISOString(),
+          timesLogged: 0,
+          lastLoggedAt: null,
+        };
+        set((s) => ({ savedMeals: [meal, ...s.savedMeals] }));
+        return meal;
+      },
+
+      renameMeal: (id, name) =>
+        set((s) => ({
+          savedMeals: s.savedMeals.map((m) => (m.id === id ? { ...m, name: name.trim() || m.name } : m)),
+        })),
+
+      removeMeal: (id) => set((s) => ({ savedMeals: s.savedMeals.filter((m) => m.id !== id) })),
+
+      logSavedMeal: (id, slot, date) => {
+        const meal = get().savedMeals.find((m) => m.id === id);
+        if (!meal) return 0;
+        const when = date ?? todayISO();
+        const target = slot ?? meal.slot;
+        const now = new Date().toISOString();
+        const entries: NutritionEntry[] = meal.items.map((item) => ({
+          id: uid('n_'),
+          date: when,
+          slot: target,
+          name: item.name,
+          quantity: item.quantity,
+          servingLabel: item.servingLabel,
+          macros: item.macros,
+          source: 'recipe',
+          // The items were estimates when they were first logged and saving
+          // them did not make them measurements.
+          isEstimate: true,
+          loggedAt: now,
+        }));
+        set((s) => ({
+          nutrition: [...entries, ...s.nutrition],
+          savedMeals: s.savedMeals.map((m) =>
+            m.id === id ? { ...m, timesLogged: m.timesLogged + 1, lastLoggedAt: now } : m,
+          ),
+        }));
+        analytics.track('meal_logged', { source: 'saved_meal' });
+        return entries.length;
+      },
 
       addWater: (amountOz, date = todayISO()) =>
         set((s) => ({ water: [{ id: uid('w_'), date, amountOz, loggedAt: new Date().toISOString() }, ...s.water] })),
@@ -128,7 +190,7 @@ export const useLogStore = create<LogState>()(
         return w.reduce((best, x) => (x.date > best.date ? x : best), w[0]!).weightKg;
       },
 
-      reset: () => set({ nutrition: [], water: [], weight: [], sleep: [], steps: [], measurements: [], photos: [] }),
+      reset: () => set({ nutrition: [], savedMeals: [], water: [], weight: [], sleep: [], steps: [], measurements: [], photos: [] }),
     }),
     { name: STORE_KEYS.logs, storage: jsonStorage() },
   ),

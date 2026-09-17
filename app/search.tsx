@@ -24,6 +24,7 @@ const SCREENS: SearchEntry[] = [
   { id: 's_photos', kind: 'screen', title: 'Progress photos', keywords: ['pictures', 'before after'], href: '/progress/photos' },
   { id: 's_weight', kind: 'screen', title: 'Weight log', keywords: ['scale', 'weigh in'], href: '/progress/weight' },
   { id: 's_compare', kind: 'screen', title: 'Compare photos', keywords: ['before after', 'side by side'], href: '/progress/compare' },
+  { id: 's_meals', kind: 'screen', title: 'Saved meals', keywords: ['recipe', 'favourite', 'quick log', 'combo'], href: '/nutrition/meals' },
   { id: 's_trends', kind: 'screen', title: 'Nutrition trends', keywords: ['calories', 'macros', 'charts'], href: '/nutrition/trends' },
   { id: 's_coach', kind: 'screen', title: 'Coach', keywords: ['ai', 'ask', 'chat'], href: '/coach' },
   { id: 's_review', kind: 'screen', title: 'Weekly review', keywords: ['summary', 'recap'], href: '/weekly-review' },
