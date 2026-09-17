@@ -1,12 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Card, Chip, Input, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Barbell } from '../../src/components/Barbell';
-import { colors, layout, radius, spacing } from '../../src/theme';
-import { BAR_OPTIONS, PLATES, availablePlates, planPlates, totalPlates } from '../../src/domain/plates';
+import { colors, domainAccent, layout, radius, spacing } from '../../src/theme';
+import { PLATES, planPlates, totalPlates } from '../../src/domain/plates';
+import { barsAt, describeKit, isStandardKit, platesAt, smallestJump } from '../../src/domain/gymKit';
+import { homeGym } from '../../src/domain/gymStats';
+import { useGymStore } from '../../src/stores/useGymStore';
+import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { Icon } from '../../src/components/Icon';
 
 /**
  * Plate calculator. Answers the one question every lifter asks at the rack —
@@ -14,20 +19,34 @@ import { useProfileStore } from '../../src/stores/useProfileStore';
  * the plates on hand rather than silently rounding it.
  */
 export default function PlateCalculator() {
-  const params = useLocalSearchParams<{ target?: string }>();
+  const params = useLocalSearchParams<{ target?: string; gymId?: string }>();
   const units = useProfileStore((s) => s.profile.units);
   const plates = useProfileStore((s) => s.profile.availablePlates);
   const setProfile = useProfileStore((s) => s.setProfile);
   const { width } = useWindowDimensions();
 
-  const bars = BAR_OPTIONS[units]!;
+  // Which gym's kit to load from: the one passed in (from an active session),
+  // otherwise the gym you train at most, otherwise nobody's in particular.
+  const workouts = useWorkoutStore((st) => st.workouts);
+  const gymsById = useGymStore((st) => st.gymsById());
+  const kitFor = useGymStore((st) => st.kitFor);
+  const home = useMemo(() => homeGym(workouts), [workouts]);
+  const gymId = params.gymId ?? home?.gymId ?? null;
+  const gym = gymId ? gymsById[gymId] : undefined;
+  const kit = kitFor(gymId);
+
+  const bars = useMemo(() => barsAt(units, kit), [units, kit]);
+  const gymPlates = useMemo(() => platesAt(units, kit, plates), [units, kit, plates]);
   const [bar, setBar] = useState(bars[0]!);
   const [target, setTarget] = useState(params.target ?? String(units === 'imperial' ? 135 : 60));
 
   const unitLabel = units === 'imperial' ? 'lb' : 'kg';
   const value = parseFloat(target);
-  const plan = useMemo(() => planPlates(isNaN(value) ? 0 : value, bar, units, plates), [value, bar, units, plates]);
-  const step = PLATES[units]![PLATES[units]!.length - 1]! * 2;
+  const plan = useMemo(
+    () => planPlates(isNaN(value) ? 0 : value, bar, units, gymPlates),
+    [value, bar, units, gymPlates],
+  );
+  const step = smallestJump(units, kit, plates) || PLATES[units]![PLATES[units]!.length - 1]! * 2;
 
   const nudge = (d: number) => {
     const next = Math.max(0, Math.round(((isNaN(value) ? bar : value) + d) * 100) / 100);
@@ -116,7 +135,24 @@ export default function PlateCalculator() {
         )}
       </Card>
 
-      <SectionHeader title="Plates in your gym" />
+      {gym && (
+        <Card
+          onPress={() => router.push(`/gyms/${gym.id}`)}
+          accent={domainAccent.gyms}
+          style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+        >
+          <Icon name="map" size={17} color={domainAccent.gyms} strokeWidth={1.8} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text variant="bodyStrong" numberOfLines={1}>{gym.name}</Text>
+            <Text variant="caption" color={colors.textDim} numberOfLines={1}>
+              {describeKit(kit, units)}
+            </Text>
+          </View>
+          <Icon name="chevron_right" size={15} color={colors.textFaint} strokeWidth={2} />
+        </Card>
+      )}
+
+      <SectionHeader title={gym ? 'Your default plates' : 'Plates in your gym'} />
       <Card>
         <Text variant="caption" color={colors.textDim} style={{ marginBottom: spacing.md }}>
           Deselect anything your gym does not have. The calculator only ever suggests plates you can actually reach for.
@@ -158,7 +194,9 @@ export default function PlateCalculator() {
 
       <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.md }}>
         {totalPlates(plan)} plates total, {plan.perSide.reduce((a, p) => a + p.count, 0)} per side. Loading from{' '}
-        {availablePlates(units, plates).join(', ')} {unitLabel} plates.
+        {gymPlates.join(', ')} {unitLabel} plates
+        {gym && !isStandardKit(kit) ? ` recorded at ${gym.name}` : ''}. The smallest jump you can make here is{' '}
+        {step} {unitLabel}.
       </Text>
     </Screen>
   );

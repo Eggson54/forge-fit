@@ -9,6 +9,7 @@ import {
   type Gym,
 } from '../domain/gyms';
 import { searchGyms, type MapFeature } from '../services/gyms';
+import type { GymKit } from '../domain/gymKit';
 import { location, type LocationFix, type LocationStatus } from '../services/location';
 import { analytics } from '../services/analytics';
 import { jsonStorage, STORE_KEYS } from './persist';
@@ -43,9 +44,14 @@ interface GymState {
   lastSearchAt: string | null;
 
   claims: Claim[];
+  /** Per-gym equipment, keyed by gym id. Absent means "standard". */
+  kits: Record<string, GymKit>;
 
   gymsById: () => Record<string, Gym>;
   claimedIds: () => Set<string>;
+  kitFor: (gymId: string | null | undefined) => GymKit | undefined;
+  setKit: (gymId: string, kit: GymKit) => void;
+  clearKit: (gymId: string) => void;
   claimFor: (gymId: string) => Claim | undefined;
   summary: () => CollectionSummary;
   /** Total collection points, for the profile and rank surfaces. */
@@ -77,6 +83,7 @@ export const useGymStore = create<GymState>()(
       lastSearchAt: null,
 
       claims: [],
+      kits: {},
 
       gymsById: () => {
         const out: Record<string, Gym> = {};
@@ -88,6 +95,27 @@ export const useGymStore = create<GymState>()(
       },
 
       claimedIds: () => new Set(get().claims.map((c) => c.gymId)),
+
+      kitFor: (gymId) => (gymId ? get().kits[gymId] : undefined),
+
+      setKit: (gymId, kit) =>
+        set((s) => ({
+          kits: {
+            ...s.kits,
+            [gymId]: {
+              ...kit,
+              plates: [...new Set(kit.plates.filter((p) => p > 0))].sort((a, b) => b - a),
+              bars: [...new Set(kit.bars.filter((b) => b >= 0))].sort((a, b) => b - a),
+            },
+          },
+        })),
+
+      clearKit: (gymId) =>
+        set((s) => {
+          const next = { ...s.kits };
+          delete next[gymId];
+          return { kits: next };
+        }),
       claimFor: (gymId) => get().claims.find((c) => c.gymId === gymId),
       summary: () => summariseCollection(get().claims, get().gymsById()),
       points: () => get().claims.reduce((a, c) => a + c.pointsEarned, 0),
@@ -178,6 +206,7 @@ export const useGymStore = create<GymState>()(
           loading: false,
           lastSearchAt: null,
           claims: [],
+          kits: {},
         }),
     }),
     {
@@ -188,6 +217,7 @@ export const useGymStore = create<GymState>()(
       partialize: (s) => ({
         locationEnabled: s.locationEnabled,
         claims: s.claims,
+        kits: s.kits,
         radius: s.radius,
         gyms: s.gyms,
         attribution: s.attribution,

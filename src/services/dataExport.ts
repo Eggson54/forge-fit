@@ -62,6 +62,7 @@ export function collectUserData(): ExportDocument {
       // The claims carry their own venue snapshot, so the export stays a
       // complete record of the collection on its own.
       claims: useGymStore.getState().claims,
+      kits: useGymStore.getState().kits,
     },
     integrations: {
       appleWatchConnected: integrations.appleWatchConnected,

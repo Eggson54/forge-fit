@@ -11,6 +11,13 @@ import { colors, layout, radius, spacing } from '../../src/theme';
 import { formatDateWithWeekday } from '../../src/domain/date';
 import { bearingDegrees, compassPoint, distanceMeters, formatDistance } from '../../src/domain/geo';
 import {
+  barChoices,
+  describeKit,
+  isStandardKit,
+  plateChoices,
+  smallestJump,
+} from '../../src/domain/gymKit';
+import {
   CLAIM_RADIUS_M,
   KIND_LABEL,
   RARITY_LABEL,
@@ -33,6 +40,10 @@ export default function GymDetail() {
   const checkIn = useGymStore((s) => s.checkIn);
   const refreshFix = useGymStore((s) => s.refreshFix);
   const [celebrate, setCelebrate] = useState<{ points: number; first: boolean } | null>(null);
+  const [editingKit, setEditingKit] = useState(false);
+  const kit = useGymStore((s) => s.kitFor(String(id)));
+  const setKit = useGymStore((s) => s.setKit);
+  const clearKit = useGymStore((s) => s.clearKit);
 
   // Whether you can claim depends on where you are *now*, so the position is
   // re-read every time this screen is opened rather than trusted from before.
@@ -196,6 +207,108 @@ export default function GymDetail() {
         )}
       </Card>
 
+      {/* What this gym actually has. The calculator has always read one
+          inventory from the profile, which is right only if you train in one
+          place — and the gym with no 2.5s is the one where the maths matters. */}
+      <Card style={{ marginTop: spacing.md, gap: spacing.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text variant="overline" color={colors.textFaint}>EQUIPMENT HERE</Text>
+            <Text variant="caption" color={colors.textDim}>{describeKit(kit, units)}</Text>
+          </View>
+          <Pressable
+            onPress={() => setEditingKit((v) => !v)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: editingKit }}
+            accessibilityLabel={editingKit ? 'Done editing equipment' : 'Edit the equipment at this gym'}
+          >
+            <Text variant="label" color={colors.primary}>{editingKit ? 'Done' : 'Edit'}</Text>
+          </Pressable>
+        </View>
+
+        {editingKit && (
+          <>
+            <Text variant="caption" color={colors.textFaint}>
+              Plates ({units === 'imperial' ? 'lb' : 'kg'}) — pick what is on the racks here.
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+              {plateChoices(units).map((p) => {
+                const on = kit?.plates.includes(p) ?? false;
+                return (
+                  <Pressable
+                    key={p}
+                    onPress={() => {
+                      const current = kit?.plates ?? [];
+                      setKit(gym.id, {
+                        unit: units,
+                        bars: kit?.bars ?? [],
+                        plates: on ? current.filter((x) => x !== p) : [...current, p],
+                      });
+                    }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={`${p} ${units === 'imperial' ? 'pound' : 'kilo'} plates`}
+                    style={[styles.kitChip, on && styles.kitChipOn]}
+                  >
+                    <Text variant="caption" color={on ? colors.bg : colors.textDim}>{p}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text variant="caption" color={colors.textFaint}>Bars</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+              {barChoices(units).map((b) => {
+                const on = kit?.bars.includes(b) ?? false;
+                return (
+                  <Pressable
+                    key={b}
+                    onPress={() => {
+                      const current = kit?.bars ?? [];
+                      setKit(gym.id, {
+                        unit: units,
+                        plates: kit?.plates ?? [],
+                        bars: on ? current.filter((x) => x !== b) : [...current, b],
+                      });
+                    }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={b === 0 ? 'No bar' : `${b} bar`}
+                    style={[styles.kitChip, on && styles.kitChipOn]}
+                  >
+                    <Text variant="caption" color={on ? colors.bg : colors.textDim}>
+                      {b === 0 ? 'none' : b}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text variant="caption" color={colors.textFaint}>
+              Leave these empty to use the standard set. Smallest jump you can make here:{' '}
+              {smallestJump(units, kit)} {units === 'imperial' ? 'lb' : 'kg'}.
+            </Text>
+            {!isStandardKit(kit) && (
+              <Pressable onPress={() => clearKit(gym.id)} hitSlop={8} accessibilityRole="button">
+                <Text variant="label" color={colors.textDim}>Reset to standard</Text>
+              </Pressable>
+            )}
+          </>
+        )}
+
+        <Pressable
+          onPress={() => router.push({ pathname: '/tools/plates', params: { gymId: gym.id } })}
+          hitSlop={8}
+          accessibilityRole="link"
+          accessibilityLabel="Open the plate calculator for this gym"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+        >
+          <Icon name="sliders" size={14} color={colors.primary} strokeWidth={1.9} />
+          <Text variant="label" color={colors.primary}>Plate maths for this gym ›</Text>
+        </Pressable>
+      </Card>
+
       {gym.amenities && gym.amenities.length > 0 && (
         <Card style={{ marginTop: spacing.md, gap: spacing.sm }}>
           <Text variant="overline" color={colors.textFaint}>WHAT IS THERE</Text>
@@ -236,6 +349,17 @@ const styles = {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
+  kitChip: {
+    minWidth: 42,
+    alignItems: 'center' as const,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  kitChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   tag: {
     paddingHorizontal: spacing.md,
     paddingVertical: 6,

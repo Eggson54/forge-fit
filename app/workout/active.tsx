@@ -366,6 +366,10 @@ function ExerciseBlock({
   onRest: (seconds: number, label: string) => void;
   onPr: (name: string, e1RMKg: number) => void;
 }) {
+  // Read from the store rather than threaded down: this block already pulls
+  // everything else it needs from there, and the group in between has no
+  // business carrying a gym id.
+  const workoutGymId = useWorkoutStore((s) => s.activeWorkout()?.gym?.id ?? null);
   const experience = useProfileStore((s) => s.profile.experience);
   const units = useProfileStore((s) => s.profile.units);
   const previousFor = useWorkoutStore((s) => s.previousFor);
@@ -418,7 +422,11 @@ function ExerciseBlock({
             onPress={() =>
               router.push({
                 pathname: '/tools/plates',
-                params: heaviestEntered ? { target: String(heaviestEntered) } : {},
+                params: {
+                  ...(heaviestEntered ? { target: String(heaviestEntered) } : null),
+                  // So the maths uses the plates at the gym you are standing in.
+                  ...(workoutGymId ? { gymId: workoutGymId } : null),
+                },
               })
             }
             hitSlop={8}
