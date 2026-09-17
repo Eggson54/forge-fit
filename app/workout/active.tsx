@@ -277,6 +277,16 @@ function ExerciseGroupBlock({
   );
 }
 
+const REST_CHOICES = [45, 60, 90, 120, 150, 180, 240];
+
+/** 150 → "2:30", 60 → "1:00", 45 → "45s". */
+function formatRest(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
 function ExerciseBlock({
   exercise,
   letter,
@@ -295,7 +305,9 @@ function ExerciseBlock({
   const addSet = useWorkoutStore((s) => s.addSet);
   const removeExercise = useWorkoutStore((s) => s.removeExercise);
   const setNote = useWorkoutStore((s) => s.setExerciseNote);
+  const setRest = useWorkoutStore((s) => s.setExerciseRest);
   const [noteOpen, setNoteOpen] = useState(exercise.notes != null);
+  const [restOpen, setRestOpen] = useState(false);
 
   // The heaviest weight already typed into this exercise, in display units.
   const heaviestEntered = (() => {
@@ -368,6 +380,44 @@ function ExerciseBlock({
           </Pressable>
         </View>
       </View>
+
+      {/* Rest is set once at generation time from the exercise category, which is
+          a fair default and a poor rule — how long you need between sets depends
+          on the load and on the queue for the rack. */}
+      <Pressable
+        onPress={() => setRestOpen((v) => !v)}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`Rest between sets: ${formatRest(exercise.restSeconds)}. Tap to change.`}
+        style={styles.restPill}
+      >
+        <Icon name="clock" size={13} color={colors.textFaint} strokeWidth={1.8} />
+        <Text variant="caption" color={restOpen ? colors.primary : colors.textDim}>
+          {formatRest(exercise.restSeconds)} rest
+        </Text>
+      </Pressable>
+
+      {restOpen && (
+        <View style={styles.restChoices}>
+          {REST_CHOICES.map((sec) => {
+            const active = exercise.restSeconds === sec;
+            return (
+              <Pressable
+                key={sec}
+                onPress={() => setRest(exercise.id, sec)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Rest ${formatRest(sec)}`}
+                style={[styles.restChoice, active && styles.restChoiceOn]}
+              >
+                <Text variant="caption" color={active ? colors.bg : colors.textDim}>
+                  {formatRest(sec)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       {/* column header */}
       <View style={[styles.setRow, { marginTop: spacing.md }]}>
@@ -628,5 +678,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   noteOpen: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingTop: spacing.sm },
+  restPill: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, alignSelf: 'flex-start', marginTop: spacing.sm },
+  restChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
+  restChoice: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    minWidth: 52,
+    alignItems: 'center',
+  },
+  restChoiceOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   addSet: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.md, marginTop: spacing.xs },
 });

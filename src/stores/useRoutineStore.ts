@@ -6,6 +6,7 @@ import { uid } from '../lib/uid';
 import { jsonStorage, STORE_KEYS } from './persist';
 import { useWorkoutStore } from './useWorkoutStore';
 import { isWarmupSet } from '../domain/sets';
+import { nextCopyName } from '../domain/naming';
 
 export interface RoutineExercise {
   exerciseId: string;
@@ -52,6 +53,7 @@ interface RoutineState {
   commitDraft: () => Routine | null;
   add: (r: Omit<Routine, 'id' | 'createdAt'>) => Routine;
   saveFromWorkout: (workout: Workout, name?: string) => Routine;
+  duplicate: (id: string) => Routine | null;
   remove: (id: string) => void;
   rename: (id: string, name: string) => void;
   update: (id: string, patch: Partial<Omit<Routine, 'id' | 'createdAt'>>) => void;
@@ -116,6 +118,24 @@ export const useRoutineStore = create<RoutineState>()(
           supersetGroup: ex.supersetGroup,
         }));
         return get().add({ name: name ?? workout.name, focus: workout.focus, exercises });
+      },
+
+      // Copying a routine and editing the copy is how most people build a
+      // variant — B day off A day, a travel version with the barbell work
+      // swapped out — and the alternative was rebuilding it exercise by
+      // exercise. The copy lands directly above the original.
+      duplicate: (id) => {
+        const source = get().routines.find((r) => r.id === id);
+        if (!source) return null;
+        const copy: Routine = {
+          ...source,
+          id: uid('rt_'),
+          name: nextCopyName(source.name, get().routines.map((r) => r.name)),
+          exercises: source.exercises.map((e) => ({ ...e })),
+          createdAt: new Date().toISOString(),
+        };
+        set((s) => ({ routines: [copy, ...s.routines] }));
+        return copy;
       },
 
       remove: (id) => set((s) => ({ routines: s.routines.filter((r) => r.id !== id) })),

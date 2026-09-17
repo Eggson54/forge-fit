@@ -39,6 +39,7 @@ export type IconName =
   | 'chevron_left'
   | 'chevron_right'
   | 'link_off'
+  | 'copy'
   | 'star';
 
 // Footprint used by the `steps` glyph, drawn once and mirrored for the pair.
@@ -263,6 +264,14 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
           <Path d="M13.4 3.4H7.2a1.8 1.8 0 0 0-1.8 1.8v13.6a1.8 1.8 0 0 0 1.8 1.8h9.6a1.8 1.8 0 0 0 1.8-1.8V8.4Z" {...s} />
           <Path d="M13.4 3.4v5h5.2" {...s} />
           <Path d="M8.8 13h6.4M8.8 16.6h4.4" {...s} />
+        </>
+      )}
+
+      {/* Two offset sheets — the standard "make another one of these" mark. */}
+      {name === 'copy' && (
+        <>
+          <Rect x={8.6} y={8.6} width={11.8} height={11.8} rx={2.2} {...s} />
+          <Path d="M16 5.4a2 2 0 0 0-2-2H5.6a2.2 2.2 0 0 0-2.2 2.2V14a2 2 0 0 0 2 2" {...s} />
         </>
       )}
 

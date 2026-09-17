@@ -51,8 +51,26 @@ const DEFAULT_COACH: CoachSettings = {
   enabled: true,
 };
 
+/**
+ * Where the user got to in onboarding. Eleven steps is a long way to lose to a
+ * phone call, and until now closing the app threw all of it away and started
+ * again at "what is your name?".
+ */
+export interface OnboardingDraft {
+  step: number;
+  profile: Profile;
+  units: Units;
+  heightFt: string;
+  heightIn: string;
+  heightCm: string;
+  weightInput: string;
+  targetInput: string;
+  savedAt: string;
+}
+
 interface ProfileState {
   profile: Profile;
+  onboardingDraft: OnboardingDraft | null;
   targets: Targets;
   coach: CoachSettings;
   disciplineWeights: DisciplineWeights;
@@ -66,6 +84,8 @@ interface ProfileState {
 
   setProfile: (patch: Partial<Profile>) => void;
   completeOnboarding: (profile: Profile) => void;
+  saveOnboardingDraft: (draft: Omit<OnboardingDraft, 'savedAt'>) => void;
+  clearOnboardingDraft: () => void;
   setTargets: (patch: Partial<Targets>) => void;
   recomputeTargets: () => void;
   setCoach: (patch: Partial<CoachSettings>) => void;
@@ -81,6 +101,7 @@ export const useProfileStore = create<ProfileState>()(
   persist(
     (set, get) => ({
       profile: DEFAULT_PROFILE,
+      onboardingDraft: null,
       targets: DEFAULT_TARGETS,
       coach: DEFAULT_COACH,
       disciplineWeights: DEFAULT_DISCIPLINE_WEIGHTS,
@@ -103,8 +124,13 @@ export const useProfileStore = create<ProfileState>()(
 
       completeOnboarding: (profile) => {
         const withStamp: Profile = { ...profile, onboardedAt: new Date().toISOString() };
-        set({ profile: withStamp, targets: recommendedTargets(withStamp) });
+        set({ profile: withStamp, targets: recommendedTargets(withStamp), onboardingDraft: null });
       },
+
+      saveOnboardingDraft: (draft) =>
+        set({ onboardingDraft: { ...draft, savedAt: new Date().toISOString() } }),
+
+      clearOnboardingDraft: () => set({ onboardingDraft: null }),
 
       setTargets: (patch) => set((s) => ({ targets: { ...s.targets, ...patch } })),
 

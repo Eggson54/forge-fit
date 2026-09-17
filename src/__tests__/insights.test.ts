@@ -3,6 +3,7 @@ import { groupHits, searchEntries, type SearchEntry } from '../domain/search';
 import { rankBreakdown } from '../domain/rank';
 import { beatTarget } from '../domain/records';
 import { muscleShares, topMuscles } from '../domain/volume';
+import { starterReminders, trainingDayIndices } from '../domain/reminders';
 import type { SetEntry, Workout } from '../domain/types';
 
 const set = (over: Partial<SetEntry> = {}): SetEntry => ({
@@ -221,5 +222,53 @@ describe('muscle shares', () => {
 
   it('returns nothing rather than dividing by zero', () => {
     expect(muscleShares({})).toEqual([]);
+  });
+});
+
+describe('starterReminders', () => {
+  it('always leads with the workout reminder on the profile training days', () => {
+    const set = starterReminders('build_muscle', 3);
+    expect(set[0].type).toBe('workout');
+    expect(set[0].days).toEqual([1, 4, 6]);
+  });
+
+  it('suggests a different set per goal', () => {
+    const fat = starterReminders('lose_fat', 4).map((r) => r.type);
+    const muscle = starterReminders('build_muscle', 4).map((r) => r.type);
+    expect(fat).not.toEqual(muscle);
+    expect(fat).toContain('weight');
+    expect(muscle).toContain('protein');
+  });
+
+  it('every suggestion explains itself', () => {
+    for (const goal of ['lose_fat', 'build_muscle', 'recomposition', 'gain_weight', 'maintain', 'athletic_performance'] as const) {
+      for (const r of starterReminders(goal, 4)) {
+        expect(r.reason.length).toBeGreaterThan(10);
+        expect(r.days.length).toBeGreaterThan(0);
+        expect(r.time).toMatch(/^\d{2}:\d{2}$/);
+      }
+    }
+  });
+});
+
+describe('trainingDayIndices', () => {
+  it('spreads days out instead of stacking them at the start of the week', () => {
+    expect(trainingDayIndices(2)).toEqual([1, 6]);
+    expect(trainingDayIndices(3)).toEqual([1, 4, 6]);
+    expect(trainingDayIndices(6)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('never returns Sunday unless the week is full, and never returns nothing', () => {
+    for (let n = 1; n <= 6; n += 1) {
+      const days = trainingDayIndices(n);
+      expect(days.length).toBeGreaterThan(0);
+      expect(days).not.toContain(0);
+    }
+    expect(trainingDayIndices(7)).toHaveLength(7);
+  });
+
+  it('clamps nonsense input', () => {
+    expect(trainingDayIndices(0)).toEqual([1]);
+    expect(trainingDayIndices(99)).toHaveLength(7);
   });
 });

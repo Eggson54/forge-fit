@@ -65,6 +65,15 @@ const TOTAL_STEPS = 11;
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
   const completeOnboarding = useProfileStore((s) => s.completeOnboarding);
+  const saveDraft = useProfileStore((s) => s.saveOnboardingDraft);
+  const clearDraft = useProfileStore((s) => s.clearOnboardingDraft);
+
+  // Eleven steps is a long way to lose to a phone call, so the answers so far
+  // are kept and offered back rather than silently restarting at step one.
+  // Read once on mount: reading it live would fight the save effect below.
+  const saved = useMemo(() => useProfileStore.getState().onboardingDraft, []);
+  const [resumeOffered, setResumeOffered] = useState(saved != null && saved.step > 0);
+
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Profile>({ ...DEFAULT_PROFILE });
 
@@ -75,6 +84,30 @@ export default function Onboarding() {
   const [heightCm, setHeightCm] = useState('178');
   const [weightInput, setWeightInput] = useState('');
   const [targetInput, setTargetInput] = useState('');
+
+  const resume = () => {
+    if (!saved) return;
+    setDraft(saved.profile);
+    setUnits(saved.units);
+    setHeightFt(saved.heightFt);
+    setHeightIn(saved.heightIn);
+    setHeightCm(saved.heightCm);
+    setWeightInput(saved.weightInput);
+    setTargetInput(saved.targetInput);
+    setStep(saved.step);
+    setResumeOffered(false);
+  };
+
+  const startOver = () => {
+    clearDraft();
+    setResumeOffered(false);
+  };
+
+  // Persist on every change, so a force-quit loses at most the current keystroke.
+  React.useEffect(() => {
+    if (resumeOffered) return;
+    saveDraft({ step, profile: draft, units, heightFt, heightIn, heightCm, weightInput, targetInput });
+  }, [resumeOffered, step, draft, units, heightFt, heightIn, heightCm, weightInput, targetInput, saveDraft]);
 
   const set = (patch: Partial<Profile>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -130,6 +163,28 @@ export default function Onboarding() {
         return true;
     }
   };
+
+  if (resumeOffered && saved) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + spacing.md }}>
+        <AmbientBackdrop />
+        <View style={{ flex: 1, justifyContent: 'center', padding: spacing.xl, gap: spacing.lg }}>
+          <Icon name="repeat" size={34} color={colors.primary} strokeWidth={1.6} />
+          <View style={{ gap: spacing.sm }}>
+            <Text variant="display">Pick up where you left off?</Text>
+            <Text variant="body" color={colors.textDim}>
+              You got to step {saved.step + 1} of {TOTAL_STEPS}
+              {saved.profile.name.trim() ? `, ${saved.profile.name.trim()}` : ''}. Everything you answered is still here.
+            </Text>
+          </View>
+          <View style={{ gap: spacing.sm }}>
+            <Button title={`Continue from step ${saved.step + 1}`} onPress={resume} />
+            <Button title="Start over" variant="ghost" onPress={startOver} />
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + spacing.md }}>

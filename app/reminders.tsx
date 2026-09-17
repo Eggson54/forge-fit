@@ -5,6 +5,7 @@ import { ScreenHeader } from '../src/components/ScreenHeader';
 import { colors, radius, spacing } from '../src/theme';
 import type { Reminder, ReminderType } from '../src/domain/types';
 import { REMINDER_PRESETS, useReminderStore } from '../src/stores/useReminderStore';
+import { starterReminders } from '../src/domain/reminders';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { notifications } from '../src/services/notifications';
 import { FREE_TIER_LIMITS } from '../src/services/config';
@@ -16,6 +17,11 @@ export default function Reminders() {
   const reminders = useReminderStore((s) => s.reminders);
   const add = useReminderStore((s) => s.add);
   const isPro = useProfileStore((s) => s.isPro());
+  const profile = useProfileStore((s) => s.profile);
+  const suggested = React.useMemo(
+    () => starterReminders(profile.goal, profile.trainingDaysPerWeek),
+    [profile.goal, profile.trainingDaysPerWeek],
+  );
   const [permission, setPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -28,6 +34,22 @@ export default function Reminders() {
       return;
     }
     add(type);
+  };
+
+  const addSuggested = () => {
+    const allowed = isPro ? suggested.length : Math.max(0, FREE_TIER_LIMITS.maxReminders - reminders.length);
+    const batch = suggested.slice(0, allowed);
+    if (batch.length === 0) {
+      Alert.alert('Reminder limit', `Free plan allows ${FREE_TIER_LIMITS.maxReminders} reminders. Go Pro for unlimited.`);
+      return;
+    }
+    for (const s of batch) add(s.type, { time: s.time, days: s.days });
+    if (batch.length < suggested.length) {
+      Alert.alert(
+        'Added what fits',
+        `Free plan allows ${FREE_TIER_LIMITS.maxReminders} reminders, so ${batch.length} of ${suggested.length} were added.`,
+      );
+    }
   };
 
   return (
@@ -48,7 +70,46 @@ export default function Reminders() {
       )}
 
       {reminders.length === 0 ? (
-        <EmptyState icon="bell" title="No reminders yet" subtitle="Add reminders to stay accountable — your coach nudges you at the right time." />
+        <>
+          <EmptyState icon="bell" title="No reminders yet" subtitle="Add reminders to stay accountable — your coach nudges you at the right time." />
+
+          {/* An empty screen with nine identical "add" buttons is a decision,
+              not a feature. These are a starting set to accept and then edit. */}
+          <Card style={{ gap: spacing.md, marginTop: spacing.md }}>
+            <View style={{ gap: 2 }}>
+              <Text variant="bodyStrong">Suggested for your goal</Text>
+              <Text variant="caption" color={colors.textFaint}>
+                Based on your goal and training days. You can change the time, days or wording afterwards.
+              </Text>
+            </View>
+
+            {suggested.map((s) => (
+              <View key={s.type} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+                <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary, marginTop: 7 }} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="label">
+                    {REMINDER_PRESETS[s.type].title} · {s.time}
+                  </Text>
+                  <Text variant="caption" color={colors.textFaint}>{s.reason}</Text>
+                </View>
+              </View>
+            ))}
+
+            <Pressable
+              onPress={addSuggested}
+              accessibilityRole="button"
+              accessibilityLabel={`Add all ${suggested.length} suggested reminders`}
+              style={{
+                paddingVertical: spacing.md,
+                borderRadius: radius.md,
+                backgroundColor: colors.primary,
+                alignItems: 'center',
+              }}
+            >
+              <Text variant="label" color={colors.bg}>Add these {suggested.length}</Text>
+            </Pressable>
+          </Card>
+        </>
       ) : (
         <View style={{ gap: spacing.md }}>
           {reminders.map((r) => (

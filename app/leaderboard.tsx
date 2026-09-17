@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Card, Screen, SegmentedControl, Text } from '../src/components/ui';
 import { FadeIn } from '../src/components/anim';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { colors, radius, spacing } from '../src/theme';
-import { computeRank, RANK_TIERS } from '../src/domain/rank';
+import { computeRank, rankBreakdown, RANK_TIERS } from '../src/domain/rank';
 import { DEMO_RIVALS } from '../src/data/rivals';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { useWorkoutStore } from '../src/stores/useWorkoutStore';
@@ -19,13 +19,17 @@ export default function Leaderboard() {
   const g = useGamificationStore();
   const [scope, setScope] = React.useState<'friends' | 'global'>('friends');
 
-  const myRank = computeRank({
+  const rankInputs = {
     completedWorkouts: completed,
     longestDailyStreak: g.streaks.longestDaily,
     bestBig3E1RMKg: BIG3.reduce((sum, id) => sum + (prs[id] ?? 0), 0),
     bodyweightKg: profile.weightKg,
     bestDisciplineScore: g.bestDisciplineScore,
-  });
+  };
+  const myRank = computeRank(rankInputs);
+  // Four additions and a divide — memoising it costs more than it saves.
+  const breakdown = rankBreakdown(rankInputs);
+  const [showParts, setShowParts] = React.useState(false);
 
   const rows = useMemo(() => {
     const rivals = scope === 'global' ? DEMO_RIVALS : DEMO_RIVALS.slice(2, 9);
@@ -44,8 +48,49 @@ export default function Leaderboard() {
           <Text variant="overline" color={colors.textDim}>YOUR POSITION</Text>
           <Text variant="display" color={colors.primary}>#{myPosition}</Text>
           <Text variant="caption" color={colors.textDim}>of {rows.length} · {myRank.tier.name} · {myRank.score} forge score</Text>
+          <Pressable
+            onPress={() => setShowParts((v) => !v)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showParts }}
+            accessibilityLabel={showParts ? 'Hide how the score is calculated' : 'Show how the score is calculated'}
+            style={{ paddingTop: spacing.xs }}
+          >
+            <Text variant="label" color={colors.primary}>
+              {showParts ? 'Hide the maths' : 'How is this calculated?'}
+            </Text>
+          </Pressable>
         </Card>
       </FadeIn>
+
+      {/* A ranked score nobody can explain is just a number that makes people
+          feel bad. Every part states what would move it. */}
+      {showParts && (
+        <FadeIn>
+          <Card style={{ gap: spacing.md, marginBottom: spacing.md }}>
+            {breakdown.map((part) => (
+              <View key={part.key} style={{ gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
+                  <Text variant="bodyStrong" style={{ flex: 1, minWidth: 0 }}>{part.label}</Text>
+                  <Text variant="label" color={colors.text}>{part.value}</Text>
+                  <Text variant="caption" color={colors.textFaint}>/ {part.max}</Text>
+                </View>
+                <View style={{ height: 5, borderRadius: 3, backgroundColor: colors.surface, overflow: 'hidden' }}>
+                  <View
+                    style={{
+                      width: `${Math.round((part.value / part.max) * 100)}%`,
+                      height: '100%',
+                      borderRadius: 3,
+                      backgroundColor: myRank.tier.color,
+                    }}
+                  />
+                </View>
+                <Text variant="caption" color={colors.textFaint}>{part.hint}</Text>
+              </View>
+            ))}
+          </Card>
+        </FadeIn>
+      )}
 
       <SegmentedControl
         options={[
@@ -74,8 +119,10 @@ export default function Leaderboard() {
               >
                 <RankBadge place={i + 1} />
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tier.color }} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyStrong" color={r.isMe ? colors.primary : colors.text}>{r.handle}</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="bodyStrong" color={r.isMe ? colors.primary : colors.text} numberOfLines={1}>
+                    {r.handle}
+                  </Text>
                   <Text variant="caption" color={colors.textDim}>{tier.name}</Text>
                 </View>
                 {r.weeklyDelta !== 0 && (

@@ -50,6 +50,7 @@ interface WorkoutState {
   /** Link this exercise with the one below it into a superset, or unlink it. */
   toggleSupersetWithNext: (workoutExerciseId: string) => void;
   setExerciseNote: (workoutExerciseId: string, note: string) => void;
+  setExerciseRest: (workoutExerciseId: string, seconds: number) => void;
   /** Replace an exercise with another, keeping its position and set count. */
   swapExercise: (workoutExerciseId: string, newExerciseId: string) => void;
   setWorkoutNote: (note: string) => void;
@@ -274,6 +275,17 @@ export const useWorkoutStore = create<WorkoutState>()(
         mutateActive((w) => ({
           ...w,
           exercises: w.exercises.map((e) => (e.id === weId ? { ...e, notes: note.trim() ? note : undefined } : e)),
+        })),
+
+      // Rest was fixed at generation time by exercise category, which is a fair
+      // default and a poor rule: how long someone needs between sets depends on
+      // the day, the load and the gym's queue for the rack.
+      setExerciseRest: (weId, seconds) =>
+        mutateActive((w) => ({
+          ...w,
+          exercises: w.exercises.map((e) =>
+            e.id === weId ? { ...e, restSeconds: Math.max(15, Math.min(600, Math.round(seconds))) } : e,
+          ),
         })),
 
       toggleSetComplete: (weId, setId) => {
