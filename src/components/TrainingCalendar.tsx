@@ -89,7 +89,13 @@ export function TrainingCalendar({ workouts, units }: Props) {
   return (
     <View>
       <View style={styles.header}>
-        <Pressable onPress={() => step(-1)} hitSlop={10} style={styles.arrow}>
+        <Pressable
+          onPress={() => step(-1)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month"
+          style={styles.arrow}
+        >
           <Icon name="chevron_left" size={18} color={colors.textDim} strokeWidth={2.2} />
         </Pressable>
         <Text variant="title">
@@ -99,6 +105,9 @@ export function TrainingCalendar({ workouts, units }: Props) {
           onPress={() => step(1)}
           hitSlop={10}
           disabled={atCurrentMonth}
+          accessibilityRole="button"
+          accessibilityLabel="Next month"
+          accessibilityState={{ disabled: atCurrentMonth }}
           style={[styles.arrow, atCurrentMonth && styles.arrowOff]}
         >
           <Icon name="chevron_right" size={18} color={colors.textDim} strokeWidth={2.2} />

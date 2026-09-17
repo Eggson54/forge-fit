@@ -28,6 +28,10 @@ export function Input({ label, suffix, error, icon, style, onFocus, onBlur, ...r
       <View style={[styles.wrap, { borderColor, borderWidth: focused || error ? 1 : StyleSheet.hairlineWidth }, focusRing]}>
         {icon && <Icon name={icon} size={18} color={focused ? colors.primary : colors.textFaint} strokeWidth={1.9} />}
         <TextInput
+          // The visible <Text> label is not programmatically associated with
+          // this field on any platform, so a screen reader would otherwise read
+          // the placeholder or nothing at all.
+          accessibilityLabel={label}
           placeholderTextColor={colors.textFaint}
           // The field itself draws the focus state, so suppress the browser's
           // own outline on web rather than stacking two rings.

@@ -449,6 +449,7 @@ function ExerciseBlock({
         <TextInput
           value={exercise.notes ?? ''}
           onChangeText={(t) => setNote(exercise.id, t)}
+          accessibilityLabel={`Note on ${exercise.name}`}
           placeholder="Cue, tweak, how it felt…"
           placeholderTextColor={colors.textFaint}
           multiline
@@ -565,15 +566,41 @@ function SetRow({
         // than offering a number that means nothing.
         <View style={{ flex: 1, minWidth: 0 }} />
       ) : (
-        <Cell value={weight} onChange={commitWeight} placeholder={tracking === 'bodyweight' ? '+0' : '0'} />
+        <Cell
+          value={weight}
+          onChange={commitWeight}
+          placeholder={tracking === 'bodyweight' ? '+0' : '0'}
+          label={
+            tracking === 'bodyweight'
+              ? `Added weight in ${units === 'imperial' ? 'pounds' : 'kilos'}, set ${index}`
+              : `Weight in ${units === 'imperial' ? 'pounds' : 'kilos'}, set ${index}`
+          }
+        />
       )}
       {tracking === 'duration' ? (
-        <Cell value={seconds} onChange={commitSeconds} placeholder="0:45" keyboard="numbers-and-punctuation" />
+        <Cell
+          value={seconds}
+          onChange={commitSeconds}
+          placeholder="0:45"
+          label={`Time, set ${index}`}
+          keyboard="numbers-and-punctuation"
+        />
       ) : (
-        <Cell value={reps} onChange={commitReps} placeholder="0" />
+        <Cell value={reps} onChange={commitReps} placeholder="0" label={`Reps, set ${index}`} />
       )}
-      <Cell value={rpe} onChange={commitRpe} placeholder="-" />
-      <Pressable onPress={onToggle} onLongPress={() => removeSet(weId, set.id)} style={[styles.check, set.completed && styles.checkOn]} hitSlop={6}>
+      <Cell value={rpe} onChange={commitRpe} placeholder="-" label={`Rate of perceived exertion, set ${index}`} />
+      {/* The most-tapped control in the app, and it was the one a screen
+          reader could say least about. */}
+      <Pressable
+        onPress={onToggle}
+        onLongPress={() => removeSet(weId, set.id)}
+        hitSlop={6}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: set.completed }}
+        accessibilityLabel={`${exerciseName}, set ${index}`}
+        accessibilityHint="Double tap to mark complete. Long press to delete this set."
+        style={[styles.check, set.completed && styles.checkOn]}
+      >
         {set.completed ? <Icon name="check" size={16} color="#0B0B0F" strokeWidth={2.6} /> : <View style={styles.checkDot} />}
       </Pressable>
     </View>
@@ -584,11 +611,14 @@ function Cell({
   value,
   onChange,
   placeholder,
+  label,
   keyboard = 'decimal-pad',
 }: {
   value: string;
   onChange: (t: string) => void;
   placeholder: string;
+  /** Which column this is — the grid's header row is not read with the field. */
+  label: string;
   keyboard?: 'decimal-pad' | 'numbers-and-punctuation';
 }) {
   return (
@@ -598,6 +628,7 @@ function Cell({
       keyboardType={keyboard}
       placeholder={placeholder}
       placeholderTextColor={colors.textFaint}
+      accessibilityLabel={label}
       style={[styles.cell, noOutline]}
       selectionColor={colors.primary}
     />

@@ -11,6 +11,9 @@ import { notifications } from '../src/services/notifications';
 import { FREE_TIER_LIMITS } from '../src/services/config';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+// The visible labels repeat — two Ts, two Ss — so a screen reader needs the
+// full name to tell Tuesday from Thursday.
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ADDABLE: ReminderType[] = ['workout', 'water', 'meal', 'protein', 'steps', 'sleep', 'weight', 'progress_photo', 'custom'];
 
 export default function Reminders() {
@@ -181,6 +184,10 @@ function ReminderRow({ reminder }: { reminder: Reminder }) {
             <Pressable
               key={i}
               onPress={() => toggleDay(i)}
+              hitSlop={6}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: on }}
+              accessibilityLabel={DAY_NAMES[i]}
               style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primary : colors.surfaceHigh }}
             >
               <Text variant="caption" color={on ? colors.onPrimary : colors.textDim}>
