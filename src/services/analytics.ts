@@ -18,7 +18,9 @@ export type AnalyticsEvent =
   | 'paywall_viewed'
   | 'subscription_started'
   | 'subscription_cancelled'
-  | 'protocol_logged';
+  | 'protocol_logged'
+  | 'gym_map_location_enabled'
+  | 'gym_claimed';
 
 // Allowlist of non-sensitive property keys. Anything else is stripped.
 const ALLOWED_PROPS = new Set(['tier', 'source', 'personality', 'goal', 'duration_bucket', 'count_bucket', 'result']);

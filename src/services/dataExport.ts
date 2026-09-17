@@ -1,6 +1,7 @@
 import { Platform, Share } from 'react-native';
 import { useCoachStore } from '../stores/useCoachStore';
 import { useGamificationStore } from '../stores/useGamificationStore';
+import { useGymStore } from '../stores/useGymStore';
 import { useIntegrationStore } from '../stores/useIntegrationStore';
 import { useLogStore } from '../stores/useLogStore';
 import { useProfileStore } from '../stores/useProfileStore';
@@ -56,6 +57,11 @@ export function collectUserData(): ExportDocument {
     coach: { conversation: useCoachStore.getState().turns },
     programs: { enrolment: useProgramStore.getState().enrolment },
     routines: useRoutineStore.getState().routines,
+    gyms: {
+      // The claims carry their own venue snapshot, so the export stays a
+      // complete record of the collection on its own.
+      claims: useGymStore.getState().claims,
+    },
     integrations: {
       appleWatchConnected: integrations.appleWatchConnected,
       stravaConnected: integrations.stravaConnected,

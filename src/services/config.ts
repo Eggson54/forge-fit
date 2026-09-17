@@ -32,6 +32,15 @@ export const config = {
       return Boolean(this.iosBanner || this.androidBanner);
     },
   },
+  gyms: {
+    // Gym search runs through YOUR backend, which proxies the POI source and
+    // holds whatever credentials it needs. The app never carries a maps key,
+    // and coarse coordinates go out only when the user has opted in.
+    apiUrl: process.env.EXPO_PUBLIC_GYM_API_URL ?? '',
+    get enabled() {
+      return Boolean(this.apiUrl);
+    },
+  },
   analytics: {
     key: process.env.EXPO_PUBLIC_ANALYTICS_KEY ?? '',
     get enabled() {

@@ -39,6 +39,8 @@ const SCREENS: SearchEntry[] = [
   { id: 's_sub', kind: 'screen', title: 'Subscription', keywords: ['pro', 'billing', 'plan'], href: '/settings/subscription' },
   { id: 's_integr', kind: 'screen', title: 'Integrations', keywords: ['apple health', 'watch', 'strava'], href: '/settings/integrations' },
   { id: 's_proto', kind: 'screen', title: 'Protocol tracker', keywords: ['peptides', 'doses', 'log'], href: '/protocol' },
+  { id: 's_gyms', kind: 'screen', title: 'Iron Map', keywords: ['gyms', 'map', 'near me', 'collect', 'claim'], href: '/gyms' },
+  { id: 's_coll', kind: 'screen', title: 'Gym collection', keywords: ['claimed', 'explorer', 'tier', 'points'], href: '/gyms/collection' },
 ];
 
 const KIND_ICON: Record<SearchKind, 'dumbbell' | 'nutrition' | 'list' | 'chevron_right' | 'document'> = {
