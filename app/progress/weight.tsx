@@ -6,13 +6,14 @@ import { colors, spacing } from '../../src/theme';
 import { displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
-import { formatDateWithWeekday, formatDayMonth } from '../../src/domain/date';
-import { movingAverage, ratePerWeek } from '../../src/domain/trend';
+import { formatDateWithWeekday, formatDayMonth, todayISO } from '../../src/domain/date';
+import { movingAverage, projectGoal, ratePerWeek } from '../../src/domain/trend';
 
 export default function WeightLog() {
   const { width } = useWindowDimensions();
   const units = useProfileStore((s) => s.profile.units);
   const setProfile = useProfileStore((s) => s.setProfile);
+  const targetWeightKg = useProfileStore((s) => s.profile.targetWeightKg);
   const weightLogs = useLogStore((s) => s.weight);
   const logWeight = useLogStore((s) => s.logWeight);
   const [value, setValue] = useState('');
@@ -50,6 +51,17 @@ export default function WeightLog() {
   );
   const rate = rateKgPerWeek == null ? null : toDisplay(rateKgPerWeek);
   const latestAvg = averageSeries[averageSeries.length - 1]?.value ?? null;
+
+  // Projected against the smoothed series rather than raw weigh-ins: fitting a
+  // date to the noise is what makes a projection a lie.
+  const projection = useMemo(
+    () =>
+      targetWeightKg == null
+        ? { verdict: 'not_enough_data' as const, ratePerWeek: null, weeks: null, date: null }
+        : projectGoal(averageKg, targetWeightKg, { today: todayISO() }),
+    [averageKg, targetWeightKg],
+  );
+  const targetDisplay = targetWeightKg != null ? displayWeight(targetWeightKg, units) : null;
   const unitLabel = units === 'imperial' ? 'lb' : 'kg';
 
   return (
@@ -82,6 +94,52 @@ export default function WeightLog() {
             accent={colors.water}
           />
           <StatTile value={`${chronological.length}`} label="Weigh-ins" accent={colors.textDim} />
+        </Card>
+      )}
+
+      {/* The question a weight chart raises and never answers. It declines to
+          answer in three cases rather than extrapolating noise — see
+          projectGoal. */}
+      {targetWeightKg != null && projection.verdict !== 'not_enough_data' && (
+        <Card
+          style={{ marginTop: spacing.md, gap: spacing.sm }}
+          accent={projection.verdict === 'on_course' ? colors.success : colors.textFaint}
+        >
+          <Text variant="overline" color={colors.textFaint}>YOUR TARGET</Text>
+          {projection.verdict === 'on_course' ? (
+            <>
+              <Text variant="h3">
+                {targetDisplay!.value} {targetDisplay!.unit} around {formatDayMonth(projection.date!)}
+              </Text>
+              <Text variant="caption" color={colors.textDim}>
+                About {projection.weeks} {projection.weeks === 1 ? 'week' : 'weeks'} away if the current rate holds.
+                It is a projection from your own weigh-ins, not a plan or a promise.
+              </Text>
+            </>
+          ) : projection.verdict === 'arrived' ? (
+            <>
+              <Text variant="h3">You are at your target</Text>
+              <Text variant="caption" color={colors.textDim}>
+                {targetDisplay!.value} {targetDisplay!.unit}. Maintaining is a goal too.
+              </Text>
+            </>
+          ) : projection.verdict === 'wrong_way' ? (
+            <>
+              <Text variant="h3" color={colors.textDim}>Heading away from it</Text>
+              <Text variant="caption" color={colors.textDim}>
+                Your trend is moving away from {targetDisplay!.value} {targetDisplay!.unit}, so there is no date to
+                give. Fine if it is deliberate.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text variant="h3" color={colors.textDim}>Too flat to call</Text>
+              <Text variant="caption" color={colors.textDim}>
+                The trend is close enough to level that any date would be years out and meaningless. Nothing is
+                wrong — there is just nothing to project yet.
+              </Text>
+            </>
+          )}
         </Card>
       )}
 

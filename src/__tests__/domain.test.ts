@@ -33,7 +33,7 @@ import { strengthChangePct } from '../domain/strength';
 import { suggestToday, volumeDeficits } from '../domain/suggestion';
 import { activeDaysInWindow, adherence, expectedDoses } from '../domain/protocol';
 import { ACHIEVEMENT_CATALOG, achievementProgress, nextAchievements } from '../domain/achievements';
-import { daysBetween, movingAverage, nearestValue, ratePerWeek } from '../domain/trend';
+import { daysBetween, movingAverage, nearestValue, projectGoal, ratePerWeek } from '../domain/trend';
 import { balanceMacros, frequentFoods, summariseIntake, waterQuickAdds } from '../domain/nutrition';
 import { availablePlates } from '../domain/plates';
 import { isSubscriptionActive } from '../domain/subscription';
@@ -1685,5 +1685,70 @@ describe('parseDurationMinutes', () => {
 
   it('ignores spacing and case', () => {
     expect(parseDurationMinutes('  7H35M ')).toBe(455);
+  });
+});
+
+describe('projectGoal', () => {
+  /** A clean linear series, one reading a day. */
+  const falling = (from: number, perDay: number, days: number) =>
+    Array.from({ length: days }, (_, i) => ({
+      date: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      value: Math.round((from - perDay * i) * 100) / 100,
+    }));
+
+  it('projects a date when the trend is heading the right way', () => {
+    // 0.2/day = 1.4/week, starting at 90, ending at 88, goal 84.
+    const p = projectGoal(falling(90, 0.2, 11), 84);
+    expect(p.verdict).toBe('on_course');
+    expect(p.ratePerWeek).toBeCloseTo(-1.4, 2);
+    expect(p.weeks).toBe(3);
+    // 4 units to lose at 1.4/week is 20 days, not a round 3 weeks — the date is
+    // rounded to the day, which is tighter than rounding the weeks first.
+    expect(p.date).toBe('2026-10-01');
+  });
+
+  it('refuses to project when the trend runs away from the goal', () => {
+    const gaining = falling(80, -0.2, 11); // rising
+    const p = projectGoal(gaining, 75);
+    expect(p.verdict).toBe('wrong_way');
+    expect(p.date).toBeNull();
+    expect(p.weeks).toBeNull();
+  });
+
+  it('refuses when the trend is too flat to extrapolate', () => {
+    // "340 weeks" is the arithmetic and a lie about what the data supports.
+    const flat = falling(90, 0.001, 11);
+    const p = projectGoal(flat, 70);
+    expect(p.verdict).toBe('too_slow');
+    expect(p.date).toBeNull();
+  });
+
+  it('refuses when a real rate would still take years', () => {
+    const p = projectGoal(falling(200, 0.02, 11), 90);
+    expect(p.verdict).toBe('too_slow');
+  });
+
+  it('says you are there when you are within the band', () => {
+    const p = projectGoal(falling(84.2, 0.2, 11), 82.5);
+    expect(p.verdict).toBe('arrived');
+  });
+
+  it('needs enough readings before it says anything at all', () => {
+    expect(projectGoal(falling(90, 0.2, 3), 84).verdict).toBe('not_enough_data');
+    expect(projectGoal([], 84).verdict).toBe('not_enough_data');
+  });
+
+  it('works in both directions', () => {
+    const bulking = falling(70, -0.15, 11); // gaining ~1.05/wk
+    const p = projectGoal(bulking, 75);
+    expect(p.verdict).toBe('on_course');
+    expect(p.ratePerWeek!).toBeGreaterThan(0);
+    expect(p.weeks).toBeGreaterThan(0);
+  });
+
+  it('counts from a supplied today rather than the last reading', () => {
+    const series = falling(90, 0.2, 11);
+    const fromLater = projectGoal(series, 84, { today: '2026-09-20' });
+    expect(fromLater.date).toBe('2026-10-10');
   });
 });

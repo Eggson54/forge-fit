@@ -79,3 +79,82 @@ export function nearestValue(series: DatedValue[], date: string, toleranceDays =
 export function daysBetween(a: string, b: string): number {
   return Math.round(Math.abs(Date.parse(`${a}T00:00:00`) - Date.parse(`${b}T00:00:00`)) / 86_400_000);
 }
+
+export type ProjectionVerdict =
+  | 'on_course'
+  | 'wrong_way'
+  | 'too_slow'
+  | 'arrived'
+  | 'not_enough_data';
+
+export interface GoalProjection {
+  verdict: ProjectionVerdict;
+  /** Per-week change actually observed, in the series' own units. */
+  ratePerWeek: number | null;
+  /** Whole weeks to the goal at the observed rate; null unless on course. */
+  weeks: number | null;
+  /** ISO date the goal would be reached; null unless on course. */
+  date: string | null;
+}
+
+/** How close is close enough to call it arrived, in the series' units. */
+const ARRIVED_BAND = 0.3;
+
+/**
+ * When the current trend would reach a goal — with four ways of declining to
+ * answer, because a projection from noisy data is the easiest place in a
+ * fitness app to mislead someone.
+ *
+ * It refuses when: there are too few readings to fit a line at all; the trend
+ * is moving away from the goal; or the trend is so flat that the honest answer
+ * is a number of years. "You will get there in 340 weeks" is technically the
+ * arithmetic and practically a lie about what the data supports.
+ *
+ * `minWeeklyRate` is the smallest movement worth extrapolating from.
+ */
+export function projectGoal(
+  series: DatedValue[],
+  goal: number,
+  options: { minReadings?: number; minWeeklyRate?: number; maxWeeks?: number; today?: string } = {},
+): GoalProjection {
+  const { minReadings = 5, minWeeklyRate = 0.05, maxWeeks = 104 } = options;
+
+  if (series.length < minReadings) {
+    return { verdict: 'not_enough_data', ratePerWeek: null, weeks: null, date: null };
+  }
+
+  const rate = ratePerWeek(series);
+  const latest = series[series.length - 1]!.value;
+  const gap = goal - latest;
+
+  if (Math.abs(gap) <= ARRIVED_BAND) {
+    return { verdict: 'arrived', ratePerWeek: rate, weeks: 0, date: null };
+  }
+  if (rate == null) {
+    return { verdict: 'not_enough_data', ratePerWeek: null, weeks: null, date: null };
+  }
+  // Moving away from the goal, or not moving at all.
+  if (Math.abs(rate) < minWeeklyRate || Math.sign(rate) !== Math.sign(gap)) {
+    return {
+      verdict: Math.abs(rate) < minWeeklyRate ? 'too_slow' : 'wrong_way',
+      ratePerWeek: rate,
+      weeks: null,
+      date: null,
+    };
+  }
+
+  const weeks = gap / rate;
+  if (weeks > maxWeeks) {
+    return { verdict: 'too_slow', ratePerWeek: rate, weeks: null, date: null };
+  }
+
+  const from = options.today ?? series[series.length - 1]!.date;
+  const target = new Date(`${from}T00:00:00`);
+  target.setDate(target.getDate() + Math.round(weeks * 7));
+  return {
+    verdict: 'on_course',
+    ratePerWeek: rate,
+    weeks: Math.max(1, Math.round(weeks)),
+    date: target.toISOString().slice(0, 10),
+  };
+}
