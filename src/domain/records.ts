@@ -238,3 +238,36 @@ export function exerciseSessions(workouts: Workout[], exerciseId: string, limit 
 
   return sessions.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, limit);
 }
+
+export interface BeatTarget {
+  /** The set to beat, from the most recent session containing this lift. */
+  weightKg: number;
+  reps: number;
+  /** Same weight, one more rep — the smallest honest progression. */
+  targetReps: number;
+  date: string;
+}
+
+/**
+ * The top set of the last session, framed as something to beat. Progressive
+ * overload is the whole point of a log, and "add one rep to 80 kg × 8" is a far
+ * more actionable prompt than a chart of past volume.
+ *
+ * Top set is chosen by estimated 1RM rather than by load, so a back-off set at
+ * a heavier weight for two grindy reps does not become the target.
+ */
+export function beatTarget(workouts: Workout[], exerciseId: string): BeatTarget | null {
+  const sessions = exerciseSessions(workouts, exerciseId, 1);
+  const last = sessions[0];
+  if (!last) return null;
+
+  let best: { weightKg: number; reps: number; e1rm: number } | null = null;
+  for (const s of last.sets) {
+    if (s.warmup || !s.weightKg || !s.reps) continue;
+    const e1rm = epley1RM(s.weightKg, s.reps);
+    if (!best || e1rm > best.e1rm) best = { weightKg: s.weightKg, reps: s.reps, e1rm };
+  }
+  if (!best) return null;
+
+  return { weightKg: best.weightKg, reps: best.reps, targetReps: best.reps + 1, date: last.date };
+}

@@ -69,3 +69,23 @@ function exerciseSecondary(exerciseId: string): MuscleGroup[] {
   }
   return secondaryMap[exerciseId] ?? [];
 }
+
+/** Muscles ordered by set count, highest first, dropping anything at zero. */
+export function topMuscles(volume: MuscleVolume, limit = 6): { muscle: MuscleGroup; sets: number }[] {
+  return (Object.entries(volume) as [MuscleGroup, number][])
+    .filter(([, sets]) => sets > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([muscle, sets]) => ({ muscle, sets }));
+}
+
+/**
+ * Share of a session's work each muscle took, as a 0–1 fraction. Used for the
+ * split bar on a finished workout: "chest day" is a claim the log can check.
+ */
+export function muscleShares(volume: MuscleVolume): { muscle: MuscleGroup; sets: number; share: number }[] {
+  const rows = topMuscles(volume, 99);
+  const total = rows.reduce((a, r) => a + r.sets, 0);
+  if (total <= 0) return [];
+  return rows.map((r) => ({ ...r, share: r.sets / total }));
+}

@@ -75,3 +75,53 @@ export function computeRank(i: RankInputs): RankResult {
     parts: { consistency: parts.consistency, streak: parts.streak, strength: parts.strength, discipline: parts.discipline },
   };
 }
+
+export interface RankPart {
+  key: keyof RankResult['parts'];
+  label: string;
+  value: number;
+  max: number;
+  /** What would move this number, in plain terms. */
+  hint: string;
+}
+
+/**
+ * The same four numbers `forgeScore` adds up, laid out so the leaderboard can
+ * show *why* a score is what it is. A ranked score nobody can explain is just a
+ * number that makes people feel bad, so every part states what raises it.
+ */
+export function rankBreakdown(i: RankInputs): RankPart[] {
+  const parts = forgeScore(i);
+  const bw = num(i.bodyweightKg) > 0 ? num(i.bodyweightKg) : 75;
+  const ratio = num(i.bestBig3E1RMKg) / bw;
+  return [
+    {
+      key: 'consistency',
+      label: 'Consistency',
+      value: parts.consistency,
+      max: 400,
+      hint: `${num(i.completedWorkouts)} sessions logged · 8 points each, capped at 400.`,
+    },
+    {
+      key: 'streak',
+      label: 'Streak',
+      value: parts.streak,
+      max: 200,
+      hint: `Best run of ${num(i.longestDailyStreak)} days · 8 points a day, capped at 200.`,
+    },
+    {
+      key: 'strength',
+      label: 'Relative strength',
+      value: parts.strength,
+      max: 300,
+      hint: `Estimated big-three total is ${ratio.toFixed(1)}× your bodyweight · 4× earns the full 300.`,
+    },
+    {
+      key: 'discipline',
+      label: 'Discipline',
+      value: parts.discipline,
+      max: 100,
+      hint: `Best daily discipline score of ${Math.round(num(i.bestDisciplineScore))} out of 100.`,
+    },
+  ];
+}

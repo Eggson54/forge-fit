@@ -10,3 +10,5 @@ export * from './coach';
 export * from './achievements';
 export * from './rank';
 export * from './volume';
+export * from './volumeTrend';
+export * from './search';
