@@ -34,6 +34,7 @@ const SCREENS: SearchEntry[] = [
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },
   { id: 's_plates', kind: 'screen', title: 'Plate calculator', keywords: ['barbell', 'loading', 'plates'], href: '/tools/plates' },
   { id: 's_warmup', kind: 'screen', title: 'Warm-up builder', keywords: ['ramp', 'sets'], href: '/tools/warmup' },
+  { id: 's_interval', kind: 'screen', title: 'Interval timer', keywords: ['tabata', 'emom', 'circuit', 'hiit', 'conditioning', 'stopwatch'], href: '/tools/interval' },
   { id: 's_goals', kind: 'screen', title: 'Goals & targets', keywords: ['macros', 'calories', 'steps'], href: '/settings/goals' },
   { id: 's_settings', kind: 'screen', title: 'Settings', keywords: ['account', 'preferences', 'units'], href: '/settings' },
   { id: 's_privacy', kind: 'screen', title: 'Privacy & data', keywords: ['export', 'delete account', 'gdpr'], href: '/settings/privacy' },

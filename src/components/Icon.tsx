@@ -40,6 +40,7 @@ export type IconName =
   | 'chevron_right'
   | 'link_off'
   | 'close'
+  | 'minus'
   | 'map'
   | 'copy'
   | 'star';
@@ -270,6 +271,9 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
       )}
 
       {name === 'close' && <Path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6" {...s} />}
+
+      {/* A minus, not a cross: the decrement control read as "delete this". */}
+      {name === 'minus' && <Path d="M5.6 12h12.8" {...s} />}
 
       {/* Pin with a hollow eye — the one mark everybody reads as "a place". */}
       {name === 'map' && (

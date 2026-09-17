@@ -166,6 +166,7 @@ export default function WorkoutTab() {
             },
             { icon: 'sliders' as IconName, label: 'Plate math', href: '/tools/plates' },
             { icon: 'chart' as IconName, label: 'Warm-up', href: '/tools/warmup' },
+            { icon: 'timer' as IconName, label: 'Intervals', href: '/tools/interval' },
             { icon: 'target' as IconName, label: 'Rep max', href: '/tools/one-rep-max' },
             { icon: 'scale' as IconName, label: 'Measure', href: '/progress/measurements' },
             {
