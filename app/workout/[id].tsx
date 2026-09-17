@@ -9,6 +9,7 @@ import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { colors, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
+import { muscleShares, weeklySetsPerMuscle } from '../../src/domain/volume';
 import { displayWeight, groupThousands } from '../../src/domain/units';
 import type { MuscleGroup, Units, WorkoutExercise } from '../../src/domain/types';
 import { SET_KIND_LABEL, setKind } from '../../src/domain/sets';
@@ -39,6 +40,11 @@ export default function WorkoutDetail() {
   }
 
   const stats = workoutStats(workout, bodyweightKg);
+
+  // Where the session's work actually went. Set counts, not tonnage: a leg day
+  // outweighs an arm day threefold on tonnage alone, so a tonnage split mostly
+  // measures which lifts happened to be on the card.
+  const shares = muscleShares(weeklySetsPerMuscle([workout]));
   const vol = displayWeight(stats.totalVolumeKg, units);
   const e1rm = displayWeight(stats.bestE1RM, units);
   const prCount = workout.exercises.reduce((a, e) => a + e.sets.filter((s) => s.isPr).length, 0);
@@ -132,30 +138,81 @@ export default function WorkoutDetail() {
         </View>
       ))}
 
-      <SectionHeader title="Muscle volume" />
-      <Card>
-        {Object.entries(stats.muscleVolume).map(([m, v]) => {
-          const d = displayWeight(v as number, units);
-          return (
-            <View key={m} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm }}>
-              <Text variant="body">{label(m as MuscleGroup)}</Text>
-              <Text variant="label" color={colors.textDim}>
-                {Math.round(d.value).toLocaleString()} {d.unit}
-              </Text>
+      <SectionHeader title="Where the work went" />
+      <Card style={{ gap: spacing.md }}>
+        {shares.length === 0 ? (
+          <Text variant="caption" color={colors.textFaint}>Complete sets to see the split.</Text>
+        ) : (
+          <>
+            {/* One stacked bar reads as a split; eight separate bars read as
+                eight unrelated numbers. */}
+            <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden' }}>
+              {shares.map((row, i) => (
+                <View
+                  key={row.muscle}
+                  style={{
+                    flex: Math.max(0.001, row.share),
+                    backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length],
+                  }}
+                />
+              ))}
             </View>
-          );
-        })}
-        {Object.keys(stats.muscleVolume).length === 0 && (
-          <Text variant="caption" color={colors.textFaint}>
-            Complete sets to see muscle breakdown.
-          </Text>
+
+            {shares.map((row, i) => {
+              const tonnageKg = (stats.muscleVolume as Record<string, number>)[row.muscle] ?? 0;
+              const d = displayWeight(tonnageKg, units);
+              return (
+                <View key={row.muscle} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length],
+                    }}
+                  />
+                  <Text variant="body" style={{ flex: 1, minWidth: 0 }} numberOfLines={1}>
+                    {label(row.muscle)}
+                  </Text>
+                  <Text variant="label">{formatSets(row.sets)}</Text>
+                  <Text variant="caption" color={colors.textFaint} style={{ width: 44, textAlign: 'right' }}>
+                    {Math.round(row.share * 100)}%
+                  </Text>
+                  <Text variant="caption" color={colors.textFaint} style={{ width: 78, textAlign: 'right' }}>
+                    {tonnageKg > 0 ? `${groupThousands(Math.round(d.value))} ${d.unit}` : '—'}
+                  </Text>
+                </View>
+              );
+            })}
+
+            <Text variant="caption" color={colors.textFaint}>
+              Working sets, with the muscle that drives the lift counting fully and assisting muscles counting half.
+              The right-hand column is tonnage moved.
+            </Text>
+          </>
         )}
       </Card>
+
     </Screen>
   );
 }
 
 const label = (m: MuscleGroup) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Distinct hues for the split bar; wraps if a session somehow hits nine muscles. */
+const SPLIT_COLORS = [
+  colors.primary,
+  colors.water,
+  colors.success,
+  colors.amber,
+  colors.protein,
+  colors.steps,
+  '#C084FC',
+  '#7FB2FF',
+];
+
+/** 4.5 → "4.5", 4 → "4" — half-set credit should not print as "4.0". */
+const formatSets = (n: number): string => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 /** One exercise as it was actually performed, for the post-session summary. */
 function ExerciseSummary({

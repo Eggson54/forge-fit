@@ -70,7 +70,14 @@ export interface LoadReading {
   verdict: LoadVerdict;
   thisWeek: number;
   lastWeek: number;
-  /** Percent change vs last week, null when last week was empty. */
+  /**
+   * The current week's sets projected to a full week. Equal to `thisWeek` once
+   * the week is over. Comparisons use this, never the raw partial count.
+   */
+  paceThisWeek: number;
+  /** True while the current week is still running. */
+  partialWeek: boolean;
+  /** Percent change of the projected week vs last week, null when last week was empty. */
   changePct: number | null;
   /** Consecutive weeks at or above the previous week, counting back from the last full week. */
   buildingWeeks: number;
@@ -78,16 +85,30 @@ export interface LoadReading {
   detail: string;
 }
 
+/** Days of the current week already elapsed, 1 (Monday) through 7 (Sunday). */
+export function daysElapsedInWeek(today: string): number {
+  const dow = new Date(`${today.slice(0, 10)}T00:00:00`).getDay();
+  return ((dow + 6) % 7) + 1;
+}
+
 /**
  * The reading deliberately looks at the last *complete* week for the ramp
  * count. Judging a Tuesday against a finished week always reads as a collapse,
  * which is how a half-finished week ends up telling someone to train harder.
  */
-export function readLoad(series: VolumeWeek[]): LoadReading {
+export function readLoad(series: VolumeWeek[], daysElapsed = 7): LoadReading {
   const n = series.length;
   const thisWeek = n > 0 ? series[n - 1].sets : 0;
   const lastWeek = n > 1 ? series[n - 2].sets : 0;
-  const changePct = lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 1000) / 10 : null;
+
+  // Three days of a week are not a week. Comparing the raw count against a
+  // finished week told a Wednesday it was "down 60%", which is the same
+  // mistake the build-streak guard below already avoids.
+  const elapsed = Math.max(1, Math.min(7, Math.round(daysElapsed)));
+  const partialWeek = elapsed < 7;
+  const paceThisWeek = partialWeek ? Math.round((thisWeek / elapsed) * 7) : thisWeek;
+  const changePct = lastWeek > 0 ? Math.round(((paceThisWeek - lastWeek) / lastWeek) * 1000) / 10 : null;
+  const loggedSoFar = partialWeek ? ` So far: ${thisWeek} over ${elapsed} ${elapsed === 1 ? 'day' : 'days'}.` : '';
 
   // Count the build streak over completed weeks only (everything but the last).
   let buildingWeeks = 0;
@@ -103,6 +124,8 @@ export function readLoad(series: VolumeWeek[]): LoadReading {
       verdict: 'idle',
       thisWeek,
       lastWeek,
+      paceThisWeek,
+      partialWeek,
       changePct,
       buildingWeeks,
       headline: 'No load to read',
@@ -115,6 +138,8 @@ export function readLoad(series: VolumeWeek[]): LoadReading {
       verdict: 'deload_due',
       thisWeek,
       lastWeek,
+      paceThisWeek,
+      partialWeek,
       changePct,
       buildingWeeks,
       headline: `${buildingWeeks} weeks without a lighter one`,
@@ -127,10 +152,12 @@ export function readLoad(series: VolumeWeek[]): LoadReading {
       verdict: 'ramping_fast',
       thisWeek,
       lastWeek,
+      paceThisWeek,
+      partialWeek,
       changePct,
       buildingWeeks,
-      headline: `Up ${Math.round(changePct)}% on last week`,
-      detail: 'That is a steep jump. Big single-week increases tend to show up as soreness and missed sessions later.',
+      headline: partialWeek ? `On pace for ${Math.round(changePct)}% more than last week` : `Up ${Math.round(changePct)}% on last week`,
+      detail: `That is a steep jump. Big single-week increases tend to show up as soreness and missed sessions later.${partialWeek ? ` On pace for ${paceThisWeek} sets this week.` : ''}`,
     };
   }
 
@@ -139,10 +166,14 @@ export function readLoad(series: VolumeWeek[]): LoadReading {
       verdict: 'holding',
       thisWeek,
       lastWeek,
+      paceThisWeek,
+      partialWeek,
       changePct,
       buildingWeeks,
       headline: 'Holding steady',
-      detail: `${thisWeek} working sets this week, about the same as last.`,
+      detail: partialWeek
+        ? `On pace for about ${paceThisWeek} working sets, against ${lastWeek} last week.${loggedSoFar}`
+        : `${thisWeek} working sets this week, about the same as last.`,
     };
   }
 
@@ -151,10 +182,14 @@ export function readLoad(series: VolumeWeek[]): LoadReading {
       verdict: 'building',
       thisWeek,
       lastWeek,
+      paceThisWeek,
+      partialWeek,
       changePct,
       buildingWeeks,
-      headline: `Up ${Math.round(changePct)}% on last week`,
-      detail: `${thisWeek} working sets, against ${lastWeek} last week.`,
+      headline: partialWeek ? `On pace to beat last week by ${Math.round(changePct)}%` : `Up ${Math.round(changePct)}% on last week`,
+      detail: partialWeek
+        ? `Heading for about ${paceThisWeek} working sets, against ${lastWeek} last week.${loggedSoFar}`
+        : `${thisWeek} working sets, against ${lastWeek} last week.`,
     };
   }
 
@@ -162,9 +197,15 @@ export function readLoad(series: VolumeWeek[]): LoadReading {
     verdict: 'backing_off',
     thisWeek,
     lastWeek,
+    paceThisWeek,
+    partialWeek,
     changePct,
     buildingWeeks,
-    headline: `Down ${Math.abs(Math.round(changePct))}% on last week`,
-    detail: `${thisWeek} working sets, against ${lastWeek} last week. Fine if it is deliberate.`,
+    headline: partialWeek
+      ? `On pace for ${Math.abs(Math.round(changePct))}% less than last week`
+      : `Down ${Math.abs(Math.round(changePct))}% on last week`,
+    detail: partialWeek
+      ? `Heading for about ${paceThisWeek} working sets, against ${lastWeek} last week.${loggedSoFar}`
+      : `${thisWeek} working sets, against ${lastWeek} last week. Fine if it is deliberate.`,
   };
 }

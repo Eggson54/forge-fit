@@ -165,8 +165,11 @@ export default function Home() {
           </Text>
           <Text variant="h1">{profile.name || 'Athlete'}</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
           <StreakBadge count={streak} />
+          <IconButton accessibilityLabel="Search lifts, foods and screens" onPress={() => router.push('/search')}>
+            <Icon name="search" size={21} color={colors.text} />
+          </IconButton>
           <IconButton accessibilityLabel="Reminders" onPress={() => router.push('/reminders')}>
             <Icon name="bell" size={22} color={colors.text} />
           </IconButton>

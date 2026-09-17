@@ -9,7 +9,7 @@ import { colors, radius, spacing } from '../../src/theme';
 import { epley1RM } from '../../src/domain/strength';
 import { displayVolume, displayWeight, kgToLb } from '../../src/domain/units';
 import { formatDateWithWeekday, formatDayMonth } from '../../src/domain/date';
-import { exerciseSessions, repMaxes } from '../../src/domain/records';
+import { beatTarget, exerciseSessions, repMaxes } from '../../src/domain/records';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 
@@ -48,6 +48,7 @@ export default function ExerciseDetail() {
 
   const maxes = useMemo(() => (exercise ? repMaxes(workouts, exercise.id) : []), [workouts, exercise]);
   const history = useMemo(() => (exercise ? exerciseSessions(workouts, exercise.id) : []), [workouts, exercise]);
+  const toBeat = useMemo(() => (exercise ? beatTarget(workouts, exercise.id) : null), [workouts, exercise]);
 
   if (!exercise) {
     return (
@@ -114,6 +115,27 @@ export default function ExerciseDetail() {
           accent={colors.water}
         />
       </Card>
+
+      {/* The factual version: the exact set from last time and the smallest
+          honest way past it. The suggested-next card below is the algorithm's
+          opinion, which is a different thing and reads better beside it. */}
+      {toBeat && (
+        <Card style={{ marginTop: spacing.md, gap: spacing.sm }}>
+          <Text variant="overline" color={colors.amber}>TO BEAT</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, flexWrap: 'wrap' }}>
+            <Text variant="h3">
+              {Math.round(displayWeight(toBeat.weightKg, units).value)} {displayWeight(toBeat.weightKg, units).unit} ×{' '}
+              {toBeat.targetReps}
+            </Text>
+            <Text variant="caption" color={colors.textDim}>
+              your top set on {formatDayMonth(toBeat.date)} was × {toBeat.reps}
+            </Text>
+          </View>
+          <Text variant="caption" color={colors.textFaint}>
+            Same weight, one more rep — the smallest step that still counts as progress.
+          </Text>
+        </Card>
+      )}
 
       {rec && (
         <Card tone="alt" style={{ marginTop: spacing.md }}>

@@ -1,4 +1,4 @@
-import { readLoad, weekStartOf, weeklyVolumeSeries } from '../domain/volumeTrend';
+import { daysElapsedInWeek, readLoad, weekStartOf, weeklyVolumeSeries } from '../domain/volumeTrend';
 import { groupHits, searchEntries, type SearchEntry } from '../domain/search';
 import { rankBreakdown } from '../domain/rank';
 import { beatTarget } from '../domain/records';
@@ -109,6 +109,40 @@ describe('readLoad', () => {
     const r = readLoad([week('a', 20), week('b', 20), week('c', 10)]);
     expect(r.verdict).toBe('backing_off');
     expect(r.changePct).toBe(-50);
+  });
+
+  // Three days of a week are not a week. Comparing the raw count against a
+  // finished week told a Wednesday it was "down 60%".
+  it('projects a partial week rather than comparing it raw', () => {
+    const partial = readLoad([week('a', 60), week('b', 62), week('c', 25)], 3);
+    expect(partial.partialWeek).toBe(true);
+    expect(partial.paceThisWeek).toBe(58);
+    expect(partial.verdict).toBe('holding');
+    expect(partial.headline).not.toMatch(/Down/);
+
+    const asIfFinished = readLoad([week('a', 60), week('b', 62), week('c', 25)], 7);
+    expect(asIfFinished.verdict).toBe('backing_off');
+  });
+
+  it('a genuinely quiet week still reads as backing off once projected', () => {
+    const r = readLoad([week('a', 60), week('b', 60), week('c', 6)], 3);
+    expect(r.paceThisWeek).toBe(14);
+    expect(r.verdict).toBe('backing_off');
+    expect(r.detail).toContain('about 14 working sets');
+    expect(r.detail).toContain('So far: 6 over 3 days');
+  });
+
+  it('never divides by zero days', () => {
+    expect(readLoad([week('a', 10), week('b', 10)], 0).paceThisWeek).toBe(70);
+    expect(readLoad([week('a', 10), week('b', 10)], 99).partialWeek).toBe(false);
+  });
+});
+
+describe('daysElapsedInWeek', () => {
+  it('counts Monday as one day in and Sunday as seven', () => {
+    expect(daysElapsedInWeek('2026-09-14')).toBe(1); // Monday
+    expect(daysElapsedInWeek('2026-09-16')).toBe(3); // Wednesday
+    expect(daysElapsedInWeek('2026-09-20')).toBe(7); // Sunday
   });
 });
 
@@ -270,5 +304,30 @@ describe('trainingDayIndices', () => {
   it('clamps nonsense input', () => {
     expect(trainingDayIndices(0)).toEqual([1]);
     expect(trainingDayIndices(99)).toHaveLength(7);
+  });
+});
+
+describe('search shorthand', () => {
+  const lib: SearchEntry[] = [
+    { id: '1', kind: 'exercise', title: 'Incline Dumbbell Press', subtitle: 'Chest · Dumbbells', href: '/1' },
+    { id: '2', kind: 'exercise', title: 'Incline Barbell Press', subtitle: 'Chest · Barbell', href: '/2' },
+    { id: '3', kind: 'exercise', title: 'Romanian Deadlift', subtitle: 'Hamstrings · Barbell', href: '/3' },
+    { id: '4', kind: 'screen', title: 'One-rep max calculator', href: '/4' },
+  ];
+
+  it('expands gym shorthand nobody types in full', () => {
+    expect(searchEntries('incline db', lib).map((h) => h.id)).toEqual(['1']);
+    expect(searchEntries('bb incline', lib).map((h) => h.id)).toEqual(['2']);
+    expect(searchEntries('rdl', lib).map((h) => h.id)).toEqual(['3']);
+    expect(searchEntries('1rm', lib).map((h) => h.id)).toEqual(['4']);
+  });
+
+  it('a literal hit still outranks a synonym hit', () => {
+    const hits = searchEntries('dumbbell', lib);
+    expect(hits[0].id).toBe('1');
+  });
+
+  it('shorthand does not loosen the all-tokens-must-match rule', () => {
+    expect(searchEntries('db squat', lib)).toEqual([]);
   });
 });

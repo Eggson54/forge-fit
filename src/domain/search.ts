@@ -41,9 +41,37 @@ function fieldScore(field: string, q: string): number {
   if (f === q) return 100;
   if (f.startsWith(q)) return 70;
   if (new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(f)) return 50;
-  if (f.includes(q)) return 25;
+  // A bare substring hit on one or two characters is noise: "bb" lands inside
+  // "dumbbell", "db" inside "seated". Short tokens have to start a word.
+  if (q.length > 2 && f.includes(q)) return 25;
   return 0;
 }
+
+/**
+ * Gym shorthand, which nobody types in full. Expanded at query time rather than
+ * stamped onto every record, so the exercise library stays a description of
+ * exercises instead of a description of how people search for them.
+ */
+const SYNONYMS: Record<string, string[]> = {
+  db: ['dumbbell'],
+  dbs: ['dumbbell'],
+  bb: ['barbell'],
+  kb: ['kettlebell'],
+  ohp: ['overhead', 'press', 'shoulder'],
+  rdl: ['romanian', 'deadlift'],
+  bw: ['bodyweight'],
+  abs: ['core'],
+  lats: ['back'],
+  pecs: ['chest'],
+  delts: ['shoulders'],
+  quads: ['quads', 'legs'],
+  hams: ['hamstrings'],
+  cardio: ['conditioning'],
+  '1rm': ['one', 'rep', 'max'],
+  pr: ['record', 'records'],
+  macros: ['nutrition', 'goals', 'targets'],
+  weigh: ['weight'],
+};
 
 /**
  * Every token in the query has to hit something, so "incline db" finds the
@@ -53,11 +81,21 @@ function fieldScore(field: string, q: string): number {
 function entryScore(entry: SearchEntry, tokens: string[]): number {
   let total = 0;
   for (const t of tokens) {
-    const best = Math.max(
-      fieldScore(entry.title, t),
-      Math.round(fieldScore(entry.subtitle ?? '', t) * 0.6),
-      ...(entry.keywords ?? []).map((k) => Math.round(fieldScore(k, t) * 0.5)),
-    );
+    // A synonym is a weaker signal than the word the user actually typed, so it
+    // never outranks a literal hit on the same entry.
+    const variants: { term: string; weight: number }[] = [
+      { term: t, weight: 1 },
+      ...(SYNONYMS[t] ?? []).map((term) => ({ term, weight: 0.8 })),
+    ];
+    let best = 0;
+    for (const { term, weight } of variants) {
+      const hit = Math.max(
+        fieldScore(entry.title, term),
+        Math.round(fieldScore(entry.subtitle ?? '', term) * 0.6),
+        ...(entry.keywords ?? []).map((k) => Math.round(fieldScore(k, term) * 0.5)),
+      );
+      best = Math.max(best, Math.round(hit * weight));
+    }
     if (best === 0) return 0;
     total += best;
   }

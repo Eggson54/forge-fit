@@ -4,11 +4,13 @@ import { router } from 'expo-router';
 import { BarChart, Card, Chip, DayStrip, LineChart, ListRow, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
 import { FadeIn, Shimmer } from '../../src/components/anim';
 import { BodyMap } from '../../src/components/BodyMap';
+import { LoadReadingCard } from '../../src/components/LoadReadingCard';
 import { TrainingCalendar } from '../../src/components/TrainingCalendar';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { addDaysISO, lastNDays, todayISO } from '../../src/domain/date';
 import { VOLUME_LANDMARKS, volumeStatus, weeklySetsPerMuscle } from '../../src/domain/volume';
+import { daysElapsedInWeek, readLoad, weeklyVolumeSeries } from '../../src/domain/volumeTrend';
 import type { MuscleGroup } from '../../src/domain/types';
 import { displayWeight, kgToLb } from '../../src/domain/units';
 import { epley1RM } from '../../src/domain/strength';
@@ -120,6 +122,10 @@ export default function Progress() {
   const trackedMuscles = (Object.keys(VOLUME_LANDMARKS) as MuscleGroup[])
     .map((m) => ({ m, sets: weekVolume[m] ?? 0, status: volumeStatus(m, weekVolume[m] ?? 0) }))
     .sort((a, b) => b.sets - a.sets);
+
+  // Working sets per week, and what that trend is saying.
+  const loadSeries = useMemo(() => weeklyVolumeSeries(workouts, todayISO(), 8), [workouts]);
+  const loadReading = useMemo(() => readLoad(loadSeries, daysElapsedInWeek(todayISO())), [loadSeries]);
 
   const latest = weightByDate[weightByDate.length - 1]?.weightKg ?? profile.weightKg ?? null;
   const startWeight = weightByDate[0]?.weightKg ?? latest;
@@ -248,6 +254,9 @@ export default function Progress() {
           unit={profile.units === 'imperial' ? ' lb' : ' kg'}
         />
       </Card>
+
+      <SectionHeader title="Training load (8 weeks)" />
+      <LoadReadingCard series={loadSeries} reading={loadReading} width={chartW} />
 
       <SectionHeader title="Workout consistency (8 weeks)" />
       <Card>

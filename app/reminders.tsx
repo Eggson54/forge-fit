@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, View } from 'react-native';
-import { Card, EmptyState, Input, Screen, SectionHeader, Text, Toggle } from '../src/components/ui';
+import { Card, Input, Screen, SectionHeader, Text, Toggle } from '../src/components/ui';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { colors, radius, spacing } from '../src/theme';
 import type { Reminder, ReminderType } from '../src/domain/types';
@@ -71,15 +71,14 @@ export default function Reminders() {
 
       {reminders.length === 0 ? (
         <>
-          <EmptyState icon="bell" title="No reminders yet" subtitle="Add reminders to stay accountable — your coach nudges you at the right time." />
-
-          {/* An empty screen with nine identical "add" buttons is a decision,
-              not a feature. These are a starting set to accept and then edit. */}
-          <Card style={{ gap: spacing.md, marginTop: spacing.md }}>
+          {/* No empty-state illustration here: it would say "no reminders yet,
+              add some" directly above a card that already says which ones and
+              why, burning a screenful to repeat itself. */}
+          <Card style={{ gap: spacing.md }}>
             <View style={{ gap: 2 }}>
-              <Text variant="bodyStrong">Suggested for your goal</Text>
+              <Text variant="h3">Start with these</Text>
               <Text variant="caption" color={colors.textFaint}>
-                Based on your goal and training days. You can change the time, days or wording afterwards.
+                Picked from your goal and training days. Change the time, days or wording afterwards, or build your own below.
               </Text>
             </View>
 

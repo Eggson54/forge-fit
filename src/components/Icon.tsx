@@ -39,6 +39,7 @@ export type IconName =
   | 'chevron_left'
   | 'chevron_right'
   | 'link_off'
+  | 'close'
   | 'copy'
   | 'star';
 
@@ -266,6 +267,8 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
           <Path d="M8.8 13h6.4M8.8 16.6h4.4" {...s} />
         </>
       )}
+
+      {name === 'close' && <Path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6" {...s} />}
 
       {/* Two offset sheets — the standard "make another one of these" mark. */}
       {name === 'copy' && (

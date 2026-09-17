@@ -17,7 +17,7 @@ export const DEMO_RIVALS: Rival[] = [
   { id: 'r4', handle: 'NovaLifts', score: 688, weeklyDelta: 22 },
   { id: 'r5', handle: 'GraniteJaw', score: 604, weeklyDelta: 5 },
   { id: 'r6', handle: 'EmberEdge', score: 512, weeklyDelta: 14 },
-  { id: 'r7', handle: 'ColdSteelKe', score: 430, weeklyDelta: -2 },
+  { id: 'r7', handle: 'ColdSteelKettle', score: 430, weeklyDelta: -2 },
   { id: 'r8', handle: 'PulseChaser', score: 356, weeklyDelta: 9 },
   { id: 'r9', handle: 'QuietBeast', score: 288, weeklyDelta: 6 },
   { id: 'r10', handle: 'DawnPatrol', score: 210, weeklyDelta: 18 },
