@@ -9,4 +9,4 @@ export { ProgressRing } from './ProgressRing';
 export { SegmentedControl } from './SegmentedControl';
 export { LineChart, BarChart, DayStrip, type Point } from './Charts';
 export { AdSlot } from './AdSlot';
-export { SectionHeader, Divider, Pill, Chip, LinearProgress, StatTile, EmptyState, ListRow } from './primitives';
+export { SectionHeader, Divider, Pill, Chip, LinearProgress, StatTile, EmptyState, ListRow, Well } from './primitives';

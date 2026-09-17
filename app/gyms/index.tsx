@@ -78,7 +78,7 @@ export default function GymMapScreen() {
           <Card style={{ gap: spacing.lg, marginTop: spacing.md }}>
             <View style={{ alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md }}>
               <View style={styles.markIcon}>
-                <Icon name="target" size={26} color={colors.primary} strokeWidth={1.7} />
+                <Icon name="map" size={26} color={colors.primary} strokeWidth={1.7} />
               </View>
               <Text variant="h2" center>Collect the rooms you train in</Text>
               <Text variant="body" color={colors.textDim} center>

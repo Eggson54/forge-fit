@@ -4,7 +4,8 @@ import { router } from 'expo-router';
 import { AdSlot, Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
-import { colors, gradients, spacing } from '../../src/theme';
+import { Masthead } from '../../src/components/Masthead';
+import { colors, domainAccent, gradients, spacing } from '../../src/theme';
 import { lastNDays, todayISO } from '../../src/domain/date';
 import type { MealSlot, NutritionEntry } from '../../src/domain/types';
 import { scaleMacros, sumMacros, waterQuickAdds } from '../../src/domain/nutrition';
@@ -28,10 +29,14 @@ export default function Nutrition() {
 
   return (
     <Screen gradient>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-        <Text variant="h1">Nutrition</Text>
-        <Button title="Add" fullWidth={false} size="sm" icon={<Icon name="plus" size={16} color={colors.onPrimary} />} onPress={() => router.push('/nutrition/add')} />
-      </View>
+      <Masthead
+        eyebrow="Today"
+        title="Nutrition"
+        accent={domainAccent.nutrition}
+        right={
+          <Button title="Add" fullWidth={false} size="sm" icon={<Icon name="plus" size={16} color={colors.onPrimary} />} onPress={() => router.push('/nutrition/add')} />
+        }
+      />
 
       {/* Calories ring */}
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xl }}>

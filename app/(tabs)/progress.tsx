@@ -4,10 +4,11 @@ import { router } from 'expo-router';
 import { BarChart, Card, Chip, DayStrip, LineChart, ListRow, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
 import { FadeIn, Shimmer } from '../../src/components/anim';
 import { BodyMap } from '../../src/components/BodyMap';
+import { Masthead } from '../../src/components/Masthead';
 import { LoadReadingCard } from '../../src/components/LoadReadingCard';
 import { TrainingCalendar } from '../../src/components/TrainingCalendar';
 import { Icon } from '../../src/components/Icon';
-import { colors, spacing } from '../../src/theme';
+import { colors, domainAccent, spacing } from '../../src/theme';
 import { addDaysISO, lastNDays, todayISO } from '../../src/domain/date';
 import { VOLUME_LANDMARKS, volumeStatus, weeklySetsPerMuscle } from '../../src/domain/volume';
 import { daysElapsedInWeek, readLoad, weeklyVolumeSeries } from '../../src/domain/volumeTrend';
@@ -147,9 +148,7 @@ export default function Progress() {
 
   return (
     <Screen gradient>
-      <Text variant="h1" style={{ marginBottom: spacing.lg }}>
-        Progress
-      </Text>
+      <Masthead eyebrow="Where you are" title="Progress" accent={domainAccent.progress} />
 
       {/* Snapshot */}
       <Card style={{ flexDirection: 'row', marginBottom: spacing.md }}>

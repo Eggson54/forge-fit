@@ -1,11 +1,13 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, Card, ListRow, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { Button, Card, IconButton, ListRow, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
 import { Avatar } from '../../src/components/Avatar';
+import { Icon } from '../../src/components/Icon';
+import { Masthead } from '../../src/components/Masthead';
 import { RankCard } from '../../src/components/RankCard';
-import { colors, spacing } from '../../src/theme';
+import { colors, domainAccent, spacing } from '../../src/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { displayWeight } from '../../src/domain/units';
 import { computeRank } from '../../src/domain/rank';
@@ -39,9 +41,16 @@ export default function Profile() {
 
   return (
     <Screen gradient>
-      <Text variant="h1" style={{ marginBottom: spacing.lg }}>
-        Profile
-      </Text>
+      <Masthead
+        eyebrow="Your account"
+        title="Profile"
+        accent={domainAccent.profile}
+        right={
+          <IconButton accessibilityLabel="Settings" onPress={() => router.push('/settings')}>
+            <Icon name="gear" size={20} color={colors.text} />
+          </IconButton>
+        }
+      />
 
       <Card style={{ alignItems: 'center', gap: spacing.sm }}>
         <Avatar initial={(profile.name || 'A').charAt(0).toUpperCase()} accent={rank.tier.color} />

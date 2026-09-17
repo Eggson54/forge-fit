@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
-import { colors, radius, spacing } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, elevation, radius, spacing } from '../../theme';
 import { Text } from './Text';
 import { Icon, type IconName } from '../Icon';
 
@@ -13,10 +14,24 @@ function withAlpha(hex: string, alpha: number): string {
 }
 
 /** Row of a title + optional action, used above content sections. */
-export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
+export function SectionHeader({
+  title,
+  action,
+  onAction,
+  accent,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+  /** Tints the leading tick, for sections that belong to a particular area. */
+  accent?: string;
+}) {
   return (
     <View style={styles.sectionHeader}>
-      <Text variant="overline" color={colors.textDim}>
+      {/* A short bar before the label. Overline text alone floated between the
+          cards above and below it without ever attaching to either. */}
+      <View style={[styles.sectionTick, accent ? { backgroundColor: accent } : null]} />
+      <Text variant="overline" color={colors.textDim} style={{ flex: 1, minWidth: 0 }}>
         {title}
       </Text>
       {action && (
@@ -192,7 +207,14 @@ export function ListRow({
 }
 
 const styles = StyleSheet.create({
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md, marginTop: spacing.sm },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    marginTop: spacing.lg,
+  },
+  sectionTick: { width: 3, height: 12, borderRadius: 2, backgroundColor: colors.textFaint },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.md },
   pill: { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.pill, alignSelf: 'flex-start' },
   chip: {
@@ -222,3 +244,55 @@ const styles = StyleSheet.create({
   listRowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
   listRowIcon: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
 });
+
+/**
+ * A well: content set *into* the page rather than raised off it. Strips,
+ * tracks, grids and keypads belong in one — when everything is raised, nothing
+ * is.
+ */
+export function Well({
+  children,
+  style,
+  padded = true,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle | ViewStyle[];
+  padded?: boolean;
+}) {
+  return (
+    <View
+      style={[
+        {
+          backgroundColor: elevation.sunken.fill[0],
+          borderRadius: elevation.sunken.radius,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: elevation.sunken.rim,
+          overflow: 'hidden',
+        },
+        style,
+      ]}
+    >
+      {/* React Native has no inset shadow, so the "set into the page" read is
+          carried by an explicit shade down from the top edge. Without it the
+          darker fill alone is too close to the page ground to notice. */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0)']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 14 }}
+      />
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}
+      />
+      {/* And a faint lift along the bottom lip, the way a real recess catches
+          light on its far wall. */}
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.05)' }}
+      />
+      <View style={{ padding: padded ? spacing.md : 0 }}>{children}</View>
+    </View>
+  );
+}

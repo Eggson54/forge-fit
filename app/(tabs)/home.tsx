@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Pressable, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
-import { AdSlot, Card, IconButton, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AdSlot, Card, IconButton, Screen, SectionHeader, Text, Well } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing, FadeIn } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { CoachCard } from '../../src/components/CoachCard';
+import { Masthead } from '../../src/components/Masthead';
 import { WeekStrip, type WeekDay } from '../../src/components/WeekStrip';
 import { colors, gradients, spacing } from '../../src/theme';
 import { addDaysISO, formatSleep, lastNDays, timeOfDay, todayISO, weekdayIndex } from '../../src/domain/date';
@@ -157,24 +158,21 @@ export default function Home() {
       gradient
       refreshControl={<RefreshControl refreshing={false} onRefresh={loadCoach} tintColor={colors.primary} />}
     >
-      {/* Header */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-        <View>
-          <Text variant="caption" color={colors.textDim}>
-            {GREETING[timeOfDay()]}
-          </Text>
-          <Text variant="h1">{profile.name || 'Athlete'}</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-          <StreakBadge count={streak} />
-          <IconButton accessibilityLabel="Search lifts, foods and screens" onPress={() => router.push('/search')}>
-            <Icon name="search" size={21} color={colors.text} />
-          </IconButton>
-          <IconButton accessibilityLabel="Reminders" onPress={() => router.push('/reminders')}>
-            <Icon name="bell" size={22} color={colors.text} />
-          </IconButton>
-        </View>
-      </View>
+      <Masthead
+        eyebrow={GREETING[timeOfDay()]}
+        title={profile.name || 'Athlete'}
+        right={
+          <>
+            <StreakBadge count={streak} />
+            <IconButton accessibilityLabel="Search lifts, foods and screens" onPress={() => router.push('/search')}>
+              <Icon name="search" size={21} color={colors.text} />
+            </IconButton>
+            <IconButton accessibilityLabel="Reminders" onPress={() => router.push('/reminders')}>
+              <Icon name="bell" size={22} color={colors.text} />
+            </IconButton>
+          </>
+        }
+      />
 
       {/* Coach */}
       <FadeIn delay={40}>
@@ -265,10 +263,12 @@ export default function Home() {
         </Card>
       </FadeIn>
 
+      {/* The week strip is a track, so it sits in a well rather than on a
+          raised card — set into the page instead of floating above it. */}
       <FadeIn delay={80}>
-        <Card style={{ marginTop: spacing.md }}>
+        <Well style={{ marginTop: spacing.md }}>
           <WeekStrip days={weekDays} target={profile.trainingDaysPerWeek} onPress={() => router.push('/(tabs)/progress')} />
-        </Card>
+        </Well>
       </FadeIn>
 
       {/* Metrics */}

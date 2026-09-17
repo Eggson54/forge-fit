@@ -40,6 +40,7 @@ export type IconName =
   | 'chevron_right'
   | 'link_off'
   | 'close'
+  | 'map'
   | 'copy'
   | 'star';
 
@@ -269,6 +270,14 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
       )}
 
       {name === 'close' && <Path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6" {...s} />}
+
+      {/* Pin with a hollow eye — the one mark everybody reads as "a place". */}
+      {name === 'map' && (
+        <>
+          <Path d="M12 21.2c4.2-4.6 6.4-7.9 6.4-11a6.4 6.4 0 1 0-12.8 0c0 3.1 2.2 6.4 6.4 11Z" {...s} />
+          <Circle cx={12} cy={10} r={2.4} {...s} />
+        </>
+      )}
 
       {/* Two offset sheets — the standard "make another one of these" mark. */}
       {name === 'copy' && (
