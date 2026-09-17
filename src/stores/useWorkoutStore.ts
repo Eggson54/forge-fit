@@ -54,12 +54,16 @@ interface WorkoutState {
   /** Replace an exercise with another, keeping its position and set count. */
   swapExercise: (workoutExerciseId: string, newExerciseId: string) => void;
   setWorkoutNote: (note: string) => void;
+  /** Attach or clear the venue on the active session. */
+  setWorkoutGym: (gym: { id: string; name: string } | null) => void;
   /** Start a new session with the same exercises and sets as a past one. */
   repeatWorkout: (workoutId: string) => string | null;
   /** Returns the new personal record this completion set, if any. */
   toggleSetComplete: (workoutExerciseId: string, setId: string) => NewPr | null;
 
-  finishActive: () => Workout | null;
+  /** `gym` is supplied by the caller, which is the only layer that knows where
+   *  the phone is; the workout store stays free of any location dependency. */
+  finishActive: (gym?: { id: string; name: string }) => Workout | null;
   discardActive: () => void;
   deleteWorkout: (id: string) => void;
 
@@ -243,6 +247,8 @@ export const useWorkoutStore = create<WorkoutState>()(
 
       setWorkoutNote: (note) => mutateActive((w) => ({ ...w, notes: note.trim() ? note : undefined })),
 
+      setWorkoutGym: (gym) => mutateActive((w) => ({ ...w, gym: gym ?? undefined })),
+
       repeatWorkout: (workoutId) => {
         const source = get().workouts.find((w) => w.id === workoutId);
         if (!source) return null;
@@ -320,7 +326,7 @@ export const useWorkoutStore = create<WorkoutState>()(
         return newPr;
       },
 
-      finishActive: () => {
+      finishActive: (gym) => {
         const w = get().activeWorkout();
         if (!w) return null;
         const started = w.startedAt ? Date.parse(w.startedAt) : Date.now();
@@ -330,6 +336,9 @@ export const useWorkoutStore = create<WorkoutState>()(
           status: 'completed',
           completedAt: new Date().toISOString(),
           durationSeconds,
+          // A gym already on the workout wins: if the user set it by hand
+          // mid-session, a coincidental location fix should not overwrite it.
+          gym: w.gym ?? gym,
         };
         set((s) => ({ workouts: s.workouts.map((x) => (x.id === w.id ? completed : x)), activeId: null }));
         analytics.track('workout_completed', { duration_bucket: analyticsBucket(durationSeconds) });

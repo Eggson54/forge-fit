@@ -8,7 +8,7 @@ import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { PrBanner } from '../../src/components/PrBanner';
 import { RestTimer } from '../../src/components/RestTimer';
-import { colors, noOutline, radius, spacing } from '../../src/theme';
+import { colors, domainAccent, noOutline, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayVolume, displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
@@ -22,6 +22,8 @@ import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
 import { currentAchievementInputs } from '../../src/stores/achievementInputs';
 import { useProgramStore } from '../../src/stores/useProgramStore';
+import { useGymStore } from '../../src/stores/useGymStore';
+import { claimableNow } from '../../src/domain/gyms';
 import { programById } from '../../src/data/programs';
 
 export default function ActiveWorkout() {
@@ -63,7 +65,15 @@ export default function ActiveWorkout() {
       Alert.alert('No sets logged', 'Complete at least one set, or discard this workout.');
       return;
     }
-    const done = finishActive();
+    // Attach the venue if the phone is standing in one. Only a gym already
+    // claimed counts: silently recording an unclaimed address the user never
+    // acknowledged would be collecting a place history they did not ask for.
+    const gymState = useGymStore.getState();
+    const here = claimableNow(
+      gymState.gyms.filter((g) => gymState.claimedIds().has(g.id)),
+      gymState.fix,
+    );
+    const done = finishActive(here ? { id: here.id, name: here.name } : undefined);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     // A session started from the plan advances it. Matching on the generated
     // name keeps the plan out of the workout model — a workout is a workout
@@ -127,7 +137,10 @@ export default function ActiveWorkout() {
         <View style={{ padding: spacing.xl, gap: spacing.md }}>
           <Button title="Add Exercise" variant="secondary" icon={<Icon name="plus" size={18} color={colors.text} />} onPress={() => router.push('/workout/library?select=1')} />
           {active.exercises.length > 0 && (
-            <SessionNote workout={active} />
+            <>
+              <GymPicker workout={active} />
+              <SessionNote workout={active} />
+            </>
           )}
           {active.exercises.length > 0 && (
             <Text variant="caption" color={colors.textFaint} center>
@@ -161,6 +174,70 @@ export default function ActiveWorkout() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}>
         <Button title="Finish Workout" onPress={onFinish} size="lg" />
       </View>
+    </View>
+  );
+}
+
+/**
+ * Where this session is happening.
+ *
+ * Finishing a workout tags it automatically when the phone is standing in a
+ * claimed gym, but that needs location on AND that gym already claimed. Most
+ * sessions will meet neither, so the venue is settable by hand from the gyms
+ * already in the collection — otherwise the feature looks dead to everyone who
+ * has not turned the map on.
+ */
+function GymPicker({ workout }: { workout: Workout }) {
+  const setGym = useWorkoutStore((s) => s.setWorkoutGym);
+  const claims = useGymStore((s) => s.claims);
+  const byId = useGymStore((s) => s.gymsById());
+  const [open, setOpen] = useState(false);
+
+  const options = claims.map((c) => byId[c.gymId]).filter((g): g is NonNullable<typeof g> => !!g);
+  if (options.length === 0 && !workout.gym) return null;
+
+  return (
+    <View style={{ gap: spacing.sm }}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={
+          workout.gym ? `Training at ${workout.gym.name}. Tap to change.` : 'Set where you are training'
+        }
+        style={styles.noteOpen}
+      >
+        <Icon name="map" size={14} color={workout.gym ? domainAccent.gyms : colors.textFaint} strokeWidth={1.8} />
+        <Text variant="caption" color={workout.gym ? domainAccent.gyms : colors.textFaint}>
+          {workout.gym ? workout.gym.name : 'Where are you training?'}
+        </Text>
+      </Pressable>
+
+      {open && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+          {options.map((g) => {
+            const chosen = workout.gym?.id === g.id;
+            return (
+              <Pressable
+                key={g.id}
+                onPress={() => {
+                  setGym(chosen ? null : { id: g.id, name: g.name });
+                  setOpen(false);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: chosen }}
+                accessibilityLabel={g.name}
+                style={[styles.gymChip, chosen && styles.gymChipOn]}
+              >
+                <Text variant="caption" color={chosen ? colors.bg : colors.textDim}>
+                  {g.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -713,5 +790,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   restChoiceOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  gymChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  gymChipOn: { backgroundColor: domainAccent.gyms, borderColor: domainAccent.gyms },
   addSet: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.md, marginTop: spacing.xs },
 });

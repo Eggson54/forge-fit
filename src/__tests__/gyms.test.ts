@@ -23,6 +23,8 @@ import {
 } from '../domain/gyms';
 import { demoGymProvider } from '../services/gyms/demo';
 import { ACHIEVEMENT_CATALOG, evaluateAchievements } from '../domain/achievements';
+import { homeGym, sessionsByGym } from '../domain/gymStats';
+import type { Workout } from '../domain/types';
 
 const LONDON = { lat: 51.5074, lon: -0.1278 };
 const PARIS = { lat: 48.8566, lon: 2.3522 };
@@ -410,5 +412,106 @@ describe('gym achievements', () => {
     for (const id of ['first_gym', 'gyms_5', 'gyms_25', 'gym_kinds_5', 'rare_gym']) {
       expect(ids).toContain(id);
     }
+  });
+});
+
+describe('sessionsByGym', () => {
+  const session = (date: string, gym?: { id: string; name: string }, sets = 2): Workout =>
+    ({
+      id: `w_${date}_${gym?.id ?? 'none'}`,
+      name: 'Session',
+      date,
+      completedAt: `${date}T18:00:00.000Z`,
+      status: 'completed',
+      gym,
+      exercises: [
+        {
+          id: 'we',
+          exerciseId: 'bench',
+          name: 'Bench',
+          primaryMuscle: 'chest',
+          restSeconds: 120,
+          sets: Array.from({ length: sets }, (_, i) => ({
+            id: `s${i}`,
+            weightKg: 100,
+            reps: 5,
+            rpe: null,
+            completed: true,
+          })),
+        },
+      ],
+    }) as unknown as Workout;
+
+  const IRON = { id: 'iron', name: 'Ironworks' };
+  const NORTH = { id: 'north', name: 'Northgate' };
+
+  it('groups by gym, busiest first, and totals working sets', () => {
+    const rows = sessionsByGym([
+      session('2026-09-01', IRON),
+      session('2026-09-03', NORTH),
+      session('2026-09-05', IRON, 4),
+    ]);
+    expect(rows.map((r) => r.gymId)).toEqual(['iron', 'north']);
+    expect(rows[0].sessions).toBe(2);
+    expect(rows[0].sets).toBe(6);
+    expect(rows[0].lastVisit.startsWith('2026-09-05')).toBe(true);
+  });
+
+  it('leaves untagged sessions out rather than bucketing them as unknown', () => {
+    const rows = sessionsByGym([session('2026-09-01', IRON), session('2026-09-02', undefined)]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].share).toBe(1);
+  });
+
+  it('shares add up across located sessions only', () => {
+    const rows = sessionsByGym([
+      session('2026-09-01', IRON),
+      session('2026-09-02', NORTH),
+      session('2026-09-03', undefined),
+    ]);
+    expect(rows.reduce((a, r) => a + r.share, 0)).toBeCloseTo(1, 6);
+    expect(rows[0].share).toBeCloseTo(0.5, 6);
+  });
+
+  it('ignores sessions that were never completed', () => {
+    const inProgress = { ...session('2026-09-04', IRON), status: 'in_progress' } as unknown as Workout;
+    expect(sessionsByGym([inProgress])).toEqual([]);
+  });
+});
+
+describe('homeGym', () => {
+  const at = (date: string, gym: { id: string; name: string }): Workout =>
+    ({
+      id: `w_${date}_${gym.id}`,
+      name: 'S',
+      date,
+      completedAt: `${date}T10:00:00.000Z`,
+      status: 'completed',
+      gym,
+      exercises: [],
+    }) as unknown as Workout;
+
+  const IRON = { id: 'iron', name: 'Ironworks' };
+  const NORTH = { id: 'north', name: 'Northgate' };
+
+  it('needs enough sessions before naming one', () => {
+    expect(homeGym([at('2026-09-01', IRON), at('2026-09-02', IRON)])).toBeNull();
+    expect(homeGym([at('2026-09-01', IRON), at('2026-09-02', IRON), at('2026-09-03', IRON)])?.gymId).toBe('iron');
+  });
+
+  it('refuses to break a tie arbitrarily', () => {
+    const tied = [
+      at('2026-09-01', IRON),
+      at('2026-09-02', IRON),
+      at('2026-09-03', IRON),
+      at('2026-09-04', NORTH),
+      at('2026-09-05', NORTH),
+      at('2026-09-06', NORTH),
+    ];
+    expect(homeGym(tied)).toBeNull();
+  });
+
+  it('is null when nothing has been located at all', () => {
+    expect(homeGym([])).toBeNull();
   });
 });

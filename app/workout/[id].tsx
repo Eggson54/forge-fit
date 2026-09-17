@@ -1,12 +1,12 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { AnimatedNumber, Celebration, FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
-import { colors, spacing } from '../../src/theme';
+import { colors, domainAccent, spacing } from '../../src/theme';
 import { formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { muscleShares, weeklySetsPerMuscle } from '../../src/domain/volume';
@@ -92,6 +92,18 @@ export default function WorkoutDetail() {
             <Text variant="bodyStrong" color={colors.amber}>
               ★ {prCount} new personal record{prCount > 1 ? 's' : ''}!
             </Text>
+          )}
+          {workout.gym && (
+            <Pressable
+              onPress={() => router.push(`/gyms/${workout.gym!.id}`)}
+              hitSlop={8}
+              accessibilityRole="link"
+              accessibilityLabel={`Logged at ${workout.gym.name}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xs }}
+            >
+              <Icon name="map" size={13} color={domainAccent.gyms} strokeWidth={1.9} />
+              <Text variant="caption" color={domainAccent.gyms}>{workout.gym.name}</Text>
+            </Pressable>
           )}
         </Card>
       </FadeIn>

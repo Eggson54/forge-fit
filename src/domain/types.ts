@@ -158,6 +158,13 @@ export interface WorkoutExercise {
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped';
 
 export interface Workout {
+  /**
+   * Where this session was logged, captured at the moment it finished. Stored
+   * on the workout rather than looked up later, because a gym can be renamed,
+   * close, or fall outside a future search — and the session still happened
+   * there.
+   */
+  gym?: { id: string; name: string };
   id: UUID;
   name: string;
   status: WorkoutStatus;

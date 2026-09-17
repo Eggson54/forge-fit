@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { Card, EmptyState, LinearProgress, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
@@ -15,6 +15,8 @@ import {
   type GymRarity,
 } from '../../src/domain/gyms';
 import { useGymStore } from '../../src/stores/useGymStore';
+import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
+import { homeGym, sessionsByGym } from '../../src/domain/gymStats';
 
 const RARITIES: GymRarity[] = ['common', 'uncommon', 'rare', 'legendary'];
 
@@ -22,6 +24,10 @@ export default function Collection() {
   const claims = useGymStore((s) => s.claims);
   const gymsById = useGymStore((s) => s.gymsById());
   const summary = useGymStore((s) => s.summary());
+
+  const workouts = useWorkoutStore((s) => s.workouts);
+  const located = useMemo(() => sessionsByGym(workouts), [workouts]);
+  const home = useMemo(() => homeGym(workouts), [workouts]);
 
   const rows = useMemo(
     () =>
@@ -61,6 +67,52 @@ export default function Collection() {
           </View>
         </Card>
       </FadeIn>
+
+      {located.length > 0 && (
+        <>
+          <SectionHeader title="Where you train" />
+          <Card style={{ gap: spacing.md }}>
+            {/* One stacked bar of sessions, the same read as the muscle split
+                on a finished workout. */}
+            <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden' }}>
+              {located.map((g, i) => (
+                <View
+                  key={g.gymId}
+                  style={{
+                    flex: Math.max(0.001, g.share),
+                    backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length],
+                  }}
+                />
+              ))}
+            </View>
+            {located.map((g, i) => (
+              <Pressable
+                key={g.gymId}
+                onPress={() => router.push(`/gyms/${g.gymId}`)}
+                accessibilityRole="link"
+                accessibilityLabel={`${g.gymName}, ${g.sessions} sessions`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 34 }}
+              >
+                <View
+                  style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length] }}
+                />
+                <Text variant="body" style={{ flex: 1, minWidth: 0 }} numberOfLines={1}>
+                  {g.gymName}
+                </Text>
+                <Text variant="label">{g.sessions}</Text>
+                <Text variant="caption" color={colors.textFaint} style={{ width: 62, textAlign: 'right' }}>
+                  {g.sets} sets
+                </Text>
+              </Pressable>
+            ))}
+            <Text variant="caption" color={colors.textFaint}>
+              {home
+                ? `Most of your work happens at ${home.gymName}.`
+                : 'Sessions are tagged with the claimed gym you were standing in when you finished them.'}
+            </Text>
+          </Card>
+        </>
+      )}
 
       <SectionHeader title="By rarity" />
       <Card style={{ gap: spacing.md }}>
@@ -178,3 +230,15 @@ const styles = {
     backgroundColor: colors.surface,
   },
 };
+
+/** Distinct hues for the split bar, matching the one on a finished workout. */
+const SPLIT_COLORS = [
+  colors.primary,
+  colors.water,
+  colors.success,
+  colors.amber,
+  colors.protein,
+  colors.steps,
+  '#C084FC',
+  '#7FB2FF',
+];

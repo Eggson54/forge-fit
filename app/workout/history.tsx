@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Card, Chip, EmptyState, Input, Screen, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
-import { colors, spacing } from '../../src/theme';
+import { colors, domainAccent, spacing } from '../../src/theme';
 import { formatDateWithWeekday, formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { displayVolume } from '../../src/domain/units';
@@ -12,6 +12,7 @@ import type { MuscleGroup, Units, Workout } from '../../src/domain/types';
 import { MUSCLE_GROUPS } from '../../src/data/exercises';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { Icon } from '../../src/components/Icon';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -152,10 +153,18 @@ function HistoryRow({ workout, units }: { workout: Workout; units: Units }) {
           <Text variant="caption" color={colors.textDim}>
             {formatDateWithWeekday(workout.completedAt ?? workout.date)} · {formatDurationShort(workout.durationSeconds ?? 0)}
           </Text>
-          <Text variant="caption" color={colors.textFaint}>
+          <Text variant="caption" color={colors.textFaint} numberOfLines={1}>
             {workout.exercises.length} exercises · {stats.totalSets} sets
             {prs > 0 ? ` · ${prs} PR${prs === 1 ? '' : 's'}` : ''}
           </Text>
+          {workout.gym && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              <Icon name="map" size={11} color={domainAccent.gyms} strokeWidth={2} />
+              <Text variant="caption" color={domainAccent.gyms} numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>
+                {workout.gym.name}
+              </Text>
+            </View>
+          )}
         </View>
         <Text variant="bodyStrong" color={colors.primary}>
           {vol.value} {vol.unit}
