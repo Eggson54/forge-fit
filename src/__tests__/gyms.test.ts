@@ -21,6 +21,7 @@ import {
   type Claim,
   type Gym,
 } from '../domain/gyms';
+import { demoGymProvider } from '../services/gyms/demo';
 
 const LONDON = { lat: 51.5074, lon: -0.1278 };
 const PARIS = { lat: 48.8566, lon: 2.3522 };
@@ -320,5 +321,46 @@ describe('claimableNow', () => {
     expect(claimableNow([b, a], LONDON)?.id).toBe('a');
     expect(claimableNow([gym({ ...offsetBy(LONDON, 5000, 0) })], LONDON)).toBeNull();
     expect(claimableNow([a], null)).toBeNull();
+  });
+});
+
+describe('demo gym provider', () => {
+  const HERE = { lat: 51.5074, lon: -0.1278 };
+
+  it('keeps venues in the same place when the user walks', async () => {
+    const a = await demoGymProvider.search(HERE, 20000);
+    // ~350 m north-east: far enough to matter, inside the same grid cell.
+    const b = await demoGymProvider.search({ lat: HERE.lat + 0.002, lon: HERE.lon + 0.002 }, 20000);
+
+    const byId = Object.fromEntries(b.gyms.map((g) => [g.id, g]));
+    expect(a.gyms.length).toBeGreaterThan(0);
+    for (const g of a.gyms) {
+      const moved = byId[g.id];
+      expect(moved).toBeDefined();
+      expect(distanceMeters(g, moved!)).toBeLessThan(1);
+    }
+  });
+
+  it('lets you actually get close enough to claim one', async () => {
+    const { gyms } = await demoGymProvider.search(HERE, 20000);
+    const target = gyms[0];
+    const atTheDoor = { lat: target.lat, lon: target.lon };
+    // Standing on it must be claimable — with venues pinned to the live
+    // position this was impossible, because they moved with you.
+    expect(evaluateCheckIn(target, atTheDoor, undefined, new Date()).ok).toBe(true);
+  });
+
+  it('honours the search radius from where the user is', async () => {
+    const near = await demoGymProvider.search(HERE, 700);
+    const far = await demoGymProvider.search(HERE, 20000);
+    expect(near.gyms.length).toBeLessThan(far.gyms.length);
+    for (const g of near.gyms) expect(distanceMeters(HERE, g)).toBeLessThanOrEqual(700);
+  });
+
+  it('marks itself as sample data and invents its names', async () => {
+    const r = await demoGymProvider.search(HERE, 20000);
+    expect(r.sample).toBe(true);
+    expect(r.features).toEqual([]);
+    expect(r.gyms.every((g) => g.name.length > 0)).toBe(true);
   });
 });

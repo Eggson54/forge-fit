@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import type { LatLon } from '../domain/geo';
 
 /**
@@ -18,6 +19,68 @@ export interface LocationFix extends LatLon {
 }
 
 export type LocationStatus = 'unknown' | 'granted' | 'denied' | 'unavailable';
+
+/** Why a position could not be read. Surfaced rather than swallowed: a map that
+ *  silently shows nothing is indistinguishable from a map that is broken. */
+export type LocationError = 'denied' | 'unavailable' | 'timeout' | null;
+
+let lastError: LocationError = null;
+export const locationError = () => lastError;
+
+// --- Web -------------------------------------------------------------------
+// expo-location's web support is thin, and the browser already exposes exactly
+// what this feature needs. Going straight to the platform API keeps the web
+// build — which is how most people will first see this — actually working.
+
+const hasBrowserGeo = () =>
+  typeof navigator !== 'undefined' && typeof navigator.geolocation?.getCurrentPosition === 'function';
+
+function browserFix(): Promise<LocationFix | null> {
+  return new Promise((resolve) => {
+    if (!hasBrowserGeo()) {
+      lastError = 'unavailable';
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        lastError = null;
+        resolve({
+          lat: p.coords.latitude,
+          lon: p.coords.longitude,
+          accuracyMeters: p.coords.accuracy ?? null,
+          at: new Date().toISOString(),
+        });
+      },
+      (e) => {
+        lastError = e.code === 1 ? 'denied' : e.code === 3 ? 'timeout' : 'unavailable';
+        resolve(null);
+      },
+      // No high accuracy: the nearest gym is not a GPS-grade question, and
+      // asking for it costs battery and a slower first fix.
+      //
+      // maximumAge is 0 because a cached position is the wrong answer to the
+      // question this feature asks. Allowing a 30-second-old fix meant walking
+      // into a gym and being told you were still out on the street. Reads only
+      // happen when a gym screen is opened, so this is not a battery drain.
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 0 },
+    );
+  });
+}
+
+async function browserPermission(): Promise<LocationStatus> {
+  if (!hasBrowserGeo()) return 'unavailable';
+  try {
+    const p = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
+    if (p?.state === 'granted') return 'granted';
+    if (p?.state === 'denied') return 'denied';
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+// --- Native ----------------------------------------------------------------
 
 interface LocationModule {
   requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
@@ -44,6 +107,7 @@ function load(): LocationModule | null {
 
 export const location = {
   async status(): Promise<LocationStatus> {
+    if (Platform.OS === 'web') return browserPermission();
     const m = load();
     if (!m) return 'unavailable';
     try {
@@ -54,23 +118,42 @@ export const location = {
     }
   },
 
-  /** Asks for permission. Only ever called from an explicit user action. */
-  async request(): Promise<LocationStatus> {
+  /**
+   * Asks for permission. Only ever called from an explicit user action.
+   *
+   * Returns the position when granting produced one, so the caller does not
+   * immediately ask for a second fix it already has — two reads back to back
+   * is both wasteful and, on some platforms, unreliable.
+   */
+  async request(): Promise<{ status: LocationStatus; fix: LocationFix | null }> {
+    if (Platform.OS === 'web') {
+      // The browser has no separate request step: the prompt appears on the
+      // first read, so the read *is* the request.
+      const fix = await browserFix();
+      if (fix) return { status: 'granted', fix };
+      return { status: lastError === 'denied' ? 'denied' : 'unavailable', fix: null };
+    }
     const m = load();
-    if (!m) return 'unavailable';
+    if (!m) return { status: 'unavailable', fix: null };
     try {
       const { status } = await m.requestForegroundPermissionsAsync();
-      return status === 'granted' ? 'granted' : 'denied';
+      if (status !== 'granted') return { status: 'denied', fix: null };
+      return { status: 'granted', fix: await this.current() };
     } catch {
-      return 'unavailable';
+      return { status: 'unavailable', fix: null };
     }
   },
 
   async current(): Promise<LocationFix | null> {
+    if (Platform.OS === 'web') return browserFix();
     const m = load();
-    if (!m) return null;
+    if (!m) {
+      lastError = 'unavailable';
+      return null;
+    }
     try {
       const pos = await m.getCurrentPositionAsync({ accuracy: m.Accuracy.Balanced });
+      lastError = null;
       return {
         lat: pos.coords.latitude,
         lon: pos.coords.longitude,
@@ -78,6 +161,7 @@ export const location = {
         at: new Date().toISOString(),
       };
     } catch {
+      lastError = 'unavailable';
       return null;
     }
   },

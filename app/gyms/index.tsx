@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, useWindowDimensions, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -54,14 +54,17 @@ export default function GymMapScreen() {
     setRadius(nearest);
   }, [radii, searchRadius, setRadius]);
 
-  // Refresh on open once location is on, so the map is not showing where the
-  // user was last week.
-  useEffect(() => {
-    if (!locationEnabled) return;
-    refreshFix().then((f) => {
-      if (f) search(f);
-    });
-  }, [locationEnabled, refreshFix, search]);
+  // On focus, not on mount. The router keeps this screen alive, so a mount
+  // effect runs exactly once per session — which meant walking to a gym,
+  // opening the app and being told you were still at home.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!locationEnabled) return;
+      refreshFix().then((f) => {
+        if (f) search(f);
+      });
+    }, [locationEnabled, refreshFix, search]),
+  );
 
   const mapW = width - layout.screenPadding * 2;
   const rows = useMemo(() => nearbyGyms(gyms, fix, claimedIds, 30), [gyms, fix, claimedIds]);

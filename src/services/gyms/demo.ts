@@ -1,5 +1,5 @@
 import type { GymKind } from '../../domain/gyms';
-import { offsetBy, type LatLon } from '../../domain/geo';
+import { distanceMeters, offsetBy, type LatLon } from '../../domain/geo';
 import type { GymProvider, GymSearchResult } from './types';
 
 /**
@@ -40,7 +40,23 @@ const SEEDS: Seed[] = [
   { name: 'Old Mill Weightlifting', kind: 'strength', meters: 2100, bearing: 22, address: 'Old Mill Works', amenities: ['Olympic platforms', 'coaching'] },
 ];
 
-function gymsAround(center: LatLon) {
+/**
+ * Snap the origin to a coarse grid — about 1.1 km — before placing anything.
+ *
+ * Generating gyms around the *live* position moves every one of them as the
+ * user walks, so the distance to each never changes and no gym can ever be
+ * reached. Sample venues have to behave like places: fixed, and either near
+ * you or not.
+ */
+function anchorFor(center: LatLon): LatLon {
+  return {
+    lat: Math.round(center.lat * 100) / 100,
+    lon: Math.round(center.lon * 100) / 100,
+  };
+}
+
+function gymsAround(rawCenter: LatLon) {
+  const center = anchorFor(rawCenter);
   return SEEDS.map((s, i) => {
     const at = offsetBy(center, s.meters, s.bearing);
     return {
@@ -60,9 +76,9 @@ export const demoGymProvider: GymProvider = {
   name: 'sample',
   async search(center, radiusMeters) {
     const all = gymsAround(center);
-    // Respect the radius so the "widen the search" control actually does
-    // something rather than re-rendering the same list.
-    const within = all.filter((g, i) => SEEDS[i].meters <= radiusMeters);
+    // Filter by true distance from where the user actually is, not by the seed
+    // offset: the anchor is a grid point, so those are two different numbers.
+    const within = all.filter((g) => distanceMeters(center, g) <= radiusMeters);
     return {
       gyms: within,
       features: [],

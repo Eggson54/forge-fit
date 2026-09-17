@@ -169,9 +169,12 @@ export interface ExplorerTier {
 }
 
 export const EXPLORER_TIERS: ExplorerTier[] = [
-  { key: 'local', name: 'Local', min: 0, color: '#A9ADBF', blurb: 'One gym, well used.' },
-  { key: 'regular', name: 'Regular', min: 60, color: '#7FB2FF', blurb: 'You train in more than one place.' },
-  { key: 'scout', name: 'Scout', min: 200, color: '#39E6C3', blurb: 'You seek out new rooms.' },
+  // Blurbs describe the tier, not a gym count: a single legendary claim
+  // reaches Regular, and telling that person they "train in more than one
+  // place" is the app inventing a fact about them.
+  { key: 'local', name: 'Local', min: 0, color: '#A9ADBF', blurb: 'Where it starts.' },
+  { key: 'regular', name: 'Regular', min: 60, color: '#7FB2FF', blurb: 'The map has something on it.' },
+  { key: 'scout', name: 'Scout', min: 200, color: '#39E6C3', blurb: 'Enough ground covered to have favourites.' },
   { key: 'pathfinder', name: 'Pathfinder', min: 500, color: '#C6F135', blurb: 'Few racks left unfound.' },
   { key: 'cartographer', name: 'Cartographer', min: 1000, color: '#FFB020', blurb: 'You have mapped the iron.' },
 ];

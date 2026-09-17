@@ -93,13 +93,14 @@ export const useGymStore = create<GymState>()(
       points: () => get().claims.reduce((a, c) => a + c.pointsEarned, 0),
 
       enableLocation: async () => {
-        const permission = await location.request();
-        set({ permission, locationEnabled: permission === 'granted' });
-        if (permission !== 'granted') return permission;
+        // The request hands back the position it already obtained, so this does
+        // not turn one user action into two location reads.
+        const { status, fix } = await location.request();
+        set({ permission: status, locationEnabled: status === 'granted', fix: fix ?? null });
+        if (status !== 'granted') return status;
         analytics.track('gym_map_location_enabled');
-        const fix = await get().refreshFix();
         if (fix) await get().search(fix);
-        return permission;
+        return status;
       },
 
       // Turning it off clears the cached position immediately. Keeping a

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, Card, Screen, Text } from '../../src/components/ui';
 import { Celebration, FadeIn } from '../../src/components/anim';
@@ -31,7 +31,16 @@ export default function GymDetail() {
   const fix = useGymStore((s) => s.fix);
   const claim = useGymStore((s) => s.claimFor(String(id)));
   const checkIn = useGymStore((s) => s.checkIn);
+  const refreshFix = useGymStore((s) => s.refreshFix);
   const [celebrate, setCelebrate] = useState<{ points: number; first: boolean } | null>(null);
+
+  // Whether you can claim depends on where you are *now*, so the position is
+  // re-read every time this screen is opened rather than trusted from before.
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshFix();
+    }, [refreshFix]),
+  );
 
   const verdict = useMemo(
     () => (gym ? evaluateCheckIn(gym, fix, claim, new Date()) : null),
@@ -124,8 +133,28 @@ export default function GymDetail() {
         />
       </View>
 
-      <Card style={{ marginTop: spacing.md, gap: spacing.md }}>
-        {verdict?.ok ? (
+      <Card
+        style={{
+          marginTop: spacing.md,
+          gap: spacing.md,
+          ...(celebrate ? { borderColor: tint, borderWidth: 1 } : null),
+        }}
+      >
+        {celebrate ? (
+          // Flipping straight to "already logged today" turns the reward into
+          // a cooldown notice. The claim you just made is what belongs here.
+          <View style={{ alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm }}>
+            <Text variant="display" color={tint}>+{celebrate.points}</Text>
+            <Text variant="bodyStrong">
+              {celebrate.first ? 'Claimed' : 'Visit logged'}
+            </Text>
+            <Text variant="caption" color={colors.textDim} center>
+              {celebrate.first
+                ? `${gym.name} is in your collection.`
+                : `That is ${claim?.visits.length ?? 1} visits here.`}
+            </Text>
+          </View>
+        ) : verdict?.ok ? (
           <>
             <Text variant="bodyStrong">
               {verdict.first ? 'You can claim this gym' : 'Log another visit'}
@@ -194,14 +223,6 @@ export default function GymDetail() {
         </Card>
       )}
 
-      {celebrate && (
-        <Card tone="alt" style={{ marginTop: spacing.md, alignItems: 'center', gap: spacing.xs }}>
-          <Text variant="h2" color={tint}>+{celebrate.points}</Text>
-          <Text variant="caption" color={colors.textDim}>
-            {celebrate.first ? `${gym.name} added to your collection.` : 'Visit logged.'}
-          </Text>
-        </Card>
-      )}
     </Screen>
   );
 }
