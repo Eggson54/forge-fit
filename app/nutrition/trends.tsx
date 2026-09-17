@@ -71,8 +71,19 @@ export default function NutritionTrends() {
 
       <Card style={{ flexDirection: 'row', marginTop: spacing.md }}>
         <StatTile value={`${summary.loggedDays}/${days}`} label="Days logged" accent={colors.primary} />
-        <StatTile value={`${summary.proteinHits}`} label="Protein hit" accent={colors.protein} />
-        <StatTile value={`${summary.calorieHits}`} label="Calories on target" accent={colors.calorie} />
+        {/* Out of the days actually logged, not out of the window: a bare "0"
+            beside "14/14 days logged" reads as a broken counter rather than a
+            real result. */}
+        <StatTile
+          value={`${summary.proteinHits}/${summary.loggedDays}`}
+          label="Protein hit"
+          accent={colors.protein}
+        />
+        <StatTile
+          value={`${summary.calorieHits}/${summary.loggedDays}`}
+          label="Calories on target"
+          accent={colors.calorie}
+        />
       </Card>
 
       {summary.loggedDays === 0 ? (

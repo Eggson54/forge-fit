@@ -8,6 +8,7 @@ import { useProfileStore } from '../../src/stores/useProfileStore';
 import { subscriptions } from '../../src/services/subscriptions';
 import { analytics } from '../../src/services/analytics';
 import { isSubscriptionActive } from '../../src/domain/subscription';
+import { formatDateWithWeekday } from '../../src/domain/date';
 
 export default function Subscription() {
   const subscription = useProfileStore((s) => s.subscription);
@@ -37,7 +38,7 @@ export default function Subscription() {
         </Text>
         {isPro && subscription.expiresAt && (
           <Text variant="caption" color={colors.textDim}>
-            Renews {new Date(subscription.expiresAt).toLocaleDateString()}
+            Renews {formatDateWithWeekday(subscription.expiresAt)}
           </Text>
         )}
       </Card>

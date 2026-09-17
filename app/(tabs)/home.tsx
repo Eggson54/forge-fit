@@ -9,7 +9,7 @@ import { Masthead } from '../../src/components/Masthead';
 import { WeekStrip, type WeekDay } from '../../src/components/WeekStrip';
 import { colors, gradients, spacing } from '../../src/theme';
 import { addDaysISO, formatSleep, lastNDays, timeOfDay, todayISO, weekdayIndex } from '../../src/domain/date';
-import { displayVolume } from '../../src/domain/units';
+import { displayVolume, groupThousands } from '../../src/domain/units';
 import { workoutStats } from '../../src/domain/strength';
 import { suggestToday } from '../../src/domain/suggestion';
 import { exerciseById } from '../../src/data/exercises';
@@ -294,8 +294,8 @@ export default function Home() {
           icon="steps"
           color={colors.steps}
           label="Steps"
-          value={summary.steps.toLocaleString()}
-          target={summary.stepsTarget.toLocaleString()}
+          value={groupThousands(summary.steps)}
+          target={groupThousands(summary.stepsTarget)}
           progress={summary.steps / summary.stepsTarget}
           onPress={() => router.push('/log?focus=steps')}
         />

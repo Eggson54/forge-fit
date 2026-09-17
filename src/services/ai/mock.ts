@@ -3,6 +3,7 @@ import { sanitizeMacros } from '../../domain/nutrition';
 import { EXERCISE_LIBRARY } from '../../data/exercises';
 import { FOOD_DB } from '../../data/foods';
 import type { Equipment, MuscleGroup } from '../../domain/types';
+import { groupThousands } from '../../domain/units';
 import type {
   AIService,
   CoachMessageRequest,
@@ -156,8 +157,8 @@ function weeklyHighlights(s: WeeklyReviewRequest['stats']): string[] {
   if (s.avgSteps > 0) {
     out.push(
       s.avgSteps >= 10000
-        ? `Averaged ${Math.round(s.avgSteps).toLocaleString()} steps a day outside training.`
-        : `Daily steps averaged ${Math.round(s.avgSteps).toLocaleString()} — room to move more on rest days.`,
+        ? `Averaged ${groupThousands(Math.round(s.avgSteps))} steps a day outside training.`
+        : `Daily steps averaged ${groupThousands(Math.round(s.avgSteps))} — room to move more on rest days.`,
     );
   }
 

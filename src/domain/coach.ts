@@ -1,4 +1,5 @@
 import type { CoachPersonality, CoachSettings } from './types';
+import { groupThousands } from './units';
 
 /**
  * On-device coach message engine.
@@ -244,7 +245,7 @@ export function openGaps(ctx: CoachContext): CoachGap[] {
     gaps.push({ key: 'protein', label: 'Protein', remaining: ctx.proteinRemainingG, text: `${Math.round(ctx.proteinRemainingG)}g of protein to go` });
   }
   if (ctx.stepsRemaining > 0) {
-    gaps.push({ key: 'steps', label: 'Steps', remaining: ctx.stepsRemaining, text: `${Math.round(ctx.stepsRemaining).toLocaleString()} steps short` });
+    gaps.push({ key: 'steps', label: 'Steps', remaining: ctx.stepsRemaining, text: `${groupThousands(Math.round(ctx.stepsRemaining))} steps short` });
   }
   if (ctx.waterRemainingOz > 0) {
     gaps.push({ key: 'water', label: 'Water', remaining: ctx.waterRemainingOz, text: `${Math.round(ctx.waterRemainingOz)}oz of water left` });

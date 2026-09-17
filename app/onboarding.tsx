@@ -8,7 +8,7 @@ import { Icon, type IconName } from '../src/components/Icon';
 import { AmbientBackdrop } from '../src/components/AmbientBackdrop';
 import { DEFAULT_PROFILE, useProfileStore } from '../src/stores/useProfileStore';
 import { recommendedTargets } from '../src/domain/nutrition';
-import { ftInToCm, round, toKg } from '../src/domain/units';
+import { ftInToCm, groupThousands, round, toKg } from '../src/domain/units';
 import type {
   ActivityLevel,
   DietaryPreference,
@@ -342,7 +342,7 @@ export default function Onboarding() {
             <TargetRow label="Carbs" value={`${previewTargets.carbsG}`} unit="g" />
             <TargetRow label="Fat" value={`${previewTargets.fatG}`} unit="g" />
             <TargetRow label="Water" value={`${previewTargets.waterOz}`} unit="oz" />
-            <TargetRow label="Steps" value={`${previewTargets.steps.toLocaleString()}`} unit="" />
+            <TargetRow label="Steps" value={`${groupThousands(previewTargets.steps)}`} unit="" />
             <TargetRow label="Sleep" value={`${Math.round(previewTargets.sleepMinutes / 60)}`} unit="hrs" />
           </StepShell>
         )}

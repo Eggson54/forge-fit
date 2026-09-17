@@ -10,7 +10,7 @@ import { useCoachStore, type CoachTurn } from '../src/stores/useCoachStore';
 import { buildCoachContext, useDailySummary } from '../src/stores/useDailySummary';
 import { ai } from '../src/services/ai';
 import type { CoachSettings } from '../src/domain/types';
-import type { CoachIntent } from '../src/domain/coach';
+import { openGaps, type CoachIntent } from '../src/domain/coach';
 
 const PERSONALITY_LABEL: Record<CoachSettings['personality'], string> = {
   friendly: 'Friendly',
@@ -33,6 +33,10 @@ export default function CoachScreen() {
   const append = useCoachStore((s) => s.append);
   const markGreeted = useCoachStore((s) => s.markGreeted);
   const clear = useCoachStore((s) => s.clear);
+
+  // The same gaps the coach reasons from, shown plainly so the thread is not
+  // the only evidence it is paying attention.
+  const gaps = useMemo(() => openGaps(buildCoachContext(summary)), [summary]);
 
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -134,12 +138,42 @@ export default function CoachScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
-          justifyContent: 'flex-end',
+          // Bottom-anchoring is right once a thread is long enough to scroll.
+          // With one message it left most of a phone screen empty, which reads
+          // as a failed load rather than a new conversation.
+          justifyContent: turns.length > 4 ? 'flex-end' : 'flex-start',
           paddingHorizontal: spacing.xl,
           paddingBottom: spacing.xl,
           gap: spacing.md,
         }}
       >
+        {turns.length <= 4 && (
+          <View style={styles.watching}>
+            <Text variant="overline" color={colors.textFaint}>WHAT I AM WATCHING TODAY</Text>
+            {gaps.length === 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Icon name="check" size={15} color={colors.success} strokeWidth={2.2} />
+                <Text variant="body" color={colors.textDim} style={{ flex: 1, minWidth: 0 }}>
+                  Everything you set for today is done.
+                </Text>
+              </View>
+            ) : (
+              gaps.map((g) => (
+                <View key={g.key} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <View style={[styles.gapDot, { backgroundColor: GAP_TINT[g.key] }]} />
+                  <Text variant="body" style={{ flex: 1, minWidth: 0 }} numberOfLines={1}>
+                    {g.label}
+                  </Text>
+                  <Text variant="caption" color={colors.textDim}>{g.text}</Text>
+                </View>
+              ))
+            )}
+            <Text variant="caption" color={colors.textFaint}>
+              Ask anything below, or tap a prompt to get straight to it.
+            </Text>
+          </View>
+        )}
+
         {days.map((day) => (
           <View key={day.date} style={{ gap: spacing.md }}>
             <Text variant="caption" color={colors.textFaint} center>
@@ -203,7 +237,24 @@ function groupByDay(turns: CoachTurn[]): { date: string; turns: CoachTurn[] }[] 
   return out;
 }
 
+const GAP_TINT: Record<string, string> = {
+  workout: colors.primary,
+  protein: colors.protein,
+  water: colors.water,
+  steps: colors.steps,
+};
+
 const styles = StyleSheet.create({
+  watching: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  gapDot: { width: 7, height: 7, borderRadius: 4 },
   fact: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
