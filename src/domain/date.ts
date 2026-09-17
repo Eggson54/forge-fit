@@ -112,3 +112,46 @@ export function formatDateWithWeekday(value: string): string {
 export function daysBetweenDates(a: ISODate, b: ISODate): number {
   return Math.round((Date.parse(`${b}T00:00:00`) - Date.parse(`${a}T00:00:00`)) / 86_400_000);
 }
+
+/**
+ * Parses a duration a person would actually type for a night's sleep.
+ *
+ * Accepts "7:35", "7h35", "7h 35m", "7.5", "7.5h" and a bare "455". The
+ * ambiguous case is a bare small number: nobody sleeps eight minutes, so a
+ * bare value at or under 24 is read as hours and anything larger as minutes.
+ * Returns null for anything it cannot make sense of, rather than guessing.
+ */
+export function parseDurationMinutes(input: string): number | null {
+  const s = input.trim().toLowerCase().replace(/\s+/g, '');
+  if (!s) return null;
+
+  // 7:35
+  const colon = /^(\d{1,2}):(\d{1,2})$/.exec(s);
+  if (colon) {
+    const m = Number(colon[2]);
+    if (m > 59) return null;
+    return Number(colon[1]) * 60 + m;
+  }
+
+  // 7h35, 7h35m, 7h
+  const hm = /^(\d{1,2})h(?:(\d{1,2})m?)?$/.exec(s);
+  if (hm) {
+    const m = hm[2] ? Number(hm[2]) : 0;
+    if (m > 59) return null;
+    return Number(hm[1]) * 60 + m;
+  }
+
+  // 45m
+  const mOnly = /^(\d{1,4})m$/.exec(s);
+  if (mOnly) return Number(mOnly[1]);
+
+  // 7.5 or 7.5h
+  const decimal = /^(\d{1,2}(?:\.\d+)?)h?$/.exec(s);
+  if (decimal && (s.includes('.') || s.endsWith('h'))) {
+    return Math.round(Number(decimal[1]) * 60);
+  }
+
+  const bare = Number(s);
+  if (!Number.isFinite(bare) || bare < 0) return null;
+  return bare <= 24 ? Math.round(bare * 60) : Math.round(bare);
+}

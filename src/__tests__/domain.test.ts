@@ -23,7 +23,7 @@ import {
 } from '../domain';
 import type { NutritionEntry, Profile, Workout } from '../domain/types';
 import { displayVolume, groupThousands } from '../domain/units';
-import { longestRunOfDays } from '../domain/date';
+import { longestRunOfDays , parseDurationMinutes } from '../domain/date';
 import { isWarmupSet, nextSetKind, setKind } from '../domain/sets';
 import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries } from '../domain/measurements';
 import { formatDateLong, formatDateWithWeekday, formatDayMonth } from '../domain/date';
@@ -1655,5 +1655,35 @@ describe('personalised amounts', () => {
 
   it('ignores implausible water amounts', () => {
     expect(waterQuickAdds([0, -8, 5000])).toEqual([8, 16]);
+  });
+});
+
+describe('parseDurationMinutes', () => {
+  it('reads the formats people actually type', () => {
+    expect(parseDurationMinutes('7:35')).toBe(455);
+    expect(parseDurationMinutes('7h35')).toBe(455);
+    expect(parseDurationMinutes('7h 35m')).toBe(455);
+    expect(parseDurationMinutes('7h')).toBe(420);
+    expect(parseDurationMinutes('7.5')).toBe(450);
+    expect(parseDurationMinutes('7.5h')).toBe(450);
+    expect(parseDurationMinutes('45m')).toBe(45);
+  });
+
+  it('resolves a bare number by plausibility, not by guessing', () => {
+    // Nobody sleeps eight minutes, and nobody sleeps 455 hours.
+    expect(parseDurationMinutes('8')).toBe(480);
+    expect(parseDurationMinutes('455')).toBe(455);
+    expect(parseDurationMinutes('24')).toBe(1440);
+    expect(parseDurationMinutes('25')).toBe(25);
+  });
+
+  it('rejects nonsense rather than inventing a number', () => {
+    for (const bad of ['', '   ', 'abc', '7:99', '7h99', '-3', '7:']) {
+      expect(parseDurationMinutes(bad)).toBeNull();
+    }
+  });
+
+  it('ignores spacing and case', () => {
+    expect(parseDurationMinutes('  7H35M ')).toBe(455);
   });
 });
