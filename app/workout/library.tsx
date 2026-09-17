@@ -55,6 +55,23 @@ export default function ExerciseLibrary() {
   const favouriteIds = useWorkoutStore((s) => s.favouriteExerciseIds);
   const toggleFavourite = useWorkoutStore((s) => s.toggleFavourite);
   const unfiltered = !query.trim() && muscle === 'all' && equipment === 'all';
+
+  /**
+   * With eighty-five entries an unbroken list has no landmarks, so the full
+   * library is split by muscle. Once a filter is on, the filter IS the
+   * grouping and a single run of results reads better.
+   */
+  const groups = useMemo(() => {
+    if (filtered.length === 0) return [];
+    if (!unfiltered) return [{ muscle: null as MuscleGroup | null, items: filtered }];
+    const order = MUSCLE_GROUPS as readonly MuscleGroup[];
+    const out: { muscle: MuscleGroup | null; items: Exercise[] }[] = [];
+    for (const m of order) {
+      const items = filtered.filter((e) => e.primaryMuscle === m);
+      if (items.length > 0) out.push({ muscle: m, items });
+    }
+    return out;
+  }, [filtered, unfiltered]);
   const recent = useMemo(() => {
     if (!unfiltered) return [];
     const byId = new Map(allExercises.map((e) => [e.id, e]));
@@ -175,53 +192,64 @@ export default function ExerciseLibrary() {
             {filtered.length} exercise{filtered.length === 1 ? '' : 's'}
           </Text>
         )}
-        {filtered.length > 0 && (
-          <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-            {filtered.map((e, i) => (
-              <Pressable
-                key={e.id}
-                onPress={() => onPick(e)}
-                style={({ pressed }) => [
-                  {
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.md,
-                    paddingVertical: spacing.md,
-                    borderBottomWidth: i === filtered.length - 1 ? 0 : StyleSheet.hairlineWidth,
-                    borderBottomColor: colors.border,
-                  },
-                  pressed && { opacity: 0.6 },
-                ]}
-              >
-                <MuscleThumb muscle={e.primaryMuscle} secondary={e.secondaryMuscles} size={30} color={muscleTint(e.primaryMuscle)} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyStrong">
-                    {e.name}
-                    {e.isCustom ? ' · custom' : ''}
-                  </Text>
-                  <Text variant="caption" color={colors.textDim}>
-                    {label(e.primaryMuscle)} · {e.equipment} · {e.difficulty}
-                  </Text>
-                </View>
+        {groups.map(({ muscle: groupMuscle, items }) => (
+          <View key={groupMuscle ?? 'all'} style={{ marginBottom: spacing.md }}>
+            {groupMuscle && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <View style={{ width: 3, height: 12, borderRadius: 2, backgroundColor: muscleTint(groupMuscle) }} />
+                <Text variant="overline" color={colors.textDim} style={{ flex: 1, minWidth: 0 }}>
+                  {label(groupMuscle)}
+                </Text>
+                <Text variant="caption" color={colors.textFaint}>{items.length}</Text>
+              </View>
+            )}
+            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+              {items.map((e, i) => (
                 <Pressable
-                  onPress={() => toggleFavourite(e.id)}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${favouriteIds.includes(e.id) ? 'Unstar' : 'Star'} ${e.name}`}
+                  key={e.id}
+                  onPress={() => onPick(e)}
+                  style={({ pressed }) => [
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      paddingVertical: spacing.md,
+                      borderBottomWidth: i === items.length - 1 ? 0 : StyleSheet.hairlineWidth,
+                      borderBottomColor: colors.border,
+                    },
+                    pressed && { opacity: 0.6 },
+                  ]}
                 >
-                  <Icon
-                    name="star"
-                    size={17}
-                    filled={favouriteIds.includes(e.id)}
-                    color={favouriteIds.includes(e.id) ? colors.amber : colors.textFaint}
-                    strokeWidth={1.7}
-                  />
+                  <MuscleThumb muscle={e.primaryMuscle} secondary={e.secondaryMuscles} size={30} color={muscleTint(e.primaryMuscle)} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text variant="bodyStrong" numberOfLines={1}>
+                      {e.name}
+                      {e.isCustom ? ' · custom' : ''}
+                    </Text>
+                    <Text variant="caption" color={colors.textDim} numberOfLines={1}>
+                      {label(e.primaryMuscle)} · {e.equipment} · {e.difficulty}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => toggleFavourite(e.id)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${favouriteIds.includes(e.id) ? 'Unstar' : 'Star'} ${e.name}`}
+                  >
+                    <Icon
+                      name="star"
+                      size={17}
+                      filled={favouriteIds.includes(e.id)}
+                      color={favouriteIds.includes(e.id) ? colors.amber : colors.textFaint}
+                      strokeWidth={1.7}
+                    />
+                  </Pressable>
+                  {selectMode || pickMode ? <Icon name="plus" size={20} color={colors.primary} /> : <Text color={colors.textFaint}>›</Text>}
                 </Pressable>
-                {selectMode || pickMode ? <Icon name="plus" size={20} color={colors.primary} /> : <Text color={colors.textFaint}>›</Text>}
-              </Pressable>
-            ))}
-          </Card>
-        )}
+              ))}
+            </Card>
+          </View>
+        ))}
         {filtered.length === 0 && (
           <View style={{ alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xl }}>
             <Text variant="body" color={colors.textDim} center>
