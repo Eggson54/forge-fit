@@ -7,11 +7,12 @@ import { Avatar } from '../../src/components/Avatar';
 import { Icon } from '../../src/components/Icon';
 import { Masthead } from '../../src/components/Masthead';
 import { RankCard } from '../../src/components/RankCard';
-import { colors, domainAccent, spacing } from '../../src/theme';
+import { colors, domainAccent, radius, spacing } from '../../src/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { displayWeight } from '../../src/domain/units';
 import { computeRank } from '../../src/domain/rank';
 import { useAuthStore } from '../../src/stores/useAuthStore';
+import { useGymStore } from '../../src/stores/useGymStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
@@ -30,6 +31,8 @@ export default function Profile() {
   const bestDiscipline = useGamificationStore((s) => s.bestDisciplineScore);
 
   const weight = profile.weightKg ? displayWeight(profile.weightKg, profile.units) : null;
+
+  const gymSummary = useGymStore((s) => s.summary());
 
   const rank = computeRank({
     completedWorkouts: workouts,
@@ -72,6 +75,30 @@ export default function Profile() {
             Tap to see the leaderboard ›
           </Text>
         </Pressable>
+      </FadeIn>
+
+      {/* Two scores that measure different things, so they sit apart: Forge
+          Rank is how you train, the Iron Map is where. */}
+      <FadeIn delay={90}>
+        <Card
+          onPress={() => router.push(gymSummary.claimed ? '/gyms/collection' : '/gyms')}
+          accent={domainAccent.gyms}
+          style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+        >
+          <View style={styles.gymDisc}>
+            <Icon name="map" size={19} color={domainAccent.gyms} strokeWidth={1.8} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text variant="overline" color={colors.textFaint}>IRON MAP</Text>
+            <Text variant="bodyStrong" color={gymSummary.tier.color}>{gymSummary.tier.name}</Text>
+            <Text variant="caption" color={colors.textDim}>
+              {gymSummary.claimed === 0
+                ? 'No gyms claimed yet'
+                : `${gymSummary.claimed} ${gymSummary.claimed === 1 ? 'gym' : 'gyms'} · ${gymSummary.points} pts`}
+            </Text>
+          </View>
+          <Icon name="chevron_right" size={17} color={colors.textFaint} strokeWidth={2} />
+        </Card>
       </FadeIn>
 
       {/* Upsell: an ember-washed panel rather than a full-bleed orange slab, so
@@ -147,3 +174,14 @@ function Stat({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
+
+const styles = {
+  gymDisc: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(57,230,195,0.12)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+};

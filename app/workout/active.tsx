@@ -20,6 +20,7 @@ import { SUPERSET_TRANSITION_SECONDS, groupExercises, restAfterSet, supersetLabe
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
+import { currentAchievementInputs } from '../../src/stores/achievementInputs';
 import { useProgramStore } from '../../src/stores/useProgramStore';
 import { programById } from '../../src/data/programs';
 
@@ -72,17 +73,7 @@ export default function ActiveWorkout() {
     if (done && program && done.name.startsWith(`${program.name} · `)) programState.markSessionDone(done.date);
     // Achievement sync
     const g = useGamificationStore.getState();
-    const completedCount = useWorkoutStore.getState().completedWorkouts().length;
-    const prs = Object.keys(useWorkoutStore.getState().prs).length;
-    g.syncAchievements({
-      workoutsCompleted: completedCount,
-      currentDailyStreak: g.streaks.daily,
-      proteinStreak: g.streaks.protein,
-      hydrationStreak: g.streaks.hydration,
-      prsSet: prs,
-      progressPhotos: 0,
-      bestDisciplineScore: g.bestDisciplineScore,
-    });
+    g.syncAchievements(currentAchievementInputs());
     router.replace({ pathname: '/workout/[id]', params: { id: done?.id ?? '' } });
   };
 

@@ -22,6 +22,7 @@ import {
   type Gym,
 } from '../domain/gyms';
 import { demoGymProvider } from '../services/gyms/demo';
+import { ACHIEVEMENT_CATALOG, evaluateAchievements } from '../domain/achievements';
 
 const LONDON = { lat: 51.5074, lon: -0.1278 };
 const PARIS = { lat: 48.8566, lon: 2.3522 };
@@ -362,5 +363,52 @@ describe('demo gym provider', () => {
     expect(r.sample).toBe(true);
     expect(r.features).toEqual([]);
     expect(r.gyms.every((g) => g.name.length > 0)).toBe(true);
+  });
+});
+
+describe('gym achievements', () => {
+  const base = {
+    workoutsCompleted: 0,
+    currentDailyStreak: 0,
+    proteinStreak: 0,
+    hydrationStreak: 0,
+    prsSet: 0,
+    progressPhotos: 0,
+    bestDisciplineScore: 0,
+    gymsClaimed: 0,
+    gymKindsClaimed: 0,
+    rareGymsClaimed: 0,
+  };
+
+  it('unlocks the first-gym badge on one claim and nothing further', () => {
+    const ids = evaluateAchievements({ ...base, gymsClaimed: 1, gymKindsClaimed: 1 });
+    expect(ids).toContain('first_gym');
+    expect(ids).not.toContain('gyms_5');
+    expect(ids).not.toContain('rare_gym');
+  });
+
+  it('counts kinds separately from venues', () => {
+    // Five claims at five branches of the same chain is one kind.
+    const sameChain = evaluateAchievements({ ...base, gymsClaimed: 5, gymKindsClaimed: 1 });
+    expect(sameChain).toContain('gyms_5');
+    expect(sameChain).not.toContain('gym_kinds_5');
+
+    const varied = evaluateAchievements({ ...base, gymsClaimed: 5, gymKindsClaimed: 5 });
+    expect(varied).toContain('gym_kinds_5');
+  });
+
+  it('no gym badge can be unlocked by travelling, only by claiming', () => {
+    // There is no distance metric in the catalog at all, by design.
+    const metrics = ACHIEVEMENT_CATALOG.map((a) => a.metric);
+    expect(metrics).not.toContain('distanceTravelled');
+    expect(metrics.filter((m) => m.startsWith('gym') || m.startsWith('rareGym')).length).toBeGreaterThan(0);
+  });
+
+  it('every gym badge is reachable from a real collection', () => {
+    const maxed = { ...base, gymsClaimed: 25, gymKindsClaimed: 10, rareGymsClaimed: 4 };
+    const ids = evaluateAchievements(maxed);
+    for (const id of ['first_gym', 'gyms_5', 'gyms_25', 'gym_kinds_5', 'rare_gym']) {
+      expect(ids).toContain(id);
+    }
   });
 });

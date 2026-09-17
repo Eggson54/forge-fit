@@ -10,6 +10,8 @@ import { formatDateLong } from '../src/domain/date';
 import type { Achievement } from '../src/domain/types';
 import { useGamificationStore } from '../src/stores/useGamificationStore';
 import { useLogStore } from '../src/stores/useLogStore';
+import { useGymStore } from '../src/stores/useGymStore';
+import { currentAchievementInputs } from '../src/stores/achievementInputs';
 import { useWorkoutStore } from '../src/stores/useWorkoutStore';
 
 export default function Achievements() {
@@ -20,18 +22,16 @@ export default function Achievements() {
   const prsSet = useWorkoutStore((s) => Object.keys(s.prs).length);
   const progressPhotos = useLogStore((s) => s.photos.length);
 
+  // Read from one place rather than re-listing the metrics here — a second
+  // copy of this list is a second chance for it to drift.
+  const claims = useGymStore((st) => st.claims);
   const inputs: AchievementInputs = useMemo(
-    () => ({
-      workoutsCompleted,
-      currentDailyStreak: streaks.daily,
-      proteinStreak: streaks.protein,
-      hydrationStreak: streaks.hydration,
-      prsSet,
-      progressPhotos,
-      bestDisciplineScore,
-    }),
-    [workoutsCompleted, streaks.daily, streaks.protein, streaks.hydration, prsSet, progressPhotos, bestDisciplineScore],
+    () => currentAchievementInputs(),
+    // Every field is read fresh inside; these are the stores that move it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workoutsCompleted, streaks.daily, streaks.protein, streaks.hydration, prsSet, progressPhotos, bestDisciplineScore, claims],
   );
+
 
   // One glyph per streak: five identical flames in different colours read as a
   // rendering mistake rather than five different habits.

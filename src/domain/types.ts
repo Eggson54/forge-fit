@@ -321,7 +321,10 @@ export type AchievementMetric =
   | 'hydrationStreak'
   | 'prsSet'
   | 'progressPhotos'
-  | 'bestDisciplineScore';
+  | 'bestDisciplineScore'
+  | 'gymsClaimed'
+  | 'gymKindsClaimed'
+  | 'rareGymsClaimed';
 
 export interface StreakState {
   workout: number;

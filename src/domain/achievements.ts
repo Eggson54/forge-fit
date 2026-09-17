@@ -19,6 +19,14 @@ export const ACHIEVEMENT_CATALOG: Omit<Achievement, 'unlockedAt'>[] = [
   { id: 'hydrated_week', title: 'Hydrated', description: 'Hit water goal 7 days straight', icon: 'water', tint: '#2E9BE0', metric: 'hydrationStreak', target: 7 },
   { id: 'first_photo', title: 'Documented', description: 'Add your first progress photo', icon: 'camera', tint: '#D2529E', metric: 'progressPhotos', target: 1 },
   { id: 'perfect_day', title: 'Perfect Day', description: 'Reach 100% discipline in a day', icon: 'target', tint: '#C6F135', metric: 'bestDisciplineScore', target: 100 },
+
+  // Iron Map. These count places visited, never distance covered — see the
+  // note in domain/gyms.ts on why nothing here pays for mileage.
+  { id: 'first_gym', title: 'Home Ground', description: 'Claim your first gym', icon: 'map', tint: '#39E6C3', metric: 'gymsClaimed', target: 1 },
+  { id: 'gyms_5', title: 'Away Days', description: 'Claim 5 different gyms', icon: 'map', tint: '#7FB2FF', metric: 'gymsClaimed', target: 5 },
+  { id: 'gyms_25', title: 'Iron Cartographer', description: 'Claim 25 different gyms', icon: 'map', tint: '#FFB020', metric: 'gymsClaimed', target: 25 },
+  { id: 'gym_kinds_5', title: 'Not Fussy', description: 'Train in 5 different kinds of gym', icon: 'star', tint: '#C6F135', metric: 'gymKindsClaimed', target: 5 },
+  { id: 'rare_gym', title: 'Off The Beaten Rack', description: 'Claim a rare or legendary gym', icon: 'trophy', tint: '#C084FC', metric: 'rareGymsClaimed', target: 1 },
 ];
 
 export type AchievementInputs = Record<AchievementMetric, number>;

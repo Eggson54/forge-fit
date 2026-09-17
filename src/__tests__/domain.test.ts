@@ -239,6 +239,7 @@ describe('achievements', () => {
     const unlocked = evaluateAchievements({
       workoutsCompleted: 12, currentDailyStreak: 8, proteinStreak: 2, hydrationStreak: 1,
       prsSet: 1, progressPhotos: 0, bestDisciplineScore: 92,
+      gymsClaimed: 0, gymKindsClaimed: 0, rareGymsClaimed: 0,
     });
     expect(unlocked).toEqual(expect.arrayContaining(['first_workout', 'workouts_10', 'streak_7', 'first_pr']));
     expect(unlocked).not.toContain('workouts_100');
@@ -816,6 +817,9 @@ describe('achievements', () => {
     prsSet: 3,
     progressPhotos: 0,
     bestDisciplineScore: 88,
+    gymsClaimed: 0,
+    gymKindsClaimed: 0,
+    rareGymsClaimed: 0,
   };
 
   it('unlocks exactly the badges whose target is met', () => {

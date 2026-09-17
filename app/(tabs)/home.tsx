@@ -18,6 +18,7 @@ import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
+import { currentAchievementInputs } from '../../src/stores/achievementInputs';
 import { buildCoachContext, useDailySummary } from '../../src/stores/useDailySummary';
 import { ai } from '../../src/services/ai';
 import { analytics } from '../../src/services/analytics';
@@ -134,16 +135,7 @@ export default function Home() {
       restDay: !summary.workoutPlanned,
     });
     g.noteDisciplineScore(summary.discipline.score);
-    const streaks = useGamificationStore.getState().streaks;
-    g.syncAchievements({
-      workoutsCompleted: useWorkoutStore.getState().completedWorkouts().length,
-      currentDailyStreak: streaks.daily,
-      proteinStreak: streaks.protein,
-      hydrationStreak: streaks.hydration,
-      prsSet: Object.keys(useWorkoutStore.getState().prs).length,
-      progressPhotos: useLogStore.getState().photos.length,
-      bestDisciplineScore: useGamificationStore.getState().bestDisciplineScore,
-    });
+    g.syncAchievements(currentAchievementInputs());
   }, [summary.date, summary.discipline.score, summary.workoutCompleted, summary.proteinG, summary.caloriesTarget, summary.calories, summary.waterOz, summary.proteinTarget, summary.waterTarget, summary.workoutPlanned]);
 
   const w = summary.workoutCompleted;
