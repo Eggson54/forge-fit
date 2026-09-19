@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { BarChart, Card, Chip, DayStrip, LineChart, ListRow, Screen, SectionHeader, StatTile, Text, type Point } from '../../src/components/ui';
 import { FadeIn, Shimmer } from '../../src/components/anim';
@@ -148,7 +148,21 @@ export default function Progress() {
 
   return (
     <Screen gradient>
-      <Masthead eyebrow="Where you are" title="Progress" accent={domainAccent.progress} />
+      <Masthead
+        eyebrow="Where you are"
+        title="Progress"
+        accent={domainAccent.progress}
+        right={
+          <Pressable
+            onPress={() => router.push('/progress/year')}
+            hitSlop={8}
+            accessibilityRole="link"
+            accessibilityLabel="Your training year"
+          >
+            <Text variant="label" color={domainAccent.progress}>Year ›</Text>
+          </Pressable>
+        }
+      />
 
       {/* Snapshot */}
       <Card style={{ flexDirection: 'row', marginBottom: spacing.md }}>
