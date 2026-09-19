@@ -10,6 +10,9 @@ import { colors, radius, spacing } from '../../src/theme';
 import { todayISO } from '../../src/domain/date';
 import type { PhotoPose } from '../../src/domain/types';
 import { useLogStore } from '../../src/stores/useLogStore';
+import { useProfileStore } from '../../src/stores/useProfileStore';
+import { nearestValue } from '../../src/domain/trend';
+import { displayWeight } from '../../src/domain/units';
 import { formatDateLong } from '../../src/domain/date';
 
 const POSES: PhotoPose[] = ['front', 'side', 'back'];
@@ -19,6 +22,22 @@ export default function Photos() {
   const addPhoto = useLogStore((s) => s.addPhoto);
   const removePhoto = useLogStore((s) => s.removePhoto);
   const [pose, setPose] = React.useState<PhotoPose>('front');
+  const units = useProfileStore((st) => st.profile.units);
+  const weightLogs = useLogStore((st) => st.weight);
+
+  const weightSeries = React.useMemo(
+    () => weightLogs.map((w) => ({ date: w.date, value: w.weightKg })),
+    [weightLogs],
+  );
+  const weightFor = React.useCallback(
+    (date: string) => {
+      const hit = nearestValue(weightSeries, date, 7);
+      if (!hit) return null;
+      const d = displayWeight(hit.value, units);
+      return `${d.value} ${d.unit}`;
+    },
+    [weightSeries, units],
+  );
 
   const pick = async (fromCamera: boolean) => {
     const perm = fromCamera
@@ -92,9 +111,18 @@ export default function Photos() {
               style={{ width: '47%' }}
             >
               <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 0.75, borderRadius: radius.md, backgroundColor: colors.surfaceHigh }} contentFit="cover" />
-              <Text variant="caption" color={colors.textDim} style={{ marginTop: 4 }}>
+              <Text variant="caption" color={colors.textDim} style={{ marginTop: 4 }} numberOfLines={1}>
                 {formatDateLong(p.date)}
               </Text>
+              {/* What you weighed then. A photo dated "Aug 10" is a picture; a
+                  photo at 189 lb is a comparison. The nearest weigh-in within a
+                  week, because photos and weigh-ins rarely land on the same day
+                  and reaching further would attach a number from another month. */}
+              {weightFor(p.date) && (
+                <Text variant="caption" color={colors.textFaint} numberOfLines={1}>
+                  {weightFor(p.date)}
+                </Text>
+              )}
             </Pressable>
           ))}
         </View>

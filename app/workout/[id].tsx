@@ -7,10 +7,13 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { colors, domainAccent, spacing } from '../../src/theme';
-import { formatDurationShort } from '../../src/domain/date';
+import { formatDayMonth, formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { muscleShares, weeklySetsPerMuscle } from '../../src/domain/volume';
-import { displayWeight, groupThousands } from '../../src/domain/units';
+import { STRENGTH_NOISE_PCT, compareSessions, summariseComparison } from '../../src/domain/sessionCompare';
+import { trackingFor } from '../../src/domain/tracking';
+import { exerciseById } from '../../src/data/exercises';
+import { displayVolume, displayWeight, groupThousands } from '../../src/domain/units';
 import type { MuscleGroup, Units, WorkoutExercise } from '../../src/domain/types';
 import { SET_KIND_LABEL, setKind } from '../../src/domain/sets';
 import { groupExercises, supersetLabel } from '../../src/domain/superset';
@@ -27,6 +30,17 @@ export default function WorkoutDetail() {
   const saveRoutine = useRoutineStore((s) => s.saveFromWorkout);
   const repeatWorkout = useWorkoutStore((s) => s.repeatWorkout);
   const activeId = useWorkoutStore((s) => s.activeId);
+
+  // Above the early return below: a hook that only sometimes runs changes the
+  // hook order between renders.
+  const allWorkouts = useWorkoutStore((s) => s.workouts);
+  const comparison = React.useMemo(
+    () =>
+      workout
+        ? compareSessions(workout, allWorkouts, bodyweightKg, (id) => trackingFor(exerciseById(id)))
+        : null,
+    [workout, allWorkouts, bodyweightKg],
+  );
 
   if (!workout) {
     return (
@@ -45,6 +59,7 @@ export default function WorkoutDetail() {
   // outweighs an arm day threefold on tonnage alone, so a tonnage split mostly
   // measures which lifts happened to be on the card.
   const shares = muscleShares(weeklySetsPerMuscle([workout]));
+
   const vol = displayWeight(stats.totalVolumeKg, units);
   const e1rm = displayWeight(stats.bestE1RM, units);
   const prCount = workout.exercises.reduce((a, e) => a + e.sets.filter((s) => s.isPr).length, 0);
@@ -128,6 +143,74 @@ export default function WorkoutDetail() {
         </Card>
       ) : null}
 
+      {/* A finished workout says what you did. It never said the thing anyone
+          actually wants to know, which is whether it beat last time. */}
+      {comparison && comparison.match !== 'none' && comparison.previous && (
+        <FadeIn delay={40}>
+          <Card style={{ gap: spacing.md, marginBottom: spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
+              <Text variant="overline" color={colors.textFaint} style={{ flex: 1, minWidth: 0 }}>
+                {comparison.match === 'same_name' ? 'VS YOUR LAST' : 'VS A SIMILAR SESSION'} ·{' '}
+                {formatDayMonth(comparison.previous.completedAt ?? comparison.previous.date)}
+              </Text>
+            </View>
+            <Text variant="bodyStrong">{summariseComparison(comparison)}</Text>
+
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <Compare
+                label="Volume"
+                now={`${displayVolume(comparison.totalVolumeKg, units).value} ${displayVolume(comparison.totalVolumeKg, units).unit}`}
+                deltaPct={pctChange(comparison.previousTotalVolumeKg, comparison.totalVolumeKg)}
+              />
+              <Compare
+                label="Sets"
+                now={String(comparison.totalSets)}
+                deltaPct={pctChange(comparison.previousTotalSets, comparison.totalSets)}
+              />
+            </View>
+
+            <View style={{ gap: spacing.sm, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: spacing.md }}>
+              {comparison.exercises.map((e) => (
+                <View key={e.exerciseId} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Text variant="body" style={{ flex: 1, minWidth: 0 }} numberOfLines={1}>
+                    {e.name}
+                  </Text>
+                  {e.isNew ? (
+                    <Text variant="caption" color={colors.water}>new</Text>
+                  ) : e.strengthChangePct == null ? (
+                    <Text variant="caption" color={colors.textFaint}>—</Text>
+                  ) : (
+                    <Text
+                      variant="label"
+                      color={
+                        e.strengthChangePct > STRENGTH_NOISE_PCT
+                          ? colors.success
+                          : e.strengthChangePct < -STRENGTH_NOISE_PCT
+                            ? colors.danger
+                            : colors.textDim
+                      }
+                    >
+                      {e.strengthChangePct > 0 ? '+' : ''}
+                      {e.strengthChangePct.toFixed(1)}%
+                    </Text>
+                  )}
+                </View>
+              ))}
+              {comparison.dropped.length > 0 && (
+                <Text variant="caption" color={colors.textFaint}>
+                  Not repeated: {comparison.dropped.map((d) => d.name).join(', ')}.
+                </Text>
+              )}
+            </View>
+
+            <Text variant="caption" color={colors.textFaint}>
+              Percentages compare your best estimated max per lift. Anything inside {STRENGTH_NOISE_PCT}% is
+              rounding and rep choice rather than a real change.
+            </Text>
+          </Card>
+        </FadeIn>
+      )}
+
       <SectionHeader title="Exercises" />
       {groupExercises(workout.exercises).map((group) => (
         <View
@@ -206,6 +289,26 @@ export default function WorkoutDetail() {
       </Card>
 
     </Screen>
+  );
+}
+
+/** Percent change, or null when there is no baseline to change from. */
+function pctChange(before: number, now: number): number | null {
+  if (before <= 0) return null;
+  return Math.round(((now - before) / before) * 1000) / 10;
+}
+
+function Compare({ label, now, deltaPct }: { label: string; now: string; deltaPct: number | null }) {
+  const tint =
+    deltaPct == null ? colors.textFaint : deltaPct > 0 ? colors.success : deltaPct < 0 ? colors.danger : colors.textDim;
+  return (
+    <View style={{ flex: 1, gap: 2 }}>
+      <Text variant="caption" color={colors.textFaint}>{label}</Text>
+      <Text variant="h3">{now}</Text>
+      <Text variant="caption" color={tint}>
+        {deltaPct == null ? 'no baseline' : `${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(1)}% vs last`}
+      </Text>
+    </View>
   );
 }
 
