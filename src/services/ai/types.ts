@@ -55,10 +55,22 @@ export interface CoachMessageRequest {
   settings: CoachSettings;
   /** What the athlete asked. Omitted for the unprompted daily message. */
   intent?: CoachIntent;
+  /**
+   * A question in the athlete's own words. When present and no intent is
+   * given, the service routes it; a question it will not answer comes back
+   * with `declined` set rather than an invented reply.
+   */
+  question?: string;
 }
 export interface CoachMessageResult {
   text: string;
   tone: 'praise' | 'nudge' | 'push' | 'reflect';
+  /**
+   * Set when the coach declined the question rather than answered it — out of
+   * scope on safety grounds, or not understood. The UI marks these so a
+   * refusal never reads as coaching.
+   */
+  declined?: 'medical' | 'injury' | 'unknown';
 }
 
 export interface WeeklyReviewRequest {

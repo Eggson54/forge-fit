@@ -12,6 +12,12 @@ export interface CoachTurn {
   at: string;
   /** Tone the coach replied in, when it reported one. */
   tone?: string;
+  /**
+   * Set when this turn is the coach declining rather than coaching — a
+   * question about doses, an injury, or one it did not follow. Stored so the
+   * marking survives a reload of the thread.
+   */
+  declined?: 'medical' | 'injury' | 'unknown';
 }
 
 /**

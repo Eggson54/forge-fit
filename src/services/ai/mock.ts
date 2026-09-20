@@ -1,4 +1,5 @@
 import { answerCoachQuestion, weeklyReviewSummary } from '../../domain/coach';
+import { UNKNOWN_TEXT, classifyQuestion, refusalText } from '../../domain/coachQuestions';
 import { sanitizeMacros } from '../../domain/nutrition';
 import { EXERCISE_LIBRARY } from '../../data/exercises';
 import { FOOD_DB } from '../../data/foods';
@@ -82,6 +83,22 @@ export class MockAIService implements AIService {
 
   async coachMessage(req: CoachMessageRequest): Promise<CoachMessageResult> {
     await delay(250);
+
+    // A typed question routes to one of the same branches a prompt chip uses,
+    // or to a refusal. The branches read the logged numbers either way, so a
+    // question never changes what the coach is allowed to claim.
+    if (!req.intent && req.question) {
+      const route = classifyQuestion(req.question);
+      if (route.kind === 'refuse') {
+        return { text: refusalText(route.topic), tone: 'reflect', declined: route.topic };
+      }
+      if (route.kind === 'unknown') {
+        return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };
+      }
+      const answer = answerCoachQuestion(req.context, req.settings, route.intent);
+      return { text: answer.text, tone: answer.tone };
+    }
+
     const m = answerCoachQuestion(req.context, req.settings, req.intent ?? 'daily');
     return { text: m.text, tone: m.tone };
   }

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button, Card, Chip, Pill, Screen, Text } from '../src/components/ui';
 import { Icon } from '../src/components/Icon';
 import { ScreenHeader } from '../src/components/ScreenHeader';
-import { colors, radius, spacing } from '../src/theme';
+import { colors, noOutline, radius, spacing } from '../src/theme';
 import { formatDateWithWeekday, todayISO } from '../src/domain/date';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { useCoachStore, type CoachTurn } from '../src/stores/useCoachStore';
@@ -39,6 +39,7 @@ export default function CoachScreen() {
   const gaps = useMemo(() => openGaps(buildCoachContext(summary)), [summary]);
 
   const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -57,6 +58,23 @@ export default function CoachScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Ask in the athlete's own words. The service routes it to one of the same
+   * branches the prompt chips use, or declines — so a typed question can never
+   * pull an answer the coach is not allowed to give.
+   */
+  const send = async () => {
+    const question = draft.trim();
+    if (!question || busy) return;
+    setDraft('');
+    setBusy(true);
+    append({ role: 'you', text: question });
+    const msg = await ai.coachMessage({ context: buildCoachContext(summary), settings, question });
+    append({ role: 'coach', text: msg.text, tone: msg.tone, declined: msg.declined });
+    setBusy(false);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  };
 
   const ask = async (label: string, intent: CoachIntent) => {
     setBusy(true);
@@ -96,8 +114,40 @@ export default function CoachScreen() {
               <Chip key={p.intent} label={p.label} onPress={() => ask(p.label, p.intent)} />
             ))}
           </ScrollView>
-          <View style={{ paddingHorizontal: spacing.xl }}>
-            <Button title="Get a fresh push" onPress={() => ask('Push me right now', 'push')} disabled={busy} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl }}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={send}
+              placeholder="Ask your coach…"
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="send"
+              accessibilityLabel="Ask your coach a question"
+              style={[styles.composer, noOutline]}
+              selectionColor={colors.primary}
+              editable={!busy}
+            />
+            {/* The send button only exists once there is something to send;
+                otherwise the primary action on the screen is a dead control. */}
+            {draft.trim() ? (
+              <Pressable
+                onPress={send}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel="Send question"
+                style={[styles.send, busy && { opacity: 0.5 }]}
+              >
+                <Icon name="bolt" size={18} color={colors.onPrimary} strokeWidth={2.2} />
+              </Pressable>
+            ) : (
+              <Button
+                title="Push me"
+                fullWidth={false}
+                size="sm"
+                onPress={() => ask('Push me right now', 'push')}
+                disabled={busy}
+              />
+            )}
           </View>
         </View>
       }
@@ -138,10 +188,11 @@ export default function CoachScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
-          // Bottom-anchoring is right once a thread is long enough to scroll.
-          // With one message it left most of a phone screen empty, which reads
-          // as a failed load rather than a new conversation.
-          justifyContent: turns.length > 4 ? 'flex-end' : 'flex-start',
+          // Always bottom-anchored, the way a thread reads: the newest message
+          // sits against the composer and older ones ride up out of view. Top
+          // anchoring left half a phone screen of nothing under a one-line
+          // greeting.
+          justifyContent: 'flex-end',
           paddingHorizontal: spacing.xl,
           paddingBottom: spacing.xl,
           gap: spacing.md,
@@ -196,18 +247,30 @@ export default function CoachScreen() {
 
 function Bubble({ turn }: { turn: CoachTurn }) {
   const mine = turn.role === 'you';
+  // A refusal is not coaching, and dressing it in the coach's voice — big
+  // type, a flame, the personality's swagger — would make "see a doctor" look
+  // like advice the app is giving.
+  const declined = !mine && !!turn.declined;
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
       <Card tone={mine ? 'high' : 'default'} style={{ maxWidth: '86%' }}>
         {!mine && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <Icon name="flame" size={14} color={colors.primary} />
-            <Text variant="overline" color={colors.primary}>
-              COACH
+            <Icon
+              name={!declined ? 'flame' : turn.declined === 'unknown' ? 'help' : 'shield'}
+              size={14}
+              color={declined ? colors.textDim : colors.primary}
+            />
+            <Text variant="overline" color={declined ? colors.textDim : colors.primary}>
+              {!declined ? 'COACH' : turn.declined === 'unknown' ? 'DIDN’T FOLLOW' : 'NOT MY CALL'}
             </Text>
           </View>
         )}
-        <Text variant={mine ? 'body' : 'h3'} style={mine ? undefined : { lineHeight: 26 }}>
+        <Text
+          variant={mine || declined ? 'body' : 'h3'}
+          color={declined ? colors.textDim : undefined}
+          style={mine || declined ? undefined : { lineHeight: 26 }}
+        >
           {turn.text}
         </Text>
       </Card>
@@ -260,5 +323,27 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceHigh,
+  },
+  composer: {
+    flex: 1,
+    // A web TextInput carries an intrinsic width from its `size` attribute, so
+    // flex alone cannot shrink it below that.
+    minWidth: 0,
+    color: colors.text,
+    fontSize: 15,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceHigh,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  send: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
   },
 });
