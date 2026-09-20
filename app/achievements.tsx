@@ -5,7 +5,7 @@ import { ScreenHeader } from '../src/components/ScreenHeader';
 import { FadeIn } from '../src/components/anim';
 import { Icon, type IconName } from '../src/components/Icon';
 import { colors, radius, spacing } from '../src/theme';
-import { achievementProgress, nextAchievements, type AchievementInputs } from '../src/domain/achievements';
+import { achievementProgress, nextAchievements, remainingLabel, type AchievementInputs } from '../src/domain/achievements';
 import { formatDateLong } from '../src/domain/date';
 import type { Achievement } from '../src/domain/types';
 import { useGamificationStore } from '../src/stores/useGamificationStore';
@@ -106,7 +106,7 @@ function NextUp({ achievement, inputs }: { achievement: Achievement; inputs: Ach
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text variant="bodyStrong">{achievement.title}</Text>
         <Text variant="caption" color={colors.textDim} style={{ marginBottom: spacing.sm }}>
-          {p.remaining} to go · {achievement.description.toLowerCase()}
+          {remainingLabel(achievement.metric, p.remaining)} · {achievement.description.toLowerCase()}
         </Text>
         <LinearProgress progress={p.ratio} color={achievement.tint} />
       </View>

@@ -71,3 +71,28 @@ export function nextAchievements(achievements: Achievement[], inputs: Achievemen
     .slice(0, limit)
     .map((x) => x.a);
 }
+
+/**
+ * What the remaining count is counting.
+ *
+ * "12 to go" under a discipline badge read as twelve days; it is twelve
+ * points. Every badge measures something different, so the noun has to come
+ * from the metric rather than from the card it lands on.
+ */
+const METRIC_NOUN: Record<AchievementMetric, [one: string, many: string]> = {
+  workoutsCompleted: ['workout', 'workouts'],
+  currentDailyStreak: ['day', 'days'],
+  proteinStreak: ['day', 'days'],
+  hydrationStreak: ['day', 'days'],
+  prsSet: ['PR', 'PRs'],
+  progressPhotos: ['photo', 'photos'],
+  bestDisciplineScore: ['point', 'points'],
+  gymsClaimed: ['gym', 'gyms'],
+  gymKindsClaimed: ['kind', 'kinds'],
+  rareGymsClaimed: ['gym', 'gyms'],
+};
+
+export function remainingLabel(metric: AchievementMetric, remaining: number): string {
+  const [one, many] = METRIC_NOUN[metric];
+  return `${remaining} ${remaining === 1 ? one : many} to go`;
+}

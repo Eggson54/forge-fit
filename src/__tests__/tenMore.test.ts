@@ -1,3 +1,4 @@
+import { ACHIEVEMENT_CATALOG, remainingLabel } from '../domain/achievements';
 import { EFFORT_LABEL, effortSeries, readEffort } from '../domain/effort';
 import { onThisDay } from '../domain/onThisDay';
 import { exerciseNotes, strengthCurve } from '../domain/records';
@@ -318,5 +319,25 @@ describe('restore mapping', () => {
       expect(row.why.length).toBeGreaterThan(20);
     }
     expect(NOT_RESTORED.map((r) => r.what)).toEqual(expect.arrayContaining(['Subscription tier', 'Progress photos']));
+  });
+});
+
+describe('remainingLabel', () => {
+  it('names what each badge is counting', () => {
+    expect(remainingLabel('bestDisciplineScore', 12)).toBe('12 points to go');
+    expect(remainingLabel('workoutsCompleted', 3)).toBe('3 workouts to go');
+    expect(remainingLabel('currentDailyStreak', 4)).toBe('4 days to go');
+    expect(remainingLabel('gymsClaimed', 2)).toBe('2 gyms to go');
+  });
+
+  it('gets the singular right', () => {
+    expect(remainingLabel('prsSet', 1)).toBe('1 PR to go');
+    expect(remainingLabel('progressPhotos', 1)).toBe('1 photo to go');
+  });
+
+  it('covers every metric in the catalog', () => {
+    for (const a of ACHIEVEMENT_CATALOG) {
+      expect(remainingLabel(a.metric, 2)).toMatch(/^2 \w+ to go$/);
+    }
   });
 });

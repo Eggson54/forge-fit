@@ -93,7 +93,12 @@ export default function ComparePhotos() {
                 </View>
               ) : (
                 <Text variant="caption" color={colors.textFaint} style={{ flex: 1, textAlign: 'right' }}>
-                  No weigh-in within a week of both photos
+                  {/* Naming the side that is missing, because "no weigh-in
+                      within a week of both photos" sat directly under a caption
+                      showing one of the two weights and read as a contradiction. */}
+                  {leftWeight?.value == null && rightWeight?.value == null
+                    ? 'No weigh-in within a week of either photo'
+                    : `No weigh-in within a week of the ${leftWeight?.value == null ? 'before' : 'after'} photo`}
                 </Text>
               )}
             </View>
