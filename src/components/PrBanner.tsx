@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 import { colors, radius, spacing } from '../theme';
+import { useRestStore } from '../stores/useRestStore';
 import { Icon } from './Icon';
 import { Text } from './ui/Text';
 
@@ -26,6 +27,11 @@ export function PrBanner({
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
 
+  // Both of these fire on the same tap — completing a set starts a rest and can
+  // set a record — so the banner sits on top of the timer rather than on the
+  // same line as it.
+  const restRunning = useRestStore((s) => s.endsAt != null);
+
   useEffect(() => {
     Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 8 }).start();
     // It is a moment, not a mode: it congratulates and gets out of the way.
@@ -41,9 +47,10 @@ export function PrBanner({
       accessibilityLiveRegion="polite"
       style={[
         styles.wrap,
+        { bottom: restRunning ? REST_BAR_CLEARANCE : BASE_BOTTOM },
         {
           opacity: enter,
-          transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }) }],
+          transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
         },
       ]}
     >
@@ -62,8 +69,17 @@ export function PrBanner({
   );
 }
 
+/**
+ * Where the banner sits when nothing else is floating, and when the rest timer
+ * is. It used to be pinned near the top of the scroll area, which put it over
+ * the screen title and the first exercise card — letters poking out above and
+ * below a box that was supposed to be floating.
+ */
+const BASE_BOTTOM = 96;
+const REST_BAR_CLEARANCE = 178;
+
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 0, right: 0, top: 76, paddingHorizontal: spacing.xl, zIndex: 20 },
+  wrap: { position: 'absolute', left: 0, right: 0, paddingHorizontal: spacing.lg, zIndex: 30 },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -73,5 +89,15 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(255,176,32,0.55)',
+    ...Platform.select({
+      web: { boxShadow: '0 12px 32px rgba(0,0,0,0.5)' },
+      default: {
+        shadowColor: '#000',
+        shadowOpacity: 0.5,
+        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 10 },
+        elevation: 14,
+      },
+    }),
   },
 });

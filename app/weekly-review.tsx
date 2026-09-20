@@ -10,6 +10,7 @@ import { groupThousands, kgToLb } from '../src/domain/units';
 import { strengthChangePct } from '../src/domain/strength';
 import type { WeeklyStats } from '../src/domain/coach';
 import { useLogStore } from '../src/stores/useLogStore';
+import { cardioInWeek, totalCardio } from '../src/domain/cardio';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { useWorkoutStore } from '../src/stores/useWorkoutStore';
 import { ai } from '../src/services/ai';
@@ -65,6 +66,7 @@ export default function WeeklyReview() {
 
 
     const weightLogs = [...logStore.weight].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const weekCardio = totalCardio(cardioInWeek(logStore.cardio, days));
     const weightChangeKg = weightLogs.length >= 2 ? weightLogs[weightLogs.length - 1]!.weightKg - weightLogs[0]!.weightKg : 0;
 
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
@@ -80,6 +82,8 @@ export default function WeeklyReview() {
       strengthChangePct: strengthChangePct(workouts) ?? 0,
       avgWaterOz: avg(waterVals.filter((w) => w > 0)),
       waterTargetOz: targets.waterOz,
+      cardioMinutes: weekCardio.minutes,
+      cardioSessions: weekCardio.sessions,
     };
     setStats(s);
     ai.weeklyReview({ stats: s, settings: coach }).then(setReview);

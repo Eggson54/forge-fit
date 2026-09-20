@@ -22,6 +22,7 @@ import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
 import { ai } from '../../src/services/ai';
 import type { ProgressAnalysisResult } from '../../src/services/ai/types';
+import { cardioInWeek, totalCardio } from '../../src/domain/cardio';
 
 export default function Progress() {
   const { width } = useWindowDimensions();
@@ -114,6 +115,8 @@ export default function Progress() {
     return days.map((d) => ({ label: d.slice(5), value: s.macrosForDate(d).calories > 0 ? 1 : 0 }));
   });
   const nutritionHitCount = nutritionDays.filter((d) => d.value === 1).length;
+  const cardioSessions = useLogStore((s) => s.cardio);
+  const cardioWeek = useMemo(() => totalCardio(cardioInWeek(cardioSessions, lastNDays(7))), [cardioSessions]);
 
   // Weekly training volume per muscle (last 7 days) for the body map.
   const weekVolume = useMemo(() => {
@@ -175,6 +178,9 @@ export default function Progress() {
           accent={colors.protein}
         />
         <StatTile value={`${nutritionHitCount}/7`} label="Logged" accent={colors.water} />
+        {/* Conditioning is the one column of the week the rest of this screen
+            says nothing about. */}
+        <StatTile value={`${Math.round(cardioWeek.minutes)}`} label="Cardio min" accent={colors.steps} />
       </Card>
 
       {/* Reserve the card while the analysis loads instead of popping it in and

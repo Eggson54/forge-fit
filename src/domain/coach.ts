@@ -186,6 +186,9 @@ export interface WeeklyStats {
   strengthChangePct: number;
   avgWaterOz: number;
   waterTargetOz: number;
+  /** Minutes of conditioning logged this week. Zero is a real answer here. */
+  cardioMinutes: number;
+  cardioSessions: number;
 }
 
 export function weeklyReviewSummary(s: WeeklyStats, settings: CoachSettings): string {

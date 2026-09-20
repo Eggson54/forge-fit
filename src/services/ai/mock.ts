@@ -201,6 +201,16 @@ function weeklyHighlights(s: WeeklyReviewRequest['stats']): string[] {
     );
   }
 
+  // Conditioning gets a line whether or not any was logged: a zero here is the
+  // finding, not an absence of one.
+  out.push(
+    s.cardioSessions === 0
+      ? 'No conditioning logged — the one thing a barbell does not cover.'
+      : `${Math.round(s.cardioMinutes)} minutes of conditioning across ${s.cardioSessions} ${
+          s.cardioSessions === 1 ? 'session' : 'sessions'
+        }.`,
+  );
+
   if (Math.abs(s.strengthChangePct) >= 0.5) {
     out.push(
       s.strengthChangePct > 0
