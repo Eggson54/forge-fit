@@ -129,8 +129,13 @@ export default function Cardio() {
           </Text>
           {totals.sessionsWithCalories > 0 && (
             <Text variant="caption" color={colors.textFaint}>
-              {groupThousands(totals.calories)} kcal recorded across {totals.sessionsWithCalories} of{' '}
-              {totals.sessions} sessions — the rest did not report one, and the app will not guess.
+              {/* The hedge only belongs here when there is something to hedge
+                  about — "3 of 3 sessions, the rest did not report one" was
+                  apologising for a gap that did not exist. */}
+              {groupThousands(totals.calories)} kcal
+              {totals.sessionsWithCalories < totals.sessions
+                ? `, from ${totals.sessionsWithCalories} of ${totals.sessions} sessions. The others did not report one, and the app will not guess.`
+                : ', as the sessions themselves reported it. The app never estimates one.'}
             </Text>
           )}
         </Card>

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { todayISO } from '../domain/date';
 import { health } from '../services/health';
 import { strava, type StravaActivity } from '../services/strava';
+import { cardioTypeFromLabel } from '../domain/cardio';
 import { jsonStorage, STORE_KEYS } from './persist';
 import { useLogStore } from './useLogStore';
 
@@ -20,6 +21,39 @@ interface IntegrationState {
   disconnectStrava: () => Promise<void>;
   refresh: () => Promise<void>;
   reset: () => void;
+}
+
+/**
+ * Fold imported activities into the logs they belong in.
+ *
+ * They used to live only in this store, which meant a Strava run appeared on
+ * the integrations screen and nowhere else — not in the conditioning history,
+ * not in the export. Imports are keyed by their Strava id so a refresh does not
+ * duplicate a run that is already there.
+ */
+function absorb(activities: StravaActivity[]): void {
+  const logs = useLogStore.getState();
+
+  logs.importCardio(
+    activities.map((a) => ({
+      date: a.date,
+      type: cardioTypeFromLabel(a.type),
+      minutes: Math.max(0, Math.round(a.movingMinutes)),
+      distanceKm: a.distanceKm > 0 ? a.distanceKm : undefined,
+      calories: a.calories > 0 ? a.calories : undefined,
+      source: 'strava' as const,
+      externalId: `strava:${a.id}`,
+    })),
+  );
+
+  // Steps stay a separate estimate, because they are one: a stride-length
+  // guess from distance, not a counted number.
+  for (const a of activities) {
+    if (a.type === 'Run' || a.type === 'Walk') {
+      const approxSteps = Math.round(a.distanceKm * 1350);
+      if (approxSteps > 0) logs.logSteps(approxSteps, 'health', a.date);
+    }
+  }
 }
 
 export const useIntegrationStore = create<IntegrationState>()(
@@ -55,13 +89,7 @@ export const useIntegrationStore = create<IntegrationState>()(
       connectStrava: async () => {
         const conn = await strava.connect();
         const activities = await strava.importRecentActivities();
-        // Reflect activity into daily steps for days we have (demo/real alike).
-        for (const a of activities) {
-          if (a.type === 'Run' || a.type === 'Walk') {
-            const approxSteps = Math.round(a.distanceKm * 1350);
-            if (approxSteps > 0) useLogStore.getState().logSteps(approxSteps, 'health', a.date);
-          }
-        }
+        absorb(activities);
         set({ stravaConnected: conn.connected, stravaAthlete: conn.athlete ?? null, activities });
       },
 
@@ -73,6 +101,7 @@ export const useIntegrationStore = create<IntegrationState>()(
       refresh: async () => {
         if (get().stravaConnected) {
           const activities = await strava.importRecentActivities();
+          absorb(activities);
           set({ activities });
         }
       },

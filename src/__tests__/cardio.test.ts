@@ -3,6 +3,7 @@ import {
   WEEKLY_MINUTES_REFERENCE,
   cardioInWeek,
   cardioKind,
+  cardioTypeFromLabel,
   displayDistance,
   formatCadence,
   formatPace,
@@ -176,6 +177,31 @@ describe('cadence', () => {
   it('gives every kind a cadence, so no row can fall through', () => {
     for (const k of CARDIO_KINDS) {
       expect(['pace', 'speed']).toContain(k.cadence);
+    }
+  });
+});
+
+describe('cardioTypeFromLabel', () => {
+  it('maps the labels an import actually sends', () => {
+    expect(cardioTypeFromLabel('Run')).toBe('run');
+    expect(cardioTypeFromLabel('VirtualRide')).toBe('ride');
+    expect(cardioTypeFromLabel('Cycling')).toBe('ride');
+    expect(cardioTypeFromLabel('Trail Run')).toBe('run');
+    expect(cardioTypeFromLabel('Swim')).toBe('swim');
+    expect(cardioTypeFromLabel('Hike')).toBe('hike');
+    expect(cardioTypeFromLabel('Rowing')).toBe('row');
+    expect(cardioTypeFromLabel('StairStepper')).toBe('stairs');
+  });
+
+  it('falls back rather than dropping a session it cannot name', () => {
+    expect(cardioTypeFromLabel('Kitesurf')).toBe('other');
+    expect(cardioTypeFromLabel('')).toBe('other');
+  });
+
+  it('never returns a type the app has no kind for', () => {
+    const known = new Set(CARDIO_KINDS.map((k) => k.type));
+    for (const label of ['Run', 'Ride', 'Kayaking', 'WeightTraining', '   ']) {
+      expect(known.has(cardioTypeFromLabel(label))).toBe(true);
     }
   });
 });

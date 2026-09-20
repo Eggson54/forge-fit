@@ -9,6 +9,9 @@ import { health, type HealthMetric } from '../../src/services/health';
 import { strava } from '../../src/services/strava';
 import { useIntegrationStore } from '../../src/stores/useIntegrationStore';
 import { groupThousands } from '../../src/domain/units';
+import { formatDateWithWeekday } from '../../src/domain/date';
+import { displayDistance } from '../../src/domain/cardio';
+import { useProfileStore } from '../../src/stores/useProfileStore';
 
 const HEALTH_METRICS: { key: HealthMetric; label: string }[] = [
   { key: 'steps', label: 'Steps' },
@@ -19,6 +22,7 @@ const HEALTH_METRICS: { key: HealthMetric; label: string }[] = [
 
 export default function Integrations() {
   const s = useIntegrationStore();
+  const units = useProfileStore((p) => p.profile.units);
   const [healthAvailable, setHealthAvailable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -94,9 +98,17 @@ export default function Integrations() {
                 <View key={a.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
                   <View>
                     <Text variant="label">{a.name}</Text>
-                    <Text variant="caption" color={colors.textDim}>{a.type} · {a.date}</Text>
+                    <Text variant="caption" color={colors.textDim}>{a.type} · {formatDateWithWeekday(a.date)}</Text>
                   </View>
-                  <Text variant="label" color={colors.primary}>{a.distanceKm} km · {a.movingMinutes}m</Text>
+                  {/* The athlete's units, not the API's: everything else on
+                      this phone reads in miles. */}
+                  <Text variant="label" color={colors.primary}>
+                    {(() => {
+                      const d = displayDistance(a.distanceKm, units);
+                      return d ? `${d.value} ${d.unit} · ` : '';
+                    })()}
+                    {a.movingMinutes}m
+                  </Text>
                 </View>
               ))}
             </View>

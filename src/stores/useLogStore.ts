@@ -63,6 +63,11 @@ interface LogState {
   }) => CardioSession;
   removeCardio: (id: string) => void;
   cardioForDate: (date: string) => CardioSession[];
+  /**
+   * Add imported sessions, skipping any already held under the same external
+   * id. Returns how many were new, so the UI can say what it did.
+   */
+  importCardio: (sessions: Omit<CardioSession, 'id' | 'loggedAt'>[]) => number;
 
   // Selectors
   nutritionForDate: (date: string) => NutritionEntry[];
@@ -208,6 +213,16 @@ export const useLogStore = create<LogState>()(
       },
       removeCardio: (id) => set((s) => ({ cardio: s.cardio.filter((c) => c.id !== id) })),
       cardioForDate: (date) => get().cardio.filter((c) => c.date === date),
+
+      importCardio: (incoming) => {
+        const seen = new Set(get().cardio.map((c) => c.externalId).filter(Boolean));
+        const fresh = incoming
+          .filter((c) => !c.externalId || !seen.has(c.externalId))
+          .map((c) => ({ ...c, id: uid('cd_'), loggedAt: new Date().toISOString() }));
+        if (fresh.length === 0) return 0;
+        set((s) => ({ cardio: [...fresh, ...s.cardio] }));
+        return fresh.length;
+      },
 
       nutritionForDate: (date) => get().nutrition.filter((n) => n.date === date),
       macrosForDate: (date) => sumMacros(get().nutrition.filter((n) => n.date === date)),

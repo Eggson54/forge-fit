@@ -26,7 +26,26 @@ export interface CardioSession {
   effort?: number;
   notes?: string;
   source: 'manual' | 'strava' | 'health';
+  /**
+   * The id this session has in whatever system it was imported from. Held so
+   * a second import does not add a second copy of the same run.
+   */
+  externalId?: string;
   loggedAt: ISODateTime;
+}
+
+/** Map an imported activity's free-text type onto a kind the app knows. */
+export function cardioTypeFromLabel(label: string): CardioType {
+  const t = label.trim().toLowerCase();
+  if (t.includes('run') || t.includes('jog')) return 'run';
+  if (t.includes('ride') || t.includes('cycl') || t.includes('bike')) return 'ride';
+  if (t.includes('swim')) return 'swim';
+  if (t.includes('row')) return 'row';
+  if (t.includes('hike')) return 'hike';
+  if (t.includes('walk')) return 'walk';
+  if (t.includes('elliptical')) return 'elliptical';
+  if (t.includes('stair')) return 'stairs';
+  return 'other';
 }
 
 /**
