@@ -8,6 +8,7 @@ import { colors, spacing } from '../../src/theme';
 import { health, type HealthMetric } from '../../src/services/health';
 import { strava } from '../../src/services/strava';
 import { useIntegrationStore } from '../../src/stores/useIntegrationStore';
+import { groupThousands } from '../../src/domain/units';
 
 const HEALTH_METRICS: { key: HealthMetric; label: string }[] = [
   { key: 'steps', label: 'Steps' },
@@ -57,7 +58,7 @@ export default function Integrations() {
           </View>
           {s.appleWatchConnected && (
             <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.md }}>
-              <WatchStat icon="flame" label="Active energy" value={`${s.activeEnergyKcal ?? '—'} kcal`} />
+              <WatchStat icon="flame" label="Active energy" value={s.activeEnergyKcal == null ? '— kcal' : `${groupThousands(s.activeEnergyKcal)} kcal`} />
               <WatchStat icon="bolt" label="Avg HR" value={`${s.lastHeartRate ?? '—'} bpm`} />
             </View>
           )}

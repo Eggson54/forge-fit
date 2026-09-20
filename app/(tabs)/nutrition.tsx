@@ -64,7 +64,7 @@ export default function Nutrition() {
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xl }}>
         <AnimatedProgressRing progress={macros.calories / targets.calories} size={130} stroke={13} gradientColors={gradients.ember}>
           <View style={{ alignItems: 'center' }}>
-            <AnimatedNumber value={Math.max(0, remaining)} variant="metricLg" />
+            <AnimatedNumber value={Math.max(0, remaining)} variant="metricLg" format={groupThousands} />
             <Text variant="caption" color={colors.textDim}>
               {remaining >= 0 ? 'left' : 'over'}
             </Text>
@@ -75,13 +75,13 @@ export default function Nutrition() {
             <Text variant="caption" color={colors.textDim}>
               Consumed
             </Text>
-            <AnimatedNumber value={macros.calories} variant="metric" format={(n) => `${n} kcal`} />
+            <AnimatedNumber value={macros.calories} variant="metric" format={(n) => `${groupThousands(n)} kcal`} />
           </View>
           <View>
             <Text variant="caption" color={colors.textDim}>
               Target
             </Text>
-            <Text variant="bodyStrong">{targets.calories} kcal</Text>
+            <Text variant="bodyStrong">{groupThousands(targets.calories)} kcal</Text>
           </View>
         </View>
       </Card>
@@ -131,7 +131,7 @@ export default function Nutrition() {
         return (
           <View key={slot}>
             <SectionHeader
-              title={slotCalories > 0 ? `${SLOT_LABEL[slot]} · ${slotCalories} kcal` : SLOT_LABEL[slot]}
+              title={slotCalories > 0 ? `${SLOT_LABEL[slot]} · ${groupThousands(slotCalories)} kcal` : SLOT_LABEL[slot]}
               action="Add"
               onAction={() => router.push({ pathname: '/nutrition/add', params: { slot } })}
             />

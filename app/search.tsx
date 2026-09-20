@@ -12,6 +12,7 @@ import { FOOD_DB } from '../src/data/foods';
 import { useWorkoutStore } from '../src/stores/useWorkoutStore';
 import { useRoutineStore } from '../src/stores/useRoutineStore';
 import { useProtocolStore } from '../src/stores/useProtocolStore';
+import { groupThousands } from '../src/domain/units';
 
 /** Screens worth reaching by name rather than by remembering which tab hides them. */
 const SCREENS: SearchEntry[] = [
@@ -76,7 +77,7 @@ export default function Search() {
       id: `fd_${f.id}`,
       kind: 'food',
       title: f.name,
-      subtitle: `${f.calories} kcal · ${f.servingLabel}`,
+      subtitle: `${groupThousands(f.calories)} kcal · ${f.servingLabel}`,
       href: `/nutrition/add?foodId=${f.id}`,
     }));
     const rts: SearchEntry[] = routines.map((r) => ({

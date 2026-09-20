@@ -7,6 +7,7 @@ import { colors, spacing } from '../../src/theme';
 import type { DisciplineWeights, Targets } from '../../src/domain/types';
 import { balanceMacros, recommendedTargets } from '../../src/domain/nutrition';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { groupThousands } from '../../src/domain/units';
 
 const TARGET_FIELDS: { key: keyof Targets; label: string; suffix: string; transform?: 'sleepHours' }[] = [
   { key: 'calories', label: 'Daily calories', suffix: 'kcal' },
@@ -106,7 +107,7 @@ export default function Goals() {
             Macros add up to
           </Text>
           <Text variant="bodyStrong" color={macroGap <= 60 ? colors.success : colors.amber}>
-            {macroCalories} kcal
+            {groupThousands(macroCalories)} kcal
             {macroGap > 60 && (
               <Text variant="caption" color={colors.amber}>
                 {' '}

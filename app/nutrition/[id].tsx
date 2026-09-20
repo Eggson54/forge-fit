@@ -6,7 +6,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { colors, radius, spacing } from '../../src/theme';
 import { caloriesFromMacros, scaleMacros } from '../../src/domain/nutrition';
-import { round } from '../../src/domain/units';
+import { groupThousands, round } from '../../src/domain/units';
 import type { MealSlot } from '../../src/domain/types';
 import { useLogStore } from '../../src/stores/useLogStore';
 
@@ -157,7 +157,7 @@ export default function EditFood() {
           </View>
         </View>
         <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.sm }}>
-          Calories are derived from the macros: {perServing.calories} kcal per serving.
+          Calories are derived from the macros: {groupThousands(perServing.calories)} kcal per serving.
         </Text>
       </Card>
 
