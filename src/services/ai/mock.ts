@@ -1,5 +1,6 @@
 import { answerCoachQuestion, weeklyReviewSummary } from '../../domain/coach';
 import { UNKNOWN_TEXT, classifyQuestion, refusalText } from '../../domain/coachQuestions';
+import { compoundAnswer, compoundById, findCompound } from '../../domain/peptides';
 import { sanitizeMacros } from '../../domain/nutrition';
 import { EXERCISE_LIBRARY } from '../../data/exercises';
 import { FOOD_DB } from '../../data/foods';
@@ -89,8 +90,28 @@ export class MockAIService implements AIService {
     // question never changes what the coach is allowed to claim.
     if (!req.intent && req.question) {
       const route = classifyQuestion(req.question);
+
+      if (route.kind === 'compound') {
+        const compound = compoundById(route.compoundId);
+        // The id came from the same reference, so the lookup cannot miss — but
+        // a miss must not fall through into a coaching branch about a drug.
+        if (!compound) return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };
+        return {
+          text: compoundAnswer(compound, route.ask),
+          tone: 'reflect',
+          reference: { compoundId: compound.id, title: compound.name },
+        };
+      }
+
       if (route.kind === 'refuse') {
-        return { text: refusalText(route.topic), tone: 'reflect', declined: route.topic };
+        // Name the compound in the refusal when one was mentioned, so "ask me
+        // what it is instead" points at something concrete.
+        const named = findCompound(req.question);
+        return {
+          text: refusalText(route.topic, named?.name),
+          tone: 'reflect',
+          declined: route.topic,
+        };
       }
       if (route.kind === 'unknown') {
         return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };

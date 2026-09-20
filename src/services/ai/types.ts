@@ -70,7 +70,13 @@ export interface CoachMessageResult {
    * scope on safety grounds, or not understood. The UI marks these so a
    * refusal never reads as coaching.
    */
-  declined?: 'medical' | 'injury' | 'unknown';
+  declined?: 'dosing' | 'sourcing' | 'medical' | 'injury' | 'unknown';
+  /**
+   * Set when the reply is a reference answer about a compound rather than
+   * coaching. Drawn differently, because "BPC-157 has no human trials" is a
+   * fact the app is reporting, not something it is telling you to do.
+   */
+  reference?: { compoundId: string; title: string };
 }
 
 export interface WeeklyReviewRequest {

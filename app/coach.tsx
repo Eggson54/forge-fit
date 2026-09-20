@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Button, Card, Chip, Pill, Screen, Text } from '../src/components/ui';
 import { Icon } from '../src/components/Icon';
 import { ScreenHeader } from '../src/components/ScreenHeader';
@@ -27,6 +28,10 @@ const PROMPTS: { label: string; intent: CoachIntent }[] = [
 ];
 
 export default function CoachScreen() {
+  // Opened with a question already in hand — from the protocol tracker's
+  // reference card, or a deep link. It is asked once and then cleared, so
+  // coming back to the screen does not re-ask it.
+  const params = useLocalSearchParams<{ ask?: string }>();
   const settings = useProfileStore((s) => s.effectiveCoach());
   const summary = useDailySummary();
   const turns = useCoachStore((s) => s.turns);
@@ -41,6 +46,17 @@ export default function CoachScreen() {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+
+  const askedParam = useRef<string | null>(null);
+  useEffect(() => {
+    const incoming = typeof params.ask === 'string' ? params.ask.trim() : '';
+    if (!incoming || askedParam.current === incoming) return;
+    askedParam.current = incoming;
+    sendQuestion(incoming);
+    // sendQuestion is stable enough for this one-shot; re-running on every
+    // render would re-ask the question on each tick of the elapsed clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.ask]);
 
   useEffect(() => {
     // One opening message per day. Generating a fresh one on every mount buried
@@ -64,16 +80,21 @@ export default function CoachScreen() {
    * branches the prompt chips use, or declines — so a typed question can never
    * pull an answer the coach is not allowed to give.
    */
-  const send = async () => {
-    const question = draft.trim();
+  const sendQuestion = async (question: string) => {
     if (!question || busy) return;
-    setDraft('');
     setBusy(true);
     append({ role: 'you', text: question });
     const msg = await ai.coachMessage({ context: buildCoachContext(summary), settings, question });
-    append({ role: 'coach', text: msg.text, tone: msg.tone, declined: msg.declined });
+    append({ role: 'coach', text: msg.text, tone: msg.tone, declined: msg.declined, reference: msg.reference });
     setBusy(false);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const send = () => {
+    const question = draft.trim();
+    if (!question) return;
+    setDraft('');
+    sendQuestion(question);
   };
 
   const ask = async (label: string, intent: CoachIntent) => {
@@ -247,32 +268,57 @@ export default function CoachScreen() {
 
 function Bubble({ turn }: { turn: CoachTurn }) {
   const mine = turn.role === 'you';
-  // A refusal is not coaching, and dressing it in the coach's voice — big
-  // type, a flame, the personality's swagger — would make "see a doctor" look
-  // like advice the app is giving.
+  // Three voices, drawn as three things. Coaching is the coach talking. A
+  // refusal is the app declining, and dressing it in the coach's swagger would
+  // make "see a doctor" look like advice. A reference answer is the app
+  // reporting what is known about a compound — neither an instruction nor a
+  // refusal, and it has to be impossible to mistake for either.
   const declined = !mine && !!turn.declined;
+  const reference = !mine && !declined && !!turn.reference;
+  const plain = mine || declined || reference;
+
+  const header = declined
+    ? { icon: 'shield' as const, label: turn.declined === 'unknown' ? 'DIDN’T FOLLOW' : 'NOT MY CALL', tint: colors.textDim }
+    : reference
+      ? { icon: 'document' as const, label: `REFERENCE · ${turn.reference!.title.toUpperCase()}`, tint: colors.info }
+      : { icon: 'flame' as const, label: 'COACH', tint: colors.primary };
+
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
-      <Card tone={mine ? 'high' : 'default'} style={{ maxWidth: '86%' }}>
+      <Card
+        tone={mine ? 'high' : 'default'}
+        style={{
+          maxWidth: reference ? '96%' : '86%',
+          // A left rail in the reference tint, so a wall of compound facts is
+          // visibly a different kind of thing from the line above it.
+          ...(reference ? { borderLeftWidth: 3, borderLeftColor: colors.info } : null),
+        }}
+      >
         {!mine && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <Icon
-              name={!declined ? 'flame' : turn.declined === 'unknown' ? 'help' : 'shield'}
+              name={turn.declined === 'unknown' ? 'help' : header.icon}
               size={14}
-              color={declined ? colors.textDim : colors.primary}
+              color={header.tint}
             />
-            <Text variant="overline" color={declined ? colors.textDim : colors.primary}>
-              {!declined ? 'COACH' : turn.declined === 'unknown' ? 'DIDN’T FOLLOW' : 'NOT MY CALL'}
+            <Text variant="overline" color={header.tint} numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>
+              {header.label}
             </Text>
           </View>
         )}
         <Text
-          variant={mine || declined ? 'body' : 'h3'}
+          variant={plain ? 'body' : 'h3'}
           color={declined ? colors.textDim : undefined}
-          style={mine || declined ? undefined : { lineHeight: 26 }}
+          style={plain ? (reference ? { lineHeight: 22 } : undefined) : { lineHeight: 26 }}
         >
           {turn.text}
         </Text>
+        {reference && (
+          <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.md }}>
+            Reference only. ForgeFit does not prescribe, and does not recommend doses, cycles or
+            combinations.
+          </Text>
+        )}
       </Card>
     </View>
   );

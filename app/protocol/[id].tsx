@@ -7,6 +7,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, radius, spacing } from '../../src/theme';
 import { addDaysISO, formatDateWithWeekday, formatDayMonth, todayISO } from '../../src/domain/date';
 import { FREQUENCY_LABEL } from '../../src/domain/protocol';
+import { findCompound } from '../../src/domain/peptides';
 import { useProtocolStore } from '../../src/stores/useProtocolStore';
 
 const WINDOW_OPTIONS = [30, 90] as const;
@@ -28,6 +29,12 @@ export default function ProtocolDetail() {
     () => Array.from({ length: windowDays }, (_, i) => addDaysISO(today, -(windowDays - 1 - i))),
     [windowDays, today],
   );
+
+  // If what they entered matches something the app keeps a reference on, the
+  // page that already shows their own logging is the obvious place to read
+  // what the thing actually is. Above the early return, so the hook order
+  // holds when the record has been deleted.
+  const reference = useMemo(() => findCompound(protocol?.name ?? ''), [protocol?.name]);
 
   if (!protocol) {
     return (
@@ -96,6 +103,29 @@ export default function ProtocolDetail() {
           </Text>
         ) : null}
       </Card>
+
+      {reference && (
+        <Card style={{ marginBottom: spacing.md, gap: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.info }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="document" size={14} color={colors.info} />
+            <Text variant="overline" color={colors.info} style={{ flex: 1, minWidth: 0 }} numberOfLines={1}>
+              REFERENCE · {reference.name.toUpperCase()}
+            </Text>
+          </View>
+          <Text variant="body" color={colors.textDim}>{reference.what}</Text>
+          <Text variant="caption" color={colors.textFaint}>{reference.statusNote}</Text>
+          <Pressable
+            onPress={() => router.push({ pathname: '/coach', params: { ask: `What is ${reference.name}?` } })}
+            hitSlop={8}
+            accessibilityRole="link"
+            accessibilityLabel={`Ask the coach about ${reference.name}`}
+          >
+            <Text variant="label" color={colors.info}>
+              Evidence, risks and sport status ›
+            </Text>
+          </Pressable>
+        </Card>
+      )}
 
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
         {WINDOW_OPTIONS.map((w) => (

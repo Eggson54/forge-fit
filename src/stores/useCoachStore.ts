@@ -17,7 +17,9 @@ export interface CoachTurn {
    * question about doses, an injury, or one it did not follow. Stored so the
    * marking survives a reload of the thread.
    */
-  declined?: 'medical' | 'injury' | 'unknown';
+  declined?: 'dosing' | 'sourcing' | 'medical' | 'injury' | 'unknown';
+  /** Set when this turn is a reference answer about a compound. */
+  reference?: { compoundId: string; title: string };
 }
 
 /**

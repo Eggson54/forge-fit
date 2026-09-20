@@ -73,6 +73,57 @@ npx expo start           # then press i / a, or scan the QR with Expo Go
 The app runs **fully offline** out of the box (local accounts, mock AI, mock subscriptions,
 placeholder ads). No environment variables are required for development.
 
+### On a phone with Expo Go (Arch Linux)
+
+```bash
+# 1. Node. Arch ships the newest release, which Metro does not always like.
+#    An LTS line via fnm/nvm is the safer bet:
+sudo pacman -S --needed fnm      # or: nvm, or: nodejs npm
+fnm install 20 && fnm use 20
+
+# 2. Install and start with a tunnel. @expo/ngrok is already a devDependency,
+#    so this needs no extra install and works when the phone is on mobile data
+#    or a different VLAN from the laptop.
+cd mobile
+npm install
+npx expo start --tunnel
+```
+
+Scan the QR with **Expo Go** (Android) or the **Camera app** (iOS).
+
+Linux-specific things that actually bite:
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `ENOSPC: System limit for number of file watchers reached` | Metro watches the tree; the kernel default is low | `echo 'fs.inotify.max_user_watches=524288' \| sudo tee /etc/sysctl.d/99-watches.conf && sudo sysctl --system` |
+| QR scans but never connects on the same wifi | `ufw`/`firewalld` blocking Metro | `sudo ufw allow 8081/tcp` — or just use `--tunnel`, which sidesteps it |
+| Phone and laptop on different networks | LAN mode can't reach the dev server | `npx expo start --tunnel` |
+| Android over USB instead of wifi | — | `sudo pacman -S android-tools`, then `adb reverse tcp:8081 tcp:8081` and `npx expo start --localhost --android` |
+| `Project is incompatible with this version of Expo Go` | Expo Go on the stores only carries the current SDK; this project is on **SDK 52** | See below |
+
+**If Expo Go refuses the SDK version** — this is the one most likely to stop
+you, and it is not something a flag fixes. Pick one:
+
+1. **Move the project to the SDK your Expo Go has** (cleanest):
+   ```bash
+   npx expo install expo@latest
+   npx expo install --fix
+   npm run typecheck && npm test
+   ```
+2. **Install a matching older Expo Go APK** (Android only — Expo publishes
+   versioned builds at `expo.dev/go`). Not possible on iOS.
+3. **Build a dev client**, which pins the runtime to this project:
+   ```bash
+   npx expo install expo-dev-client
+   npx eas build --profile development --platform android   # needs an Expo account
+   ```
+   Local Android builds instead of EAS need the SDK and a JDK:
+   `sudo pacman -S jdk17-openjdk android-sdk android-sdk-platform-tools`, then
+   `npx expo run:android`.
+
+`expo-apple-authentication` and the Apple Health hooks are inert on Android and
+on web; everything else in the app runs.
+
 ### Run in a browser (no simulator)
 
 ForgeFit also builds for the web via react-native-web, so it can be previewed in any browser:
@@ -140,6 +191,12 @@ user (free vs Pro), asks the model for **strict JSON**, and **validates/sanitize
 - The app is a **fitness tracker and coach — not medical advice**. It never diagnoses, prescribes,
   or recommends doses/cycles/compounds. The protocol tracker is record-keeping only and is disabled
   by default.
+- The coach **answers questions of fact** about the compounds in `src/domain/peptides.ts` — what
+  something is, what it is studied for, how strong that evidence is, its regulatory status, its
+  known risks, and whether it is banned in tested sport. It **refuses questions of prescription**:
+  how much, how long, what to stack, whether to start or stop, and where to buy. Routing is in
+  `src/domain/coachQuestions.ts`; the refusal happens *before* any answering branch runs, and a
+  test asserts no reference answer can contain a number followed by a unit of mass or volume.
 - The AI coach can be blunt but **never** uses hate speech, threats, slurs, or body-shaming.
   Aggressive language is a toggle the user fully controls; disabling it softens every message.
 - Health data is treated as sensitive: isolated per-user via RLS, never sold, never used for ad
