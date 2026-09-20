@@ -5,11 +5,11 @@ import { Card, Chip, EmptyState, Screen, SectionHeader, StatTile, Text } from '.
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { FadeIn } from '../../src/components/anim';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
-import { Icon } from '../../src/components/Icon';
 import { colors, radius, spacing } from '../../src/theme';
 import { formatDateLong, formatDayMonth } from '../../src/domain/date';
 import { personalRecords, recentPrEvents, type PersonalRecord } from '../../src/domain/records';
 import { displayWeight } from '../../src/domain/units';
+import { muscleLabel } from '../../src/domain/volume';
 import type { MuscleGroup, Units } from '../../src/domain/types';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -29,6 +29,14 @@ export default function Records() {
 
   const records = useMemo(() => personalRecords(workouts), [workouts]);
   const events = useMemo(() => recentPrEvents(workouts, 8), [workouts]);
+
+  // Read off the logged sessions rather than the library, so a custom exercise
+  // is named the same way as a built-in one.
+  const muscleById = useMemo(() => {
+    const map: Record<string, MuscleGroup> = {};
+    for (const w of workouts) for (const ex of w.exercises) map[ex.exerciseId] = ex.primaryMuscle;
+    return map;
+  }, [workouts]);
 
   const sorted = useMemo(() => {
     const copy = [...records];
@@ -86,13 +94,15 @@ export default function Records() {
               const w = displayWeight(e.weightKg, units);
               return (
                 <View key={`${e.workoutId}-${e.exerciseId}-${i}`} style={[styles.event, i < events.length - 1 && styles.border]}>
-                  <Icon name="trophy" size={15} color={colors.amber} strokeWidth={1.9} />
+                  {/* The same trophy eight times in a column said nothing that
+                      the heading did not. The muscle does. */}
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text variant="label" numberOfLines={1}>
                       {e.name}
                     </Text>
                     <Text variant="caption" color={colors.textFaint}>
                       {formatDayMonth(e.date)}
+                      {muscleById[e.exerciseId] ? ` · ${muscleLabel(muscleById[e.exerciseId]!)}` : ''}
                     </Text>
                   </View>
                   <Text variant="bodyStrong" color={colors.amber}>

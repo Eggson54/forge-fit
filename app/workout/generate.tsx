@@ -10,6 +10,7 @@ import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { ai } from '../../src/services/ai';
 import type { WorkoutGenResult } from '../../src/services/ai/types';
 import { FREE_TIER_LIMITS } from '../../src/services/config';
+import { muscleLabel as label } from '../../src/domain/volume';
 
 const FOCUS_OPTIONS: MuscleGroup[] = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'glutes', 'biceps', 'triceps', 'core', 'full_body'];
 
@@ -144,4 +145,3 @@ function ProfileRow({ label: name, value, last }: { label: string; value: string
   );
 }
 
-const label = (m: string) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());

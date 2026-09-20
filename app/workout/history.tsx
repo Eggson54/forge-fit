@@ -13,6 +13,7 @@ import { MUSCLE_GROUPS } from '../../src/data/exercises';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { Icon } from '../../src/components/Icon';
+import { muscleLabel as label } from '../../src/domain/volume';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -174,7 +175,6 @@ function HistoryRow({ workout, units }: { workout: Workout; units: Units }) {
   );
 }
 
-const label = (m: string) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const styles = StyleSheet.create({
   monthHeader: {

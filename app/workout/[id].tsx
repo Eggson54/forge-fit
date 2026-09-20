@@ -15,13 +15,14 @@ import { EFFORT_BLURB, EFFORT_LABEL, EFFORT_SCALE } from '../../src/domain/effor
 import { trackingFor } from '../../src/domain/tracking';
 import { exerciseById } from '../../src/data/exercises';
 import { displayVolume, displayWeight, groupThousands } from '../../src/domain/units';
-import type { MuscleGroup, Units, WorkoutExercise } from '../../src/domain/types';
+import type { Units, WorkoutExercise } from '../../src/domain/types';
 import { SET_KIND_LABEL, setKind } from '../../src/domain/sets';
 import { groupExercises, supersetLabel } from '../../src/domain/superset';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useRoutineStore } from '../../src/stores/useRoutineStore';
 import { Alert } from 'react-native';
+import { muscleLabel as label } from '../../src/domain/volume';
 
 export default function WorkoutDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -370,7 +371,6 @@ function Compare({ label, now, deltaPct }: { label: string; now: string; deltaPc
   );
 }
 
-const label = (m: MuscleGroup) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 /** Distinct hues for the split bar; wraps if a session somehow hits nine muscles. */
 const SPLIT_COLORS = [

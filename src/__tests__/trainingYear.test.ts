@@ -1,4 +1,5 @@
 import {
+  chartMonths,
   lifetimeStats,
   longestRunOfDates,
   monthlyTotals,
@@ -221,5 +222,25 @@ describe('grid levels', () => {
       expect(day.level).toBeGreaterThanOrEqual(0);
       expect(day.level).toBeLessThanOrEqual(4);
     }
+  });
+});
+
+describe('chartMonths', () => {
+  it('gives twelve columns with no name used twice', () => {
+    const months = chartMonths(trainingGrid([], '2026-09-20'));
+    expect(months).toHaveLength(12);
+    expect(new Set(months.map((m) => m.label)).size).toBe(12);
+  });
+
+  it('ends on the current month and drops the sliver at the far end', () => {
+    const all = monthlyTotals(trainingGrid([], '2026-09-20'));
+    const shown = chartMonths(trainingGrid([], '2026-09-20'));
+    expect(shown[shown.length - 1]!.month).toBe(all[all.length - 1]!.month);
+    expect(shown[0]!.month).not.toBe(all[0]!.month);
+  });
+
+  it('does not invent columns for someone who has trained for one month', () => {
+    const grid = trainingGrid([], '2026-09-20');
+    expect(chartMonths(grid, 3)).toHaveLength(3);
   });
 });

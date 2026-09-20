@@ -89,3 +89,11 @@ export function muscleShares(volume: MuscleVolume): { muscle: MuscleGroup; sets:
   if (total <= 0) return [];
   return rows.map((r) => ({ ...r, share: r.sets / total }));
 }
+
+/**
+ * A muscle group written the way a person says it: "full_body" is a key, not a
+ * label. Lived as an identical one-liner in five screens before this.
+ */
+export function muscleLabel(m: string): string {
+  return m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}

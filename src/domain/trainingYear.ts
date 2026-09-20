@@ -231,3 +231,16 @@ export function monthlyTotals(grid: TrainingGrid): MonthSummary[] {
   }
   return [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month));
 }
+
+/**
+ * The months a twelve-column chart should draw.
+ *
+ * A 53-week grid straddles thirteen calendar months, so plotting all of them
+ * labelled the chart Sep … Sep and gave a three-day sliver of last September a
+ * column of its own — which then read as a month of barely training. Taking
+ * the most recent twelve drops the sliver and makes the names unique by
+ * construction.
+ */
+export function chartMonths(grid: TrainingGrid, count = 12): MonthSummary[] {
+  return monthlyTotals(grid).slice(-count);
+}

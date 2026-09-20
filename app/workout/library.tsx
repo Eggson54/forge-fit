@@ -11,6 +11,7 @@ import { recentExerciseIds } from '../../src/domain/history';
 import { MUSCLE_GROUPS } from '../../src/data/exercises';
 import { useRoutineStore } from '../../src/stores/useRoutineStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
+import { muscleLabel as label } from '../../src/domain/volume';
 
 export default function ExerciseLibrary() {
   const params = useLocalSearchParams<{ select?: string; pick?: string }>();
@@ -273,7 +274,6 @@ export default function ExerciseLibrary() {
 
 const EQUIPMENT: Equipment[] = ['bodyweight', 'dumbbells', 'barbell', 'kettlebell', 'machines', 'cables', 'bands', 'full_gym'];
 
-const label = (m: string) => m.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },

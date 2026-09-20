@@ -8,7 +8,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, domainAccent, spacing } from '../../src/theme';
 import { formatDateWithWeekday, todayISO } from '../../src/domain/date';
 import { displayVolume, groupThousands } from '../../src/domain/units';
-import { lifetimeStats, monthlyTotals, trainingGrid, type TrainingDay } from '../../src/domain/trainingYear';
+import { chartMonths, lifetimeStats, trainingGrid, type TrainingDay } from '../../src/domain/trainingYear';
 import { sessionsByGym } from '../../src/domain/gymStats';
 import { onThisDay } from '../../src/domain/onThisDay';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
@@ -35,7 +35,7 @@ export default function TrainingYear() {
   const today = todayISO();
   const grid = useMemo(() => trainingGrid(workouts, today, 53), [workouts, today]);
   const stats = useMemo(() => lifetimeStats(workouts), [workouts]);
-  const months = useMemo(() => monthlyTotals(grid), [grid]);
+  const months = useMemo(() => chartMonths(grid), [grid]);
   const gyms = useMemo(() => sessionsByGym(workouts), [workouts]);
   const recollections = useMemo(() => onThisDay(workouts, today), [workouts, today]);
 
@@ -187,14 +187,18 @@ export default function TrainingYear() {
           <SectionHeader title="Everything so far" accent={domainAccent.progress} />
           <Well padded={false}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingVertical: spacing.sm }}>
+              {/* Eight numbers in eight colours looked like a key to something.
+                  It was not: the tints were decoration, and they made the two
+                  numbers people actually came for no easier to find. Only those
+                  two carry the accent now. */}
               <Tile value={groupThousands(stats.sessions)} label="Sessions" tint={colors.primary} />
-              <Tile value={groupThousands(stats.days)} label="Days trained" tint={colors.steps} />
-              <Tile value={groupThousands(stats.sets)} label="Sets" tint={colors.protein} />
-              <Tile value={groupThousands(stats.reps)} label="Reps" tint={colors.carbs} />
-              <Tile value={`${volume.value}`} label={`Volume (${volume.unit})`} tint={colors.calorie} />
-              <Tile value={`${stats.hours}`} label="Hours" tint={colors.water} />
-              <Tile value={groupThousands(stats.exercises)} label="Exercises" tint={colors.sleep} />
-              <Tile value={groupThousands(stats.longestRun)} label="Longest run" tint={colors.amber} />
+              <Tile value={groupThousands(stats.days)} label="Days trained" />
+              <Tile value={groupThousands(stats.sets)} label="Sets" />
+              <Tile value={groupThousands(stats.reps)} label="Reps" />
+              <Tile value={`${volume.value}`} label={`Volume (${volume.unit})`} tint={colors.primary} />
+              <Tile value={`${stats.hours}`} label="Hours" />
+              <Tile value={groupThousands(stats.exercises)} label="Exercises" />
+              <Tile value={groupThousands(stats.longestRun)} label="Longest run" />
             </View>
           </Well>
 
@@ -256,7 +260,7 @@ export default function TrainingYear() {
   );
 }
 
-function Tile({ value, label, tint }: { value: string; label: string; tint: string }) {
+function Tile({ value, label, tint = colors.text }: { value: string; label: string; tint?: string }) {
   return (
     <View style={{ width: '25%', alignItems: 'center', gap: 2, paddingVertical: spacing.md }}>
       <Text variant="bodyStrong" color={tint} numberOfLines={1}>
