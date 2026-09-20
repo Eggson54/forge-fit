@@ -7,7 +7,6 @@ import { Button, Card, Text } from '../../src/components/ui';
 import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
 import { PrBanner } from '../../src/components/PrBanner';
-import { RestTimer } from '../../src/components/RestTimer';
 import { colors, domainAccent, noOutline, radius, spacing } from '../../src/theme';
 import { formatDuration } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
@@ -25,6 +24,7 @@ import { useGamificationStore } from '../../src/stores/useGamificationStore';
 import { currentAchievementInputs } from '../../src/stores/achievementInputs';
 import { useProgramStore } from '../../src/stores/useProgramStore';
 import { useGymStore } from '../../src/stores/useGymStore';
+import { useRestStore } from '../../src/stores/useRestStore';
 import { claimableNow } from '../../src/domain/gyms';
 import { programById } from '../../src/data/programs';
 
@@ -38,7 +38,6 @@ export default function ActiveWorkout() {
   const bodyweightKg = useProfileStore((s) => s.profile.weightKg ?? null);
 
   const [elapsed, setElapsed] = useState(0);
-  const [restKey, setRestKey] = useState<{ seconds: number; label: string; id: number } | null>(null);
   const [pr, setPr] = useState<{ name: string; kg: number; id: number } | null>(null);
 
   useEffect(() => {
@@ -76,6 +75,9 @@ export default function ActiveWorkout() {
       gymState.fix,
     );
     const done = finishActive(here ? { id: here.id, name: here.name } : undefined);
+    // The rest timer outlives the screen now, so the session ending has to take
+    // it down — a countdown floating over the summary belongs to nothing.
+    useRestStore.getState().dismiss();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     // A session started from the plan advances it. Matching on the generated
     // name keeps the plan out of the workout model — a workout is a workout
@@ -92,7 +94,7 @@ export default function ActiveWorkout() {
   const onDiscard = () => {
     Alert.alert('Discard workout?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => { discardActive(); router.replace('/(tabs)/workout'); } },
+      { text: 'Discard', style: 'destructive', onPress: () => { discardActive(); useRestStore.getState().dismiss(); router.replace('/(tabs)/workout'); } },
     ]);
   };
 
@@ -127,7 +129,7 @@ export default function ActiveWorkout() {
             key={group.items[0]!.id}
             group={group}
             isLast={gi === groups.length - 1}
-            onRest={(sec, label) => setRestKey({ seconds: sec, label, id: Date.now() })}
+            onRest={(sec, label) => useRestStore.getState().start(sec, label)}
             onPr={(name, kg) => setPr({ name, kg, id: Date.now() })}
           />
         ))}
@@ -163,16 +165,6 @@ export default function ActiveWorkout() {
           onDone={() => setPr(null)}
         />
       )}
-      {restKey && (
-        <RestTimer
-          key={restKey.id}
-          seconds={restKey.seconds}
-          label={restKey.label}
-          onDone={() => setRestKey(null)}
-          onDismiss={() => setRestKey(null)}
-        />
-      )}
-
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.sm }]}>
         <Button title="Finish Workout" onPress={onFinish} size="lg" />
       </View>

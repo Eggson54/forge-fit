@@ -12,6 +12,7 @@ import { colors } from '../src/theme';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { ensureNative } from '../src/services/health';
+import { RestTimer } from '../src/components/RestTimer';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -57,6 +58,9 @@ export default function RootLayout() {
             <Stack.Screen name="log" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="workout/active" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
+          {/* Above the navigator, so a rest started in a session keeps running
+              while the user wanders off to the food log or the gym map. */}
+          <RestTimer />
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
