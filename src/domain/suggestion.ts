@@ -44,6 +44,18 @@ export function suggestToday(input: SuggestionInput): TrainingSuggestion {
   const { workouts, today, weekDates, trainingDaysPerWeek, routines } = input;
   const done = workouts.filter((w) => w.status === 'completed');
 
+  // Someone with no history is not "10 sets short of the weekly range" — they
+  // have no range yet. Reporting a deficit to a person on day one is the app
+  // opening with a complaint about something they have not had a chance to do.
+  if (done.length === 0) {
+    return {
+      kind: 'focus',
+      title: 'Your first session',
+      reason: 'Nothing logged yet. Start with something you will come back to.',
+      focus: ['full_body'],
+    };
+  }
+
   if (done.some((w) => w.date === today)) {
     return { kind: 'logged', title: 'Trained today', reason: 'Logged and counted. Recovery is part of the program.', focus: [] };
   }
@@ -85,10 +97,16 @@ export function suggestToday(input: SuggestionInput): TrainingSuggestion {
 
   if (deficits.length > 0) {
     const top = deficits.slice(0, 2);
+    const muscle = niceMuscle(top[0]!.muscle).toLowerCase();
+    const sets = Math.round(top[0]!.missing);
     return {
       kind: 'focus',
       title: top.map((d) => niceMuscle(d.muscle)).join(' & '),
-      reason: `${Math.round(top[0]!.missing)} sets short of the weekly range for ${niceMuscle(top[0]!.muscle).toLowerCase()}.`,
+      // At the top of a week every muscle is maximally "short", which is not a
+      // shortfall — it is a week that has not happened yet.
+      reason: thisWeek.length === 0
+        ? `Fresh week. ${sets} sets of ${muscle} is the floor for it.`
+        : `${sets} sets short of the weekly range for ${muscle}.`,
       focus: top.map((d) => d.muscle),
     };
   }

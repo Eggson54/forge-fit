@@ -1,3 +1,4 @@
+import { suggestToday } from '../domain/suggestion';
 import { daysElapsedInWeek, readLoad, weekStartOf, weeklyVolumeSeries } from '../domain/volumeTrend';
 import { groupHits, searchEntries, type SearchEntry } from '../domain/search';
 import { rankBreakdown } from '../domain/rank';
@@ -329,5 +330,46 @@ describe('search shorthand', () => {
 
   it('shorthand does not loosen the all-tokens-must-match rule', () => {
     expect(searchEntries('db squat', lib)).toEqual([]);
+  });
+});
+
+describe('suggestToday on day one', () => {
+  const base = {
+    today: '2026-09-20',
+    weekDates: ['2026-09-20'],
+    trainingDaysPerWeek: 4,
+    routines: [],
+  };
+
+  it('does not report a deficit to someone with no history', () => {
+    const s = suggestToday({ ...base, workouts: [] });
+    expect(s.title).toBe('Your first session');
+    expect(s.reason).not.toMatch(/short/);
+  });
+
+  it('calls a fresh week a fresh week rather than a shortfall', () => {
+    const lastWeek = {
+      id: 'w1',
+      name: 'Push',
+      status: 'completed' as const,
+      date: '2026-09-14',
+      startedAt: null,
+      completedAt: null,
+      durationSeconds: 3000,
+      focus: [],
+      exercises: [
+        {
+          id: 'we1',
+          exerciseId: 'bench',
+          name: 'Bench',
+          primaryMuscle: 'chest' as const,
+          restSeconds: 120,
+          sets: [{ id: 's1', weightKg: 60, reps: 8, rpe: null, completed: true }],
+        },
+      ],
+    };
+    const s = suggestToday({ ...base, workouts: [lastWeek] });
+    expect(s.reason).toMatch(/Fresh week/);
+    expect(s.reason).not.toMatch(/short of the weekly range/);
   });
 });

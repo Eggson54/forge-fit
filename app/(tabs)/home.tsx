@@ -270,8 +270,8 @@ export default function Home() {
           icon="flame"
           color={colors.calorie}
           label="Calories"
-          value={`${summary.calories}`}
-          target={`${summary.caloriesTarget}`}
+          value={groupThousands(summary.calories)}
+          target={groupThousands(summary.caloriesTarget)}
           progress={summary.calories / summary.caloriesTarget}
         />
         <MetricRow
