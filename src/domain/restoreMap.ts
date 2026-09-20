@@ -38,7 +38,7 @@ export const RESTORE_MAP: Record<Exclude<StoreKey, 'auth'>, Restorer> = {
   }),
 
   logs: (s) => ({
-    ...pick(s, ['nutrition', 'water', 'weight', 'sleep', 'steps', 'measurements', 'savedMeals']),
+    ...pick(s, ['nutrition', 'water', 'weight', 'sleep', 'steps', 'measurements', 'savedMeals', 'cardio']),
     // Photos are not restored; their paths were redacted on the way out.
   }),
 

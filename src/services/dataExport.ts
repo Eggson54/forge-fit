@@ -39,6 +39,7 @@ export function collectUserData(): ExportDocument {
       steps: logs.steps,
       measurements: logs.measurements,
       savedMeals: logs.savedMeals,
+      cardio: logs.cardio,
       // Photo bytes live on the device; exporting references keeps the file a
       // readable document rather than tens of megabytes of base64.
       photos: logs.photos.map((p) => ({ ...p, uri: '[stored on device]' })),
@@ -157,6 +158,13 @@ export function collectCsv(): string {
     { name: 'Water', headers: ['date', 'ounces'], rows: logs.water.map((w) => [w.date, w.amountOz]) },
     { name: 'Sleep', headers: ['date', 'minutes', 'quality'], rows: logs.sleep.map((s) => [s.date, s.minutes, s.quality ?? '']) },
     { name: 'Steps', headers: ['date', 'steps', 'source'], rows: logs.steps.map((s) => [s.date, s.steps, s.source]) },
+    {
+      name: 'Cardio',
+      headers: ['date', 'type', 'minutes', 'distance km', 'calories', 'effort', 'source', 'notes'],
+      rows: logs.cardio.map((c) => [
+        c.date, c.type, c.minutes, c.distanceKm ?? '', c.calories ?? '', c.effort ?? '', c.source, c.notes ?? '',
+      ]),
+    },
     {
       // One row per date with a column per site, matching how the log is
       // stored and how a spreadsheet wants to chart it.

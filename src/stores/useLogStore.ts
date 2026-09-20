@@ -17,6 +17,7 @@ import { uid } from '../lib/uid';
 import { analytics } from '../services/analytics';
 import { jsonStorage, STORE_KEYS } from './persist';
 import { suggestMealName, type SavedMeal, type SavedMealItem } from '../domain/savedMeals';
+import type { CardioSession } from '../domain/cardio';
 
 interface LogState {
   nutrition: NutritionEntry[];
@@ -26,6 +27,7 @@ interface LogState {
   steps: StepsLog[];
   measurements: MeasurementLog[];
   photos: ProgressPhoto[];
+  cardio: CardioSession[];
 
   addFood: (input: {
     slot: MealSlot;
@@ -55,6 +57,13 @@ interface LogState {
   addPhoto: (p: Omit<ProgressPhoto, 'id'>) => void;
   removePhoto: (id: string) => void;
 
+  logCardio: (input: Omit<CardioSession, 'id' | 'loggedAt' | 'date' | 'source'> & {
+    date?: string;
+    source?: CardioSession['source'];
+  }) => CardioSession;
+  removeCardio: (id: string) => void;
+  cardioForDate: (date: string) => CardioSession[];
+
   // Selectors
   nutritionForDate: (date: string) => NutritionEntry[];
   macrosForDate: (date: string) => FoodMacros;
@@ -76,6 +85,7 @@ export const useLogStore = create<LogState>()(
       steps: [],
       measurements: [],
       photos: [],
+      cardio: [],
 
       addFood: (input) => {
         const date = input.date ?? todayISO();
@@ -177,6 +187,28 @@ export const useLogStore = create<LogState>()(
       addPhoto: (p) => set((s) => ({ photos: [{ id: uid('p_'), ...p }, ...s.photos] })),
       removePhoto: (id) => set((s) => ({ photos: s.photos.filter((p) => p.id !== id) })),
 
+      logCardio: (input) => {
+        // Unlike steps or sleep, several of these a day is normal — a run in
+        // the morning and a walk after dinner are two sessions, not a
+        // correction of one, so this appends rather than replacing by date.
+        const session: CardioSession = {
+          id: uid('cd_'),
+          date: input.date ?? todayISO(),
+          type: input.type,
+          minutes: Math.max(0, Math.round(input.minutes)),
+          distanceKm: input.distanceKm && input.distanceKm > 0 ? input.distanceKm : undefined,
+          calories: input.calories && input.calories > 0 ? Math.round(input.calories) : undefined,
+          effort: input.effort,
+          notes: input.notes?.trim() || undefined,
+          source: input.source ?? 'manual',
+          loggedAt: new Date().toISOString(),
+        };
+        set((s) => ({ cardio: [session, ...s.cardio] }));
+        return session;
+      },
+      removeCardio: (id) => set((s) => ({ cardio: s.cardio.filter((c) => c.id !== id) })),
+      cardioForDate: (date) => get().cardio.filter((c) => c.date === date),
+
       nutritionForDate: (date) => get().nutrition.filter((n) => n.date === date),
       macrosForDate: (date) => sumMacros(get().nutrition.filter((n) => n.date === date)),
       waterForDate: (date) => get().water.filter((w) => w.date === date).reduce((a, w) => a + w.amountOz, 0),
@@ -190,7 +222,11 @@ export const useLogStore = create<LogState>()(
         return w.reduce((best, x) => (x.date > best.date ? x : best), w[0]!).weightKg;
       },
 
-      reset: () => set({ nutrition: [], savedMeals: [], water: [], weight: [], sleep: [], steps: [], measurements: [], photos: [] }),
+      reset: () =>
+        set({
+          nutrition: [], savedMeals: [], water: [], weight: [], sleep: [],
+          steps: [], measurements: [], photos: [], cardio: [],
+        }),
     }),
     { name: STORE_KEYS.logs, storage: jsonStorage() },
   ),

@@ -67,3 +67,18 @@ export function displayVolume(kg: number, units: 'imperial' | 'metric'): { value
   if (n >= 1_000) return { value: `${round(n / 1000, 1)}k`, unit };
   return { value: groupThousands(n), unit };
 }
+
+const KM_PER_MILE = 1.609344;
+
+export function kmToMiles(km: number): number {
+  return km / KM_PER_MILE;
+}
+
+export function milesToKm(miles: number): number {
+  return miles * KM_PER_MILE;
+}
+
+/** Convert a distance the user typed, in their units, back to canonical km. */
+export function toKm(value: number, units: 'imperial' | 'metric'): number {
+  return units === 'imperial' ? milesToKm(value) : value;
+}
