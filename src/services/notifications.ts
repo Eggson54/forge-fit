@@ -69,6 +69,41 @@ export const notifications = {
     );
   },
 
+  /**
+   * A one-shot alert for the end of a rest.
+   *
+   * The timer itself is wall-clock, so it always shows the right number when
+   * you come back — but coming back is the problem. With the phone in a pocket
+   * between sets, nothing tells you the rest is over. Returns null when the OS
+   * will not schedule it (web, permission refused), and the caller carries on
+   * without one rather than failing the rest.
+   */
+  async scheduleRestEnd(seconds: number, label: string): Promise<string | null> {
+    if (Platform.OS === 'web' || seconds < 1) return null;
+    try {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('rest', {
+          name: 'Rest timer',
+          importance: Notifications.AndroidImportance.HIGH,
+        });
+      }
+      return await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Rest is up',
+          body: label ? `Back to it — ${label}.` : 'Back to it.',
+          data: { type: 'rest' },
+          ...(Platform.OS === 'android' ? { channelId: 'rest' } : null),
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: Math.round(seconds),
+        },
+      });
+    } catch {
+      return null;
+    }
+  },
+
   async cancelAll(): Promise<void> {
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();

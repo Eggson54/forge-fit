@@ -67,17 +67,23 @@ const SOURCING_PATTERNS: RegExp[] = [
 ];
 
 /**
- * Medication and hormone-therapy topics with no reference entry.
+ * Medication topics with no reference entry.
+ *
+ * Anabolic steroids, SARMs, TRT and growth hormone used to live here. They
+ * have entries now, and `findCompound` runs before this list, so naming them
+ * here as well would only be a stale second copy of the same policy. What is
+ * left is the genuine long tail — ancillaries, prescriptions and anything
+ * clinical — where the app has nothing to say and should say so.
  *
  * Deliberately broad: a false positive costs one unhelpful answer, and a false
- * negative has the app improvising about anabolic steroids.
+ * negative has the app improvising about a drug.
  */
 const MEDICAL = [
-  'steroid', 'steroids', 'anabolic', 'sarm', 'sarms', 'ostarine', 'rad140', 'lgd',
-  'tren', 'trenbolone', 'anavar', 'winstrol', 'dianabol', 'deca', 'clen', 'clenbuterol',
-  'hgh', 'trt', 'testosterone', 'aromatase', 'arimidex', 'nolvadex', 'clomid',
+  'clen', 'clenbuterol', 'dnp', 'ephedrine', 'aromatase', 'arimidex', 'anastrozole',
+  'nolvadex', 'tamoxifen', 'clomid', 'clomiphene', 'hcg', 'aicar',
   'prescription', 'prescribe', 'prescribed', 'medication', 'medications', 'meds',
-  'antibiotic', 'antibiotics', 'diuretic', 'insulin', 'thyroid', 'ssri', 'adderall',
+  'antibiotic', 'antibiotics', 'diuretic', 'insulin', 'thyroid', 't3', 't4',
+  'ssri', 'antidepressant', 'adderall', 'beta blocker', 'statin',
 ];
 
 const INJURY = [
@@ -137,7 +143,7 @@ export function refusalText(topic: RefusalTopic, compoundName?: string): string 
     case 'sourcing':
       return `I don't point people at sellers. For anything unapproved there is no supply chain worth trusting — independent testing keeps finding vials under-dosed, mislabelled or contaminated.\n\nI'll tell you what ${subject} is, what is known about it and how it is regulated, if that helps.`;
     case 'medical':
-      return "That one is outside what I keep a reference on — hormone therapy and prescription medication are a conversation for a doctor or pharmacist, not a training app.\n\nI can talk through the peptides and supplements I do have entries for, and the protocol tracker will log whatever you are already on.";
+      return "I don't keep a reference on that one, and I'm not going to improvise about a drug. A doctor or pharmacist is the right stop.\n\nI do have entries for the peptides, anabolics, SARMs, hormones and supplements people ask about most — name one and I'll tell you what it is, what the evidence says, the risks, and whether it's banned in tested sport.";
     case 'injury':
       return "I can't help with pain or an injury. See a physio or a doctor for that one — getting it looked at early is the cheap version.\n\nI'll still be here for the training and the food, and you can log the sessions you can do.";
   }
@@ -145,4 +151,4 @@ export function refusalText(topic: RefusalTopic, compoundName?: string): string 
 
 /** What the coach says when it simply did not follow the question. */
 export const UNKNOWN_TEXT =
-  "I didn't follow that. I can tell you where you're slacking, what to do next, whether you're on track, push you into today's session — or answer questions about a peptide or supplement: what it is, whether it works, the risks, and whether it's banned in tested sport.";
+  "I didn't follow that. I can tell you where you're slacking, what to do next, whether you're on track, push you into today's session — or answer questions about a compound: what it is, whether it works, the risks, its legal status, and whether it's banned in tested sport. Doses, cycles and where to buy are the ones I won't touch.";

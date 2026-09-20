@@ -44,6 +44,7 @@ export type IconName =
   | 'map'
   | 'copy'
   | 'rivals'
+  | 'levels'
   | 'star';
 
 // Footprint used by the `steps` glyph, drawn once and mirrored for the pair.
@@ -332,6 +333,16 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
         </>
       )}
 
+
+      {/* Ascending steps, for bands you climb. The podium next to it in the
+          same grid is also made of bars, so this one is a staircase and a
+          marker rather than a fourth bar chart. */}
+      {name === 'levels' && (
+        <>
+          <Path d="M3 20h4.5v-4H3zM9.75 20h4.5v-8h-4.5zM16.5 20H21V6h-4.5z" {...s} strokeLinejoin="round" />
+          <Path d="M5.25 12.5 12 8.5l6.75-4" {...s} strokeWidth={1.4} opacity={0.55} />
+        </>
+      )}
 
       {/* A podium: first, second, third. The trophy three tiles earlier already
           means a personal record, and standings are a different idea. */}

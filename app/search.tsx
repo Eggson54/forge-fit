@@ -32,6 +32,13 @@ const SCREENS: SearchEntry[] = [
   { id: 's_coach', kind: 'screen', title: 'Coach', keywords: ['ai', 'ask', 'chat'], href: '/coach' },
   { id: 's_review', kind: 'screen', title: 'Weekly review', keywords: ['summary', 'recap'], href: '/weekly-review' },
   { id: 's_achieve', kind: 'screen', title: 'Achievements', keywords: ['badges', 'awards'], href: '/achievements' },
+  {
+    id: 's_standards',
+    kind: 'screen',
+    title: 'Strength standards',
+    keywords: ['standards', 'level', 'ratio', 'bodyweight', 'intermediate', 'advanced', 'elite', 'how strong'],
+    href: '/workout/standards',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },

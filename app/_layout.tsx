@@ -12,6 +12,8 @@ import { colors } from '../src/theme';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { ensureNative } from '../src/services/health';
+import { notifications } from '../src/services/notifications';
+import { setRestAlerts } from '../src/stores/restAlerts';
 import { RestTimer } from '../src/components/RestTimer';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -22,6 +24,13 @@ export default function RootLayout() {
   const fontsSettled = fontsLoaded || !!fontError;
 
   useEffect(() => {
+    // Give the rest timer a way to buzz the phone when it is in a pocket. The
+    // store itself knows nothing about notifications, so this is where the two
+    // are introduced.
+    setRestAlerts({
+      schedule: (seconds, label) => notifications.scheduleRestEnd(seconds, label),
+      cancel: (id) => void notifications.cancel([id]),
+    });
     ensureNative();
     // Kick off startup work; persisted stores rehydrate themselves.
     useAuthStore.getState().hydrate();

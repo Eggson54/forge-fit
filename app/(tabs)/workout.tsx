@@ -169,6 +169,7 @@ export default function WorkoutTab() {
             { icon: 'flame' as IconName, label: 'Warm-up', href: '/tools/warmup', tint: colors.amber },
             { icon: 'timer' as IconName, label: 'Intervals', href: '/tools/interval' },
             { icon: 'target' as IconName, label: 'Rep max', href: '/tools/one-rep-max' },
+            { icon: 'levels' as IconName, label: 'Standards', href: '/workout/standards', tint: colors.info },
             { icon: 'scale' as IconName, label: 'Measure', href: '/progress/measurements' },
             {
               icon: 'map' as IconName,

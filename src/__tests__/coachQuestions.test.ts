@@ -39,6 +39,19 @@ describe('classifyQuestion — questions of fact about a compound', () => {
     // The injury guard must not swallow a question of fact.
     expect(classifyQuestion('is BPC-157 studied for tendon pain')).toMatchObject({ kind: 'compound', compoundId: 'bpc157' });
   });
+
+  it('answers factual questions about steroids, SARMs and TRT rather than stonewalling', () => {
+    expect(classifyQuestion('is trenbolone worth it')).toMatchObject({ kind: 'compound', compoundId: 'aas' });
+    expect(classifyQuestion('what about ostarine')).toMatchObject({ kind: 'compound', compoundId: 'sarms' });
+    expect(classifyQuestion('what is TRT')).toMatchObject({ kind: 'compound', compoundId: 'testosterone' });
+    expect(classifyQuestion('is HGH banned')).toMatchObject({ kind: 'compound', compoundId: 'hgh', ask: 'sport' });
+  });
+
+  it('still refuses the prescribing question about them', () => {
+    expect(classifyQuestion('how much tren should I run')).toEqual({ kind: 'refuse', topic: 'dosing' });
+    expect(classifyQuestion('should I start testosterone')).toEqual({ kind: 'refuse', topic: 'dosing' });
+    expect(classifyQuestion('where do I get ostarine')).toEqual({ kind: 'refuse', topic: 'sourcing' });
+  });
 });
 
 describe('classifyQuestion — the line it will not cross', () => {
@@ -69,9 +82,9 @@ describe('classifyQuestion — the line it will not cross', () => {
     expect(classifyQuestion('best source for melanotan')).toEqual({ kind: 'refuse', topic: 'sourcing' });
   });
 
-  it('refuses hormone therapy and medication it keeps no reference on', () => {
-    expect(classifyQuestion('is trenbolone worth it')).toEqual({ kind: 'refuse', topic: 'medical' });
-    expect(classifyQuestion('what about ostarine')).toEqual({ kind: 'refuse', topic: 'medical' });
+  it('refuses medication it keeps no reference on', () => {
+    expect(classifyQuestion('what about clenbuterol')).toEqual({ kind: 'refuse', topic: 'medical' });
+    expect(classifyQuestion('should nolvadex be part of it')).toEqual({ kind: 'refuse', topic: 'medical' });
   });
 
   it('refuses pain and injury questions', () => {
@@ -175,7 +188,9 @@ describe('refusal wording', () => {
 
   it('says what it can answer when it did not understand', () => {
     expect(UNKNOWN_TEXT).toMatch(/slacking/);
-    expect(UNKNOWN_TEXT).toMatch(/peptide/);
+    expect(UNKNOWN_TEXT).toMatch(/compound/);
+    // And says which questions it will not take, so the offer is not a bait.
+    expect(UNKNOWN_TEXT).toMatch(/doses/i);
   });
 });
 

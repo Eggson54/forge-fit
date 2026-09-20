@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { restAlerts } from './restAlerts';
 
 /**
  * The rest timer, hoisted out of the workout screen.
@@ -17,6 +18,12 @@ interface RestState {
   label: string;
   /** Bumped on every start, so the view can reset cleanly on a repeat. */
   startedAt: number;
+  /**
+   * The pending OS alert for this rest, when one could be scheduled. Held so
+   * that skipping or shortening a rest cancels the buzz that was already
+   * queued for the original deadline.
+   */
+  notificationId: string | null;
 
   start: (seconds: number, label: string) => void;
   /** Move the finish line, for the +/- controls. */
@@ -29,10 +36,19 @@ export const useRestStore = create<RestState>((set, get) => ({
   totalSeconds: 0,
   label: '',
   startedAt: 0,
+  notificationId: null,
 
   start: (seconds, label) => {
     const safe = Math.max(1, Math.round(seconds));
-    set({ endsAt: Date.now() + safe * 1000, totalSeconds: safe, label, startedAt: Date.now() });
+    clearAlert(get().notificationId);
+    set({
+      endsAt: Date.now() + safe * 1000,
+      totalSeconds: safe,
+      label,
+      startedAt: Date.now(),
+      notificationId: null,
+    });
+    queueAlert(safe, label, Date.now() + safe * 1000);
   },
 
   adjust: (deltaSeconds) => {
@@ -41,8 +57,31 @@ export const useRestStore = create<RestState>((set, get) => ({
     // Never below the current moment: an adjustment that ends the rest in the
     // past would render as a timer stuck at zero rather than a finished one.
     const next = Math.max(Date.now() + 1000, endsAt + deltaSeconds * 1000);
-    set({ endsAt: next, totalSeconds: Math.max(1, totalSeconds + deltaSeconds) });
+    clearAlert(get().notificationId);
+    set({ endsAt: next, totalSeconds: Math.max(1, totalSeconds + deltaSeconds), notificationId: null });
+    queueAlert(Math.round((next - Date.now()) / 1000), get().label, next);
   },
 
-  dismiss: () => set({ endsAt: null, totalSeconds: 0, label: '' }),
+  dismiss: () => {
+    clearAlert(get().notificationId);
+    set({ endsAt: null, totalSeconds: 0, label: '', notificationId: null });
+  },
 }));
+
+/** Fire-and-forget: a rest must never wait on the notification subsystem. */
+function queueAlert(seconds: number, label: string, forDeadline: number): void {
+  restAlerts()
+    .schedule(seconds, label)
+    .then((id) => {
+      // The rest may have been skipped or restarted while this was in flight.
+      // Cancel rather than leaving an orphan alert pointed at a dead deadline.
+      if (!id) return;
+      if (useRestStore.getState().endsAt !== forDeadline) clearAlert(id);
+      else useRestStore.setState({ notificationId: id });
+    })
+    .catch(() => {});
+}
+
+function clearAlert(id: string | null): void {
+  if (id) restAlerts().cancel(id);
+}
