@@ -10,6 +10,7 @@ import { formatDateWithWeekday, todayISO } from '../../src/domain/date';
 import { displayVolume, groupThousands } from '../../src/domain/units';
 import { lifetimeStats, monthlyTotals, trainingGrid, type TrainingDay } from '../../src/domain/trainingYear';
 import { sessionsByGym } from '../../src/domain/gymStats';
+import { onThisDay } from '../../src/domain/onThisDay';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
@@ -36,6 +37,7 @@ export default function TrainingYear() {
   const stats = useMemo(() => lifetimeStats(workouts), [workouts]);
   const months = useMemo(() => monthlyTotals(grid), [grid]);
   const gyms = useMemo(() => sessionsByGym(workouts), [workouts]);
+  const recollections = useMemo(() => onThisDay(workouts, today), [workouts, today]);
 
   const volume = displayVolume(stats.volumeKg, units);
   const busiest = months.reduce<(typeof months)[number] | null>(
@@ -158,6 +160,29 @@ export default function TrainingYear() {
               </Text>
             </Card>
           </FadeIn>
+
+          {recollections.length > 0 && (
+            <>
+              <SectionHeader title="On this day" accent={domainAccent.progress} />
+              <Card style={{ gap: spacing.md }}>
+                {recollections.slice(0, 3).map(({ workout, ago }) => (
+                  <Pressable
+                    key={workout.id}
+                    onPress={() => router.push(`/workout/${workout.id}`)}
+                    accessibilityRole="link"
+                    accessibilityLabel={`${ago}: ${workout.name}`}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 40 }}
+                  >
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text variant="bodyStrong" numberOfLines={1}>{workout.name}</Text>
+                      <Text variant="caption" color={colors.textDim}>{ago}</Text>
+                    </View>
+                    <Icon name="chevron_right" size={15} color={colors.textFaint} strokeWidth={2} />
+                  </Pressable>
+                ))}
+              </Card>
+            </>
+          )}
 
           <SectionHeader title="Everything so far" accent={domainAccent.progress} />
           <Well padded={false}>

@@ -23,7 +23,7 @@ import {
 } from '../domain';
 import type { NutritionEntry, Profile, Workout } from '../domain/types';
 import { displayVolume, groupThousands } from '../domain/units';
-import { longestRunOfDays , parseDurationMinutes } from '../domain/date';
+import { formatSleep, longestRunOfDays, parseDurationMinutes } from '../domain/date';
 import { isWarmupSet, nextSetKind, setKind } from '../domain/sets';
 import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries } from '../domain/measurements';
 import { formatDateLong, formatDateWithWeekday, formatDayMonth } from '../domain/date';
@@ -1750,5 +1750,23 @@ describe('projectGoal', () => {
     const series = falling(90, 0.2, 11);
     const fromLater = projectGoal(series, 84, { today: '2026-09-20' });
     expect(fromLater.date).toBe('2026-10-10');
+  });
+});
+
+describe('formatSleep rounding', () => {
+  it('rounds a smoothed average rather than printing its float', () => {
+    // A seven-day mean and a fitted weekly rate both arrive with a tail.
+    expect(formatSleep(470.43000000000001)).toBe('7h 50m');
+    expect(formatSleep(7.446)).toBe('7m');
+  });
+
+  it('never prints a negative or NaN duration', () => {
+    expect(formatSleep(-30)).toBe('0m');
+    expect(formatSleep(Number.NaN)).toBe('0m');
+  });
+
+  it('drops the minutes when they round away', () => {
+    expect(formatSleep(479.6)).toBe('8h');
+    expect(formatSleep(480)).toBe('8h');
   });
 });

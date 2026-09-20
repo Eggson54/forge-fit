@@ -9,7 +9,7 @@ import { colors, radius, spacing } from '../../src/theme';
 import { epley1RM } from '../../src/domain/strength';
 import { displayVolume, displayWeight, kgToLb } from '../../src/domain/units';
 import { formatDateWithWeekday, formatDayMonth } from '../../src/domain/date';
-import { beatTarget, exerciseSessions, repMaxes } from '../../src/domain/records';
+import { beatTarget, exerciseNotes, exerciseSessions, repMaxes, strengthCurve } from '../../src/domain/records';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 
@@ -49,6 +49,8 @@ export default function ExerciseDetail() {
   const maxes = useMemo(() => (exercise ? repMaxes(workouts, exercise.id) : []), [workouts, exercise]);
   const history = useMemo(() => (exercise ? exerciseSessions(workouts, exercise.id) : []), [workouts, exercise]);
   const toBeat = useMemo(() => (exercise ? beatTarget(workouts, exercise.id) : null), [workouts, exercise]);
+  const notes = useMemo(() => (exercise ? exerciseNotes(workouts, exercise.id) : []), [workouts, exercise]);
+  const curve = useMemo(() => (exercise ? strengthCurve(workouts, exercise.id) : []), [workouts, exercise]);
 
   if (!exercise) {
     return (
@@ -164,6 +166,64 @@ export default function ExerciseDetail() {
           </View>
         ))}
       </Card>
+
+      {curve.length > 1 && (
+        <>
+          <SectionHeader title="Strength curve" />
+          <Card style={{ gap: spacing.md }}>
+            {/* Heaviest load ever moved for each rep count. A set of 100 x 8
+                proves 100 x 5, so every lower count is credited too — otherwise
+                the curve has holes wherever you did not stop at a round
+                number. */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 110 }}>
+              {curve.map((p) => {
+                const peak = Math.max(...curve.map((x) => x.weightKg));
+                const d = displayWeight(p.weightKg, units);
+                return (
+                  <View key={p.reps} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+                    <Text variant="caption" color={colors.textFaint} style={{ fontSize: 8 }}>
+                      {Math.round(d.value)}
+                    </Text>
+                    <View
+                      style={{
+                        width: '100%',
+                        height: Math.max(4, Math.round((p.weightKg / peak) * 78)),
+                        borderRadius: 3,
+                        backgroundColor: colors.primary,
+                        opacity: 0.45 + 0.55 * (p.weightKg / peak),
+                      }}
+                    />
+                    <Text variant="caption" color={colors.textFaint} style={{ fontSize: 9 }}>
+                      {p.reps}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+            <Text variant="caption" color={colors.textFaint}>
+              Best weight for at least that many reps, across everything you have logged.
+            </Text>
+          </Card>
+        </>
+      )}
+
+      {notes.length > 0 && (
+        <>
+          <SectionHeader title={`Your notes · ${notes.length}`} />
+          <Card style={{ gap: spacing.md }}>
+            {/* Notes used to be write-only: you could record a cue and never
+                see it again, which makes the field a diary nobody reads. */}
+            {notes.map((n) => (
+              <View key={`${n.workoutId}_${n.date}`} style={{ gap: 2 }}>
+                <Text variant="caption" color={colors.textFaint}>
+                  {formatDayMonth(n.date)} · {n.workoutName}
+                </Text>
+                <Text variant="body" color={colors.textDim}>{n.note}</Text>
+              </View>
+            ))}
+          </Card>
+        </>
+      )}
 
       <SectionHeader title="Estimated 1RM over time" />
       <Card>

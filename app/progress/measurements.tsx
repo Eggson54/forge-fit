@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, useWindowDimensions, View } from 'react-native';
+import { ScrollView, TextInput, useWindowDimensions, View } from 'react-native';
 import { Button, Card, Chip, EmptyState, Input, LineChart, Screen, SectionHeader, Text, type Point } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { FadeIn } from '../../src/components/anim';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, noOutline, radius, spacing } from '../../src/theme';
 import { cmToIn, inToCm, round } from '../../src/domain/units';
 import { formatDateLong, formatDayMonth } from '../../src/domain/date';
-import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries, type ChangeVerdict, type MeasurementKey, type MeasurementSite } from '../../src/domain/measurements';
+import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries, siteTargets, type ChangeVerdict, type MeasurementKey, type MeasurementSite } from '../../src/domain/measurements';
 import type { Goal, MeasurementLog } from '../../src/domain/types';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
@@ -20,6 +20,13 @@ export default function Measurements() {
   const goal = useProfileStore((s) => s.profile.goal);
   const measurements = useLogStore((s) => s.measurements);
   const addMeasurement = useLogStore((s) => s.addMeasurement);
+  // Memoised: `?? {}` builds a new object on every render, which would make
+  // the targets memo below recompute forever.
+  const storedTargets = useProfileStore((s) => s.profile.measurementTargets);
+  const targets = useMemo(() => storedTargets ?? {}, [storedTargets]);
+  const setProfile = useProfileStore((s) => s.setProfile);
+  const [targetDrafts, setTargetDrafts] = useState<Record<string, string>>({});
+  const targetRows = useMemo(() => siteTargets(measurements, targets), [measurements, targets]);
 
   const [vals, setVals] = useState<Partial<Record<MeasurementKey, string>>>({});
   const [focused, setFocused] = useState<MeasurementKey | null>(null);
@@ -82,6 +89,28 @@ export default function Measurements() {
 
   const focusedSite = MEASUREMENT_SITES.find((s) => s.key === focused) ?? null;
   const hasHistory = Object.keys(latest).length > 0;
+
+  const commitTarget = (key: string) => {
+    const raw = targetDrafts[key];
+    if (raw === undefined) return;
+    const trimmed = raw.trim();
+    const next = { ...targets };
+    if (!trimmed) {
+      delete next[key];
+    } else {
+      const value = parseFloat(trimmed);
+      if (!Number.isFinite(value) || value <= 0) return;
+      // Stored in centimetres whatever the athlete reads, like every other
+      // measurement, so switching units never rewrites a goal.
+      next[key] = units === 'imperial' ? Math.round(value * 2.54 * 10) / 10 : Math.round(value * 10) / 10;
+    }
+    setProfile({ measurementTargets: Object.keys(next).length ? next : undefined });
+    setTargetDrafts((d) => {
+      const copy = { ...d };
+      delete copy[key];
+      return copy;
+    });
+  };
 
   return (
     <Screen
@@ -206,6 +235,53 @@ export default function Measurements() {
         </>
       )}
 
+      <SectionHeader title="Targets" />
+      <Card style={{ gap: spacing.md }}>
+        {/* No progress bar here, deliberately: a bar needs a start point, and
+            the honest start is often a reading from a different body and a
+            different tape technique. The distance left cannot be wrong. */}
+        <Text variant="caption" color={colors.textFaint}>
+          Set a goal for any site. These are your own numbers — the app never suggests what they should be.
+        </Text>
+        {MEASUREMENT_SITES.map((site) => {
+          const target = targets[site.key];
+          const row = targetRows.find((t) => t.site.key === site.key);
+          return (
+            <View key={site.key} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="body" numberOfLines={1}>{site.label}</Text>
+                {row && (
+                  <Text
+                    variant="caption"
+                    color={row.reached ? colors.success : colors.textFaint}
+                    numberOfLines={1}
+                  >
+                    {row.reached
+                      ? 'Reached'
+                      : row.remainingCm == null
+                        ? 'No reading yet'
+                        : `${toDisplay(row.remainingCm).toFixed(1)} ${unit} to ${row.direction === 'up' ? 'gain' : 'lose'}`}
+                  </Text>
+                )}
+              </View>
+              <TextInput
+                value={targetDrafts[site.key] ?? (target != null ? String(toDisplay(target)) : '')}
+                onChangeText={(t: string) => setTargetDrafts((d) => ({ ...d, [site.key]: t }))}
+                onBlur={() => commitTarget(site.key)}
+                onSubmitEditing={() => commitTarget(site.key)}
+                keyboardType="decimal-pad"
+                placeholder="—"
+                placeholderTextColor={colors.textFaint}
+                accessibilityLabel={`Target ${site.label} in ${unit}`}
+                selectionColor={colors.primary}
+                style={[styles.targetInput, noOutline]}
+              />
+              <Text variant="caption" color={colors.textFaint} style={{ width: 22 }}>{unit}</Text>
+            </View>
+          );
+        })}
+      </Card>
+
       <SectionHeader title="History" />
       {measurements.length === 0 ? (
         <EmptyState
@@ -268,5 +344,17 @@ const styles = {
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceHigh,
+  },
+  targetInput: {
+    width: 62,
+    textAlign: 'right',
+    color: colors.text,
+    fontSize: 15,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
 } as const;

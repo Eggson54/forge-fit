@@ -53,8 +53,11 @@ export function formatDurationShort(seconds: number): string {
 }
 
 export function formatSleep(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  // Rounded on the way in. A smoothed average or a fitted weekly rate arrives
+  // as 470.43000000000001, and nobody sleeps to the fourteenth decimal.
+  const total = Math.max(0, Math.round(Number.isFinite(minutes) ? minutes : 0));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   if (h > 0) return m > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${h}h`;
   return `${m}m`;
 }

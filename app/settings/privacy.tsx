@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Platform, View } from 'react-native';
 import { Button, Card, Screen, SectionHeader, Text, Toggle } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import { colors, spacing } from '../../src/theme';
+import { colors, radius, spacing } from '../../src/theme';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { analytics } from '../../src/services/analytics';
 import { health, type HealthMetric } from '../../src/services/health';
 import { isCloudEnabled } from '../../src/services/supabase';
+import { exportUserCsv, exportUserData } from '../../src/services/dataExport';
+import { readImportFile, restoreFromExport } from '../../src/services/dataImport';
+import { NOT_RESTORED } from '../../src/domain/restoreMap';
+import type { ImportReport } from '../../src/domain/importShape';
+import { formatDateWithWeekday } from '../../src/domain/date';
 
 const HEALTH_METRICS: { key: HealthMetric; label: string }[] = [
   { key: 'steps', label: 'Steps' },
@@ -18,6 +23,67 @@ const HEALTH_METRICS: { key: HealthMetric; label: string }[] = [
 
 export default function Privacy() {
   const protocolEnabled = useProfileStore((s) => s.protocolFeatureEnabled);
+  const [busy, setBusy] = useState<'json' | 'csv' | null>(null);
+  const [report, setReport] = useState<ImportReport | null>(null);
+  const [pendingDoc, setPendingDoc] = useState<unknown>(null);
+
+  const doExport = async (format: 'json' | 'csv') => {
+    setBusy(format);
+    const ok = format === 'csv' ? await exportUserCsv() : await exportUserData();
+    setBusy(null);
+    if (!ok) Alert.alert('Export failed', 'Nothing was written. Try again in a moment.');
+  };
+
+  /**
+   * Web only for now: a native file picker needs expo-document-picker, and
+   * shipping a button that silently does nothing on a phone is worse than one
+   * that says where it works.
+   */
+  const pickFile = () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') {
+      Alert.alert(
+        'Not available here yet',
+        'Restoring from a file currently works in the web app. Your export is portable — open it there.',
+      );
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const { report: r, doc } = readImportFile(String(reader.result ?? ''));
+        setReport(r);
+        setPendingDoc(r.ok ? doc : null);
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const confirmRestore = () => {
+    if (!pendingDoc) return;
+    Alert.alert(
+      'Replace everything on this device?',
+      'Your current workouts, food, weight and settings will be overwritten by the file. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Replace',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await restoreFromExport(pendingDoc);
+            setReport(null);
+            setPendingDoc(null);
+            Alert.alert(result.ok ? 'Restored' : 'Could not restore', result.message);
+          },
+        },
+      ],
+    );
+  };
   const setProtocolEnabled = useProfileStore((s) => s.setProtocolFeatureEnabled);
   const [analyticsOn, setAnalyticsOn] = useState(true);
   const [healthAvailable, setHealthAvailable] = useState(false);
@@ -73,6 +139,79 @@ export default function Privacy() {
         </View>
       </Card>
 
+      <SectionHeader title="Your data, out and back" />
+      <Card style={{ gap: spacing.md }}>
+        <View style={{ gap: 2 }}>
+          <Text variant="bodyStrong">Export</Text>
+          <Text variant="caption" color={colors.textDim}>
+            JSON keeps everything and is the only format that can be restored. CSV opens in a spreadsheet and
+            covers the tables you would actually chart.
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <Button
+            title={busy === 'json' ? 'Working…' : 'JSON'}
+            variant="secondary"
+            onPress={() => doExport('json')}
+            style={{ flex: 1 }}
+          />
+          <Button
+            title={busy === 'csv' ? 'Working…' : 'CSV'}
+            variant="secondary"
+            onPress={() => doExport('csv')}
+            style={{ flex: 1 }}
+          />
+        </View>
+
+        <View style={{ height: 0.5, backgroundColor: colors.border }} />
+
+        <View style={{ gap: 2 }}>
+          <Text variant="bodyStrong">Restore</Text>
+          <Text variant="caption" color={colors.textDim}>
+            Reads a JSON export and replaces what is on this device. You will see exactly what the file contains
+            before anything changes.
+          </Text>
+        </View>
+
+        {report && (
+          <View style={styles.reportBox}>
+            {report.ok ? (
+              <>
+                <Text variant="bodyStrong">
+                  {report.exportedAt ? `Exported ${formatDateWithWeekday(report.exportedAt)}` : 'Valid export'}
+                </Text>
+                {report.counts.map((c) => (
+                  <View key={c.key} style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    <Text variant="caption" color={colors.textDim} style={{ flex: 1, minWidth: 0 }}>
+                      {c.label}
+                    </Text>
+                    <Text variant="caption" color={colors.text}>{c.records}</Text>
+                  </View>
+                ))}
+                {NOT_RESTORED.map((row) => (
+                  <Text key={row.what} variant="caption" color={colors.textFaint}>
+                    {row.what} is not restored. {row.why}
+                  </Text>
+                ))}
+                <Button title="Replace my data" onPress={confirmRestore} />
+              </>
+            ) : (
+              <Text variant="caption" color={colors.warning}>{report.problems[0]}</Text>
+            )}
+          </View>
+        )}
+
+        <Button
+          title={report ? 'Choose a different file' : 'Choose a file'}
+          variant="ghost"
+          onPress={pickFile}
+        />
+        <Text variant="caption" color={colors.textFaint}>
+          Restoring never changes who is signed in, and never grants a subscription — a file is editable, so
+          entitlement always comes from the app store.
+        </Text>
+      </Card>
+
       <SectionHeader title="Apple Health" />
       <Card>
         <Text variant="caption" color={colors.textDim} style={{ marginBottom: spacing.md }}>
@@ -90,6 +229,17 @@ export default function Privacy() {
     </Screen>
   );
 }
+
+const styles = {
+  reportBox: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+};
 
 function Bullet({ text }: { text: string }) {
   return (

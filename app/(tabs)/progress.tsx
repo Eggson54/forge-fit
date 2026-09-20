@@ -279,7 +279,11 @@ export default function Progress() {
         </Text>
       </Card>
 
-      <SectionHeader title={`Nutrition consistency · ${nutritionHitCount}/7 days`} />
+      <SectionHeader
+        title={`Nutrition consistency · ${nutritionHitCount}/7 days`}
+        action="Sleep & steps"
+        onAction={() => router.push('/progress/habits')}
+      />
       <Card>
         <DayStrip days={nutritionDays.map((d) => ({ label: d.label.slice(3), on: d.value === 1 }))} color={colors.water} />
       </Card>
