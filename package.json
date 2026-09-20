@@ -14,6 +14,7 @@
     "test:ci": "jest --ci --runInBand"
   },
   "dependencies": {
+    "@babel/runtime": "^7.25.0",
     "@expo-google-fonts/archivo": "^0.4.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/metro-runtime": "~4.0.1",
