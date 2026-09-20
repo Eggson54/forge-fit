@@ -63,6 +63,14 @@ export default function ExerciseDetail() {
 
   const prev = previousFor(exercise.id);
   const rec = recommendationFor(exercise.id, experience, units);
+  // Compared in display units, which is the precision the two cards print at:
+  // 84.37 kg and 84.4 kg are the same number to a reader.
+  const agreesWithBeat =
+    !!rec &&
+    !!toBeat &&
+    rec.reps === toBeat.targetReps &&
+    Math.round(displayWeight(rec.weightKg, units).value) ===
+      Math.round(displayWeight(toBeat.weightKg, units).value);
   const best = prs[exercise.id] ?? 0;
   const bestDisp = best > 0 ? displayWeight(best, units) : null;
   const sessions = workouts.filter((w) => w.exercises.some((e) => e.exerciseId === exercise.id)).length;
@@ -120,7 +128,7 @@ export default function ExerciseDetail() {
 
       {/* The factual version: the exact set from last time and the smallest
           honest way past it. The suggested-next card below is the algorithm's
-          opinion, which is a different thing and reads better beside it. */}
+          opinion, and only appears when it has something else to say. */}
       {toBeat && (
         <Card style={{ marginTop: spacing.md, gap: spacing.sm }}>
           <Text variant="overline" color={colors.amber}>TO BEAT</Text>
@@ -139,7 +147,10 @@ export default function ExerciseDetail() {
         </Card>
       )}
 
-      {rec && (
+      {/* Only when it differs. Now that both read the same top set, the
+          algorithm usually lands exactly on the beat target, and two cards
+          carrying the same number is one card too many. */}
+      {rec && !agreesWithBeat && (
         <Card tone="alt" style={{ marginTop: spacing.md }}>
           <Text variant="overline" color={colors.primary}>
             SUGGESTED NEXT

@@ -31,6 +31,12 @@ const INCREMENT: Record<Units, Record<Experience, number>> = {
 /**
  * Find the top working set for an exercise in the most recent workout that
  * contained it. Warmups are ignored.
+ *
+ * "Top" means heaviest, not highest volume. Ranking by weight × reps picked a
+ * back-off set of 153 × 8 over a top set of 186 × 5, and the recommendation
+ * built on it then told the lifter to load 156 — less than they had just
+ * pressed. Ties on weight go to the set with more reps, since that is the
+ * better performance at the same load.
  */
 export function findPreviousPerformance(
   history: Workout[],
@@ -44,9 +50,13 @@ export function findPreviousPerformance(
     let best: SetEntry | null = null;
     for (const s of ex.sets) {
       if (!s.completed || isWarmupSet(s) || !s.weightKg || !s.reps) continue;
-      if (!best || (s.weightKg ?? 0) * (s.reps ?? 0) > (best.weightKg ?? 0) * (best.reps ?? 0)) {
+      if (!best) {
         best = s;
+        continue;
       }
+      const heavier = s.weightKg > best.weightKg!;
+      const sameWeightMoreReps = s.weightKg === best.weightKg && (s.reps ?? 0) > (best.reps ?? 0);
+      if (heavier || sameWeightMoreReps) best = s;
     }
     if (best) {
       return { weightKg: best.weightKg!, reps: best.reps!, rpe: best.rpe, date: w.date };
@@ -96,6 +106,8 @@ export function recommendNext(
   return {
     weightKg: prev.weightKg,
     reps: Math.min(high, prev.reps + 1),
-    rationale: `Match ${show(displayWeight(prev.weightKg, units).value)} and add one rep (${prev.reps} → ${Math.min(high, prev.reps + 1)}).`,
+    // The weight is the headline of every card that shows this, so restating
+    // it here only created a second, differently rounded copy of it.
+    rationale: `Same weight, one more rep (${prev.reps} → ${Math.min(high, prev.reps + 1)}).`,
   };
 }

@@ -1771,3 +1771,40 @@ describe('formatSleep rounding', () => {
     expect(formatSleep(480)).toBe('8h');
   });
 });
+
+describe('findPreviousPerformance picks the heaviest set, not the biggest one', () => {
+  const session = (sets: { weightKg: number; reps: number; rpe?: number | null }[]): Workout[] => [
+    {
+      id: 'w1', name: 'Push', status: 'completed', date: '2026-01-05', startedAt: null,
+      completedAt: null, durationSeconds: null, focus: [],
+      exercises: [{
+        id: 'we', exerciseId: 'bench', name: 'Bench', primaryMuscle: 'chest', restSeconds: 120,
+        sets: sets.map((s, i) => ({ id: `s${i}`, weightKg: s.weightKg, reps: s.reps, rpe: s.rpe ?? null, completed: true })),
+      }],
+    },
+  ];
+
+  it('does not let a high-rep back-off set outrank the top set', () => {
+    // 153 × 8 is more volume than 186 × 5, and is not the top set.
+    const prev = findPreviousPerformance(session([{ weightKg: 84.4, reps: 5 }, { weightKg: 69.4, reps: 8 }]), 'bench');
+    expect(prev?.weightKg).toBe(84.4);
+    expect(prev?.reps).toBe(5);
+  });
+
+  it('never recommends a weight below what was just lifted', () => {
+    const prev = findPreviousPerformance(session([{ weightKg: 84.4, reps: 5 }, { weightKg: 69.4, reps: 8 }]), 'bench');
+    const rec = recommendNext(prev, { experience: 'intermediate', units: 'imperial' });
+    expect(rec!.weightKg).toBeGreaterThanOrEqual(84.4);
+  });
+
+  it('breaks a tie on weight with the better set', () => {
+    const prev = findPreviousPerformance(session([{ weightKg: 100, reps: 5 }, { weightKg: 100, reps: 8 }]), 'bench');
+    expect(prev?.reps).toBe(8);
+  });
+
+  it('still ignores warm-ups', () => {
+    const history = session([{ weightKg: 60, reps: 5 }]);
+    history[0]!.exercises[0]!.sets.unshift({ id: 'warm', weightKg: 200, reps: 1, rpe: null, completed: true, kind: 'warmup' });
+    expect(findPreviousPerformance(history, 'bench')?.weightKg).toBe(60);
+  });
+});
