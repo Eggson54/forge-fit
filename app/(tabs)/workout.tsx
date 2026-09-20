@@ -158,14 +158,15 @@ export default function WorkoutTab() {
           {[
             { icon: 'search' as IconName, label: 'Exercises', href: '/workout/library' },
             { icon: 'clock' as IconName, label: 'History', href: '/workout/history' },
-            { icon: 'trophy' as IconName, label: 'Records', href: '/workout/records' },
+            { icon: 'trophy' as IconName, label: 'Records', href: '/workout/records', tint: colors.amber },
             {
               icon: 'calendar' as IconName,
               label: enrolment ? 'Your plan' : 'Plans',
               href: enrolment ? '/workout/program' : '/workout/programs',
             },
             { icon: 'sliders' as IconName, label: 'Plate math', href: '/tools/plates' },
-            { icon: 'chart' as IconName, label: 'Warm-up', href: '/tools/warmup' },
+            // A bar chart said nothing about warming up; a flame does.
+            { icon: 'flame' as IconName, label: 'Warm-up', href: '/tools/warmup', tint: colors.amber },
             { icon: 'timer' as IconName, label: 'Intervals', href: '/tools/interval' },
             { icon: 'target' as IconName, label: 'Rep max', href: '/tools/one-rep-max' },
             { icon: 'scale' as IconName, label: 'Measure', href: '/progress/measurements' },
@@ -176,7 +177,9 @@ export default function WorkoutTab() {
               badge: claimedGyms > 0 ? String(claimedGyms) : undefined,
               tint: domainAccent.gyms,
             },
-            { icon: 'trophy' as IconName, label: 'Rivals', href: '/leaderboard' },
+            // Not another trophy: a trophy here meant a personal record three
+            // tiles earlier, and the same glyph twice in one grid means neither.
+            { icon: 'rivals' as IconName, label: 'Rivals', href: '/leaderboard', tint: colors.lime },
           ].map((t) => (
             <Pressable
               key={t.label}

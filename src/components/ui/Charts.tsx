@@ -165,22 +165,32 @@ export function BarChart({
   width = 320,
   color = colors.primary,
   targetLine,
+  format = fmt,
 }: {
   data: Point[];
   height?: number;
   width?: number;
   color?: string;
   targetLine?: number;
+  /**
+   * How to write a value on the axis and the peak label. Sleep is stored in
+   * minutes, and an axis reading "512" next to a card reading "7h 50m" is two
+   * different units for the same series.
+   */
+  format?: (n: number) => string;
 }) {
   if (!data.length) return <EmptyPlot height={height} message="No data logged yet" />;
 
-  const padL = 26;
+  const max = Math.max(...data.map((d) => d.value), targetLine ?? 0, 1);
+  // The gutter has to fit the axis label, and "8h 32m" is not "512". Measured
+  // off the 9px face rather than assumed, or a long label runs off the left
+  // edge of the chart.
+  const padL = Math.max(26, Math.ceil(format(max).length * 5.2) + 8);
   const padR = 12;
   const padT = 16;
   const padB = 22;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
-  const max = Math.max(...data.map((d) => d.value), targetLine ?? 0, 1);
   const slot = plotW / data.length;
   const barW = Math.max(6, slot - 6); // 2px+ surface gap either side
   const baseline = padT + plotH;
@@ -192,7 +202,7 @@ export function BarChart({
       {/* baseline + max rule */}
       <Line x1={padL} x2={width - padR} y1={baseline} y2={baseline} stroke={AXIS} strokeWidth={1} />
       <SvgText x={padL - 6} y={padT + 4} fontSize="9" fill={INK_FAINT} textAnchor="end">
-        {fmt(max)}
+        {format(max)}
       </SvgText>
 
       {targetLine !== undefined && targetLine > 0 && (
@@ -206,7 +216,16 @@ export function BarChart({
             strokeDasharray="3 4"
             strokeWidth={1}
           />
-          <SvgText x={padL + 2} y={baseline - (targetLine / max) * plotH - 4} fontSize="9" fill={INK_FAINT}>
+          {/* Right-hand end: at the left it sat under the axis maximum, and a
+              target close to the peak printed the two labels on top of each
+              other. */}
+          <SvgText
+            x={width - padR}
+            y={baseline - (targetLine / max) * plotH - 4}
+            fontSize="9"
+            fill={INK_FAINT}
+            textAnchor="end"
+          >
             goal
           </SvgText>
         </>
@@ -226,7 +245,7 @@ export function BarChart({
             )}
             {labelThis && (
               <SvgText x={bx + barW / 2} y={baseline - h - 5} fontSize="9" fontWeight="600" fill={colors.text} textAnchor="middle">
-                {fmt(d.value)}
+                {format(d.value)}
               </SvgText>
             )}
           </React.Fragment>

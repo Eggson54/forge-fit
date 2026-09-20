@@ -1,12 +1,13 @@
 import React from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { AdSlot, Button, Card, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AdSlot, Button, Card, IconButton, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { Masthead } from '../../src/components/Masthead';
 import { colors, domainAccent, gradients, radius, spacing } from '../../src/theme';
 import { lastNDays, todayISO } from '../../src/domain/date';
+import { groupThousands } from '../../src/domain/units';
 import type { MealSlot, NutritionEntry } from '../../src/domain/types';
 import { scaleMacros, sumMacros, waterQuickAdds } from '../../src/domain/nutrition';
 import { itemsFromEntries, mealMacros, mealsForSlot, suggestMealName } from '../../src/domain/savedMeals';
@@ -49,15 +50,11 @@ export default function Nutrition() {
         accent={domainAccent.nutrition}
         right={
           <>
-            <Pressable
-              onPress={() => router.push('/nutrition/meals')}
-              hitSlop={8}
-              accessibilityRole="link"
-              accessibilityLabel="Saved meals"
-              style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}
-            >
+            {/* Framed like the other masthead actions: a bare glyph floating
+                next to a filled button read as decoration rather than a tap. */}
+            <IconButton size={40} accessibilityLabel="Saved meals" onPress={() => router.push('/nutrition/meals')}>
               <Icon name="star" size={19} color={colors.text} strokeWidth={1.8} />
-            </Pressable>
+            </IconButton>
             <Button title="Add" fullWidth={false} size="sm" icon={<Icon name="plus" size={16} color={colors.onPrimary} />} onPress={() => router.push('/nutrition/add')} />
           </>
         }
@@ -232,7 +229,11 @@ function WeekGlance() {
   const avg = loggedRows.length
     ? Math.round(loggedRows.reduce((a, r) => a + r.calories, 0) / loggedRows.length)
     : 0;
-  const peak = Math.max(targets.calories, ...rows.map((r) => r.calories)) || 1;
+  // Headroom above whichever is taller, so the target line is never flush with
+  // the ceiling and a big day still has somewhere to go.
+  const peak = Math.max(targets.calories, ...rows.map((r) => r.calories)) * 1.12 || 1;
+  const H = 62;
+  const targetY = targets.calories > 0 ? (targets.calories / peak) * H : 0;
 
   return (
     <View>
@@ -241,26 +242,54 @@ function WeekGlance() {
           {loggedRows.length}/7 days logged
         </Text>
         <Text variant="caption" color={colors.textDim}>
-          {loggedRows.length ? `${avg} kcal avg` : 'nothing logged yet'}
+          {loggedRows.length ? `${groupThousands(avg)} kcal avg` : 'nothing logged yet'}
         </Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 54 }}>
-        {rows.map((r) => (
-          <View key={r.date} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-            <View
-              style={{
-                width: '100%',
-                height: Math.max(3, (r.calories / peak) * 40),
-                borderRadius: 3,
-                // An unlogged day is missing data, not a zero-calorie day, so it
-                // is drawn as an absence rather than a bar at the floor.
-                backgroundColor: r.logged ? colors.calorie : colors.surfaceHigh,
-              }}
-            />
+
+      <View style={{ height: H, marginBottom: 4 }}>
+        {/* Bars alone say which day was biggest but not whether any of them
+            were big. The target line is the only thing that makes the heights
+            mean something. */}
+        {targetY > 0 && (
+          <View style={[styles.targetLine, { bottom: targetY }]} pointerEvents="none">
+            <View style={styles.targetRule} />
             <Text variant="caption" color={colors.textFaint} style={{ fontSize: 9 }}>
-              {r.date.slice(8)}
+              {groupThousands(targets.calories)} target
             </Text>
           </View>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: H }}>
+          {rows.map((r) => {
+            const over = r.logged && r.calories > targets.calories;
+            return (
+              <View key={r.date} style={{ flex: 1 }}>
+                <View
+                  style={{
+                    width: '100%',
+                    height: Math.max(3, (r.calories / peak) * H),
+                    borderRadius: 3,
+                    // An unlogged day is missing data, not a zero-calorie day, so
+                    // it is drawn as an absence rather than a bar at the floor.
+                    backgroundColor: !r.logged ? colors.surfaceHigh : over ? colors.amber : colors.calorie,
+                  }}
+                />
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {rows.map((r) => (
+          <Text
+            key={r.date}
+            variant="caption"
+            color={colors.textFaint}
+            center
+            style={{ flex: 1, fontSize: 9 }}
+          >
+            {r.date.slice(8)}
+          </Text>
         ))}
       </View>
     </View>
@@ -362,5 +391,21 @@ const styles = {
     borderWidth: 0.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+  },
+  targetLine: {
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+  },
+  targetRule: {
+    flex: 1,
+    height: 0,
+    // Dashed, so it never reads as another bar's edge.
+    borderTopWidth: 1,
+    borderStyle: 'dashed' as const,
+    borderColor: colors.textFaint,
   },
 };

@@ -3,13 +3,16 @@ import { View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Defs, LinearGradient as SvgGradient, Path, Rect, Stop } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
-import type { RankResult } from '../domain/rank';
+import { RANK_MAX, pointsToNext, tierLadder, type RankResult } from '../domain/rank';
 import { Text } from './ui/Text';
 import { AnimatedNumber, Pulse } from './anim';
 
 /** Displays the user's Forge Rank tier, score and progress to the next tier. */
 export function RankCard({ rank, compact }: { rank: RankResult; compact?: boolean }) {
-  const { tier, nextTier, progressToNext, score } = rank;
+  const { tier, nextTier, score } = rank;
+  const bands = tierLadder(score);
+  const owed = pointsToNext(rank);
+
   return (
     <LinearGradient
       colors={['#181722', '#0E0D14']}
@@ -24,18 +27,61 @@ export function RankCard({ rank, compact }: { rank: RankResult; compact?: boolea
           <Text variant="h2" color={tier.color}>{tier.name}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
             <AnimatedNumber value={score} variant="metric" />
-            <Text variant="caption" color={colors.textDim}>/ 1000 forge score</Text>
+            <Text variant="caption" color={colors.textDim}>/ {RANK_MAX} forge score</Text>
           </View>
         </View>
       </View>
 
       {!compact && (
-        <View style={{ marginTop: spacing.lg, gap: 6 }}>
-          <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surfaceHigh, overflow: 'hidden' }}>
-            <View style={{ width: `${Math.round(progressToNext * 100)}%`, height: '100%', backgroundColor: tier.color, borderRadius: 4 }} />
+        <View
+          style={{ marginTop: spacing.lg, gap: 6 }}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: RANK_MAX, now: score }}
+          accessibilityLabel={
+            owed == null
+              ? `${score} of ${RANK_MAX} forge score. Top tier reached.`
+              : `${score} of ${RANK_MAX} forge score. ${owed} to ${nextTier?.name}.`
+          }
+        >
+          {/* One band per tier, each as wide as the points it covers — so the
+              filled length is genuinely the score out of 1000, and the seams
+              say what the next stretch is worth. */}
+          <View style={{ flexDirection: 'row', gap: 3 }}>
+            {bands.map((b) => (
+              <View
+                key={b.tier.key}
+                style={{
+                  flex: b.span,
+                  height: 9,
+                  borderRadius: 4.5,
+                  backgroundColor: colors.surfaceHigh,
+                  overflow: 'hidden',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${b.fill * 100}%`,
+                    height: '100%',
+                    borderRadius: 4.5,
+                    backgroundColor: b.tier.color,
+                    // A cleared band is history; the one in play carries the eye.
+                    opacity: b.current ? 1 : 0.38,
+                  }}
+                />
+              </View>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 3 }}>
+            {bands.map((b) => (
+              <View key={b.tier.key} style={{ flex: b.span, alignItems: 'center' }}>
+                <Text variant="caption" color={b.current ? b.tier.color : colors.textFaint}>
+                  {b.tier.name.slice(0, 2).toUpperCase()}
+                </Text>
+              </View>
+            ))}
           </View>
           <Text variant="caption" color={colors.textDim}>
-            {nextTier ? `${Math.round(progressToNext * 100)}% to ${nextTier.name}` : 'Top tier reached — Apex'}
+            {owed == null ? 'Top tier reached — Apex' : `${owed} points to ${nextTier?.name}`}
           </Text>
         </View>
       )}

@@ -11,7 +11,7 @@ import {
   padBounds,
   type LatLon,
 } from '../domain/geo';
-import { rarityOf, type Gym, type GymRarity } from '../domain/gyms';
+import { RARITY_LABEL, RARITY_POINTS, rarityOf, type Gym, type GymRarity } from '../domain/gyms';
 import type { MapFeature } from '../services/gyms';
 
 export const RARITY_COLOR: Record<GymRarity, string> = {
@@ -237,8 +237,15 @@ function gridLines(width: number, height: number) {
   return lines;
 }
 
-/** Legend row used under the map. */
-export function RarityLegend() {
+/**
+ * Legend row used under the map.
+ *
+ * `withPoints` spells out what each colour is worth. Under the map the colours
+ * only have to be told apart; on the screen that is selling the feature, a
+ * legend saying gyms are worth different points without saying how much is
+ * half a sentence.
+ */
+export function RarityLegend({ withPoints = false }: { withPoints?: boolean } = {}) {
   const rows: GymRarity[] = ['common', 'uncommon', 'rare', 'legendary'];
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
@@ -246,7 +253,8 @@ export function RarityLegend() {
         <View key={r} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: RARITY_COLOR[r] }} />
           <Text variant="caption" color={colors.textFaint}>
-            {r[0].toUpperCase() + r.slice(1)}
+            {RARITY_LABEL[r]}
+            {withPoints ? ` ${RARITY_POINTS[r]}` : ''}
           </Text>
         </View>
       ))}

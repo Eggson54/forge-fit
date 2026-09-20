@@ -43,6 +43,7 @@ export type IconName =
   | 'minus'
   | 'map'
   | 'copy'
+  | 'rivals'
   | 'star';
 
 // Footprint used by the `steps` glyph, drawn once and mirrored for the pair.
@@ -331,6 +332,17 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
         </>
       )}
 
+
+      {/* A podium: first, second, third. The trophy three tiles earlier already
+          means a personal record, and standings are a different idea. */}
+      {name === 'rivals' && (
+        <>
+          <Path d="M3 20h18" {...s} />
+          <Rect x="9.2" y="6" width="5.6" height="14" rx="1.2" {...s} />
+          <Rect x="2.8" y="11.5" width="5.6" height="8.5" rx="1.2" {...s} />
+          <Rect x="15.6" y="14" width="5.6" height="6" rx="1.2" {...s} />
+        </>
+      )}
 
       {name === 'check' && <Path d="m5.2 12.6 4.4 4.4 9.2-10" {...s} strokeWidth={2.4} />}
 

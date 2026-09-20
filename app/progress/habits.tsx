@@ -93,6 +93,7 @@ export default function Habits() {
             width={chartW}
             color={current.tint}
             targetLine={target}
+            format={format}
           />
           <Text variant="caption" color={colors.textFaint} center style={{ marginTop: spacing.sm }}>
             Dashed line = your target ({format(target)})

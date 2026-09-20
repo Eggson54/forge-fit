@@ -143,8 +143,9 @@ export default function Progress() {
       weightSeriesKg: weightByDate.map((w) => ({ date: w.date, value: w.weightKg })),
       goal: profile.goal,
       targetWeightKg: profile.targetWeightKg,
+      units: profile.units,
     }).then(setAnalysis);
-  }, [weightByDate, profile.goal, profile.targetWeightKg]);
+  }, [weightByDate, profile.goal, profile.targetWeightKg, profile.units]);
 
   return (
     <Screen gradient>

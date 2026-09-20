@@ -125,3 +125,43 @@ export function rankBreakdown(i: RankInputs): RankPart[] {
     },
   ];
 }
+
+export interface LadderBand {
+  tier: RankTier;
+  /** Points the band spans; the bar gives it width in proportion. */
+  span: number;
+  /** 0–1 of this band that the score has covered. */
+  fill: number;
+  reached: boolean;
+  current: boolean;
+}
+
+/** The top of the ladder. Apex has no successor, so its band ends here. */
+export const RANK_MAX = 1000;
+
+/**
+ * The score laid out across every tier band.
+ *
+ * The card used to show "556 / 1000" above a bar filled to 28%, because the
+ * number was measured against the whole scale and the bar against the current
+ * tier. One of them had to go; a ladder keeps both readings true, since the
+ * filled length really is the score out of 1000 and the band boundaries say
+ * what it buys.
+ */
+export function tierLadder(score: number, tiers: RankTier[] = RANK_TIERS): LadderBand[] {
+  const s = clamp(num(score), 0, RANK_MAX);
+  return tiers.map((tier, i) => {
+    const top = tiers[i + 1]?.min ?? RANK_MAX;
+    const span = Math.max(1, top - tier.min);
+    const fill = clamp((s - tier.min) / span, 0, 1);
+    // The top band owns a perfect score: `< top` would leave 1000 belonging to
+    // no tier at all.
+    const last = i === tiers.length - 1;
+    return { tier, span, fill, reached: s >= tier.min, current: s >= tier.min && (s < top || last) };
+  });
+}
+
+/** Points still owed to the next tier, or null at the top. */
+export function pointsToNext(rank: RankResult): number | null {
+  return rank.nextTier ? Math.max(0, rank.nextTier.min - rank.score) : null;
+}

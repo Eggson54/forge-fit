@@ -3,7 +3,7 @@ import { sanitizeMacros } from '../../domain/nutrition';
 import { EXERCISE_LIBRARY } from '../../data/exercises';
 import { FOOD_DB } from '../../data/foods';
 import type { Equipment, MuscleGroup } from '../../domain/types';
-import { groupThousands } from '../../domain/units';
+import { displayWeight, groupThousands } from '../../domain/units';
 import type {
   AIService,
   CoachMessageRequest,
@@ -117,11 +117,12 @@ export class MockAIService implements AIService {
     const losing = req.goal === 'lose_fat';
     const gaining = req.goal === 'build_muscle' || req.goal === 'gain_weight';
     const onTrack = losing ? weeklyRateKg < 0 : gaining ? weeklyRateKg > 0 : Math.abs(weeklyRateKg) < 0.3;
+    const rate = displayWeight(Math.abs(weeklyRateKg), req.units);
     return {
       trend,
       weeklyRateKg: Math.round(weeklyRateKg * 100) / 100,
       onTrack,
-      summary: `You're ${trend === 'flat' ? 'holding steady' : trend === 'down' ? 'trending down' : 'trending up'} at about ${Math.abs(weeklyRateKg).toFixed(2)} kg/week. ${
+      summary: `You're ${trend === 'flat' ? 'holding steady' : trend === 'down' ? 'trending down' : 'trending up'} at about ${rate.value} ${rate.unit}/week. ${
         onTrack ? "That's aligned with your goal." : 'Consider adjusting intake or activity to match your goal.'
       }`,
     };

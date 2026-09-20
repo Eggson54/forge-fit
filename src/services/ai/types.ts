@@ -5,6 +5,7 @@ import type {
   Goal,
   MuscleGroup,
   Profile,
+  Units,
 } from '../../domain/types';
 import type { CoachContext, CoachIntent, WeeklyStats } from '../../domain/coach';
 
@@ -74,6 +75,12 @@ export interface ProgressAnalysisRequest {
   weightSeriesKg: { date: string; value: number }[];
   goal: Goal;
   targetWeightKg: number | null;
+  /**
+   * Which units the summary sentence should speak in. The numbers on the wire
+   * stay canonical kg; this only decides how the prose reads, so a screen that
+   * says "141k lb moved" does not also say "0.92 kg/week".
+   */
+  units: Units;
 }
 export interface ProgressAnalysisResult {
   trend: 'up' | 'down' | 'flat';

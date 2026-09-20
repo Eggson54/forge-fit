@@ -6,10 +6,11 @@ import { FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { GymMap, RarityLegend, RARITY_COLOR } from '../../src/components/GymMap';
-import { colors, layout, radius, spacing } from '../../src/theme';
+import { colors, domainAccent, layout, radius, spacing } from '../../src/theme';
 import { bearingDegrees, compassPoint, formatDistance } from '../../src/domain/geo';
 import {
   CLAIM_RADIUS_M,
+  EXPLORER_TIERS,
   KIND_LABEL,
   RARITY_LABEL,
   claimPoints,
@@ -117,6 +118,29 @@ export default function GymMapScreen() {
             )}
           </Card>
         </FadeIn>
+
+        {/* What the permission actually buys. The gate used to be one card over
+            half a screen of nothing, which asked for location without showing
+            anything in return. */}
+        <SectionHeader title="What you'd be collecting" accent={domainAccent.gyms} />
+        <Card style={{ gap: spacing.lg }}>
+          <View style={{ gap: spacing.sm }}>
+            <Text variant="label">Gyms are worth different points</Text>
+            <RarityLegend withPoints />
+          </View>
+          <View style={{ gap: spacing.sm, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: spacing.lg }}>
+            <Text variant="label">And the points move you up</Text>
+            {EXPLORER_TIERS.map((t) => (
+              <View key={t.key} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.color }} />
+                <Text variant="caption" color={colors.text} style={{ width: 92 }}>{t.name}</Text>
+                <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0 }}>
+                  {t.min === 0 ? t.blurb : `${t.min} pts · ${t.blurb}`}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
       </Screen>
     );
   }
