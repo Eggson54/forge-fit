@@ -271,3 +271,69 @@ export function beatTarget(workouts: Workout[], exerciseId: string): BeatTarget 
 
   return { weightKg: best.weightKg, reps: best.reps, targetReps: best.reps + 1, date: last.date };
 }
+
+export interface ExerciseNote {
+  workoutId: string;
+  workoutName: string;
+  date: string;
+  note: string;
+}
+
+/**
+ * Every note ever written against a lift, newest first.
+ *
+ * Notes were write-only: you could record "elbows flared on the last set" and
+ * then never see it again, which makes the field a diary nobody reads. The cue
+ * you wrote three months ago is the one worth having in front of you.
+ */
+export function exerciseNotes(workouts: Workout[], exerciseId: string, limit = 20): ExerciseNote[] {
+  const out: ExerciseNote[] = [];
+  for (const workout of workouts) {
+    if (workout.status !== 'completed') continue;
+    for (const exercise of workout.exercises) {
+      if (exercise.exerciseId !== exerciseId) continue;
+      const note = exercise.notes?.trim();
+      if (!note) continue;
+      out.push({ workoutId: workout.id, workoutName: workout.name, date: workout.date, note });
+    }
+  }
+  return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, limit);
+}
+
+export interface StrengthPoint {
+  reps: number;
+  /** Heaviest load ever completed for at least this many reps. */
+  weightKg: number;
+  date: string;
+}
+
+/**
+ * The heaviest weight moved for each rep count — the shape of a strength curve.
+ *
+ * "At least this many reps" rather than "exactly": a set of 100 kg × 8 proves
+ * you can do 100 kg × 5, and a curve that ignores that has holes in it wherever
+ * someone happened not to stop at a round number.
+ */
+export function strengthCurve(workouts: Workout[], exerciseId: string, maxReps = 12): StrengthPoint[] {
+  const best = new Map<number, { weightKg: number; date: string }>();
+
+  for (const workout of workouts) {
+    if (workout.status !== 'completed') continue;
+    for (const exercise of workout.exercises) {
+      if (exercise.exerciseId !== exerciseId) continue;
+      for (const s of exercise.sets) {
+        if (!s.completed || isWarmupSet(s) || !s.weightKg || !s.reps) continue;
+        for (let reps = 1; reps <= Math.min(maxReps, s.reps); reps += 1) {
+          const existing = best.get(reps);
+          if (!existing || s.weightKg > existing.weightKg) {
+            best.set(reps, { weightKg: s.weightKg, date: workout.date });
+          }
+        }
+      }
+    }
+  }
+
+  return [...best.entries()]
+    .map(([reps, v]) => ({ reps, weightKg: v.weightKg, date: v.date }))
+    .sort((a, b) => a.reps - b.reps);
+}

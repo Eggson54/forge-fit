@@ -157,6 +157,9 @@ export interface WorkoutExercise {
 
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped';
 
+/** 1–5. See domain/effort.ts for why it is not a ten-point RPE scale. */
+export type SessionEffort = 1 | 2 | 3 | 4 | 5;
+
 export interface Workout {
   /**
    * Where this session was logged, captured at the moment it finished. Stored
@@ -165,6 +168,13 @@ export interface Workout {
    * there.
    */
   gym?: { id: string; name: string };
+
+  /**
+   * How hard the session felt, 1–5, recorded once at the end. Optional: a
+   * session logged before this existed, or by someone who does not want to
+   * rate it, is not a session with an effort of zero.
+   */
+  effort?: SessionEffort;
   id: UUID;
   name: string;
   status: WorkoutStatus;
