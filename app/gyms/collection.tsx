@@ -51,7 +51,9 @@ export default function Collection() {
           </View>
 
           <View style={{ gap: 6 }}>
-            <LinearProgress progress={summary.progress} />
+            {/* The tier's own colour, the same one the name is set in — an
+                orange bar under a blue tier name looked like two readings. */}
+            <LinearProgress progress={summary.progress} color={summary.tier.color} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text variant="caption" color={colors.textFaint}>{summary.points} pts</Text>
               <Text variant="caption" color={colors.textFaint}>

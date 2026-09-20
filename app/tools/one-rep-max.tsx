@@ -95,7 +95,7 @@ export default function OneRepMax() {
               label={`Brzycki (${unitLabel})`}
               accent={colors.protein}
             />
-            <StatTile value={`${percentOfMax(r)}%`} label="of max lifted" accent={colors.water} />
+            <StatTile value={`${percentOfMax(r).toFixed(1)}%`} label="of max lifted" accent={colors.water} />
           </Card>
 
           {brzycki != null && Math.abs(epley - brzycki) > epley * 0.03 && (
@@ -117,7 +117,9 @@ export default function OneRepMax() {
                     {row.reps} {row.reps === 1 ? 'rep' : 'reps'}
                   </Text>
                   <Text variant="caption" color={colors.textFaint} style={{ width: 46 }}>
-                    {row.pct}%
+                    {/* One decimal throughout: a column reading 96.8, 93.8,
+                        75, 71.4 looks like two different precisions. */}
+                    {row.pct.toFixed(1)}%
                   </Text>
                   <Text variant="bodyStrong" color={colors.primary} style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                     {row.weight} {unitLabel}

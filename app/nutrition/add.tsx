@@ -141,7 +141,7 @@ function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () =>
               <View style={{ flex: 1 }}>
                 <Text variant="bodyStrong">{f.name}</Text>
                 <Text variant="caption" color={colors.textDim}>
-                  {f.servingLabel} · P{f.proteinG} C{f.carbsG} F{f.fatG}
+                  {f.servingLabel} · P{Math.round(f.proteinG)} C{Math.round(f.carbsG)} F{Math.round(f.fatG)}
                 </Text>
               </View>
               <Text variant="bodyStrong" color={colors.calorie}>

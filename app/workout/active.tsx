@@ -533,6 +533,7 @@ function ExerciseBlock({
           index={i + 1}
           units={units}
           restSeconds={exercise.restSeconds}
+          suggestion={rec ? { weightKg: rec.weightKg, reps: rec.reps } : prev ?? null}
           onRest={onRest}
           onPr={onPr}
         />
@@ -570,7 +571,7 @@ function ExerciseBlock({
             accessibilityRole="button"
             accessibilityLabel={`Add warm-up sets ramping to ${heaviestEntered}`}
           >
-            <Icon name="chart" size={15} color={colors.textDim} strokeWidth={1.9} />
+            <Icon name="flame" size={15} color={colors.textDim} strokeWidth={1.9} />
             <Text variant="label" color={colors.textDim}>Warm-up</Text>
           </Pressable>
         )}
@@ -587,6 +588,7 @@ function SetRow({
   index,
   units,
   restSeconds,
+  suggestion,
   onRest,
   onPr,
 }: {
@@ -597,6 +599,12 @@ function SetRow({
   index: number;
   units: 'imperial' | 'metric';
   restSeconds: number;
+  /**
+   * What this set is expected to be: the progression target, or the last time
+   * out when there is no target. Shown as the ghost in the empty fields, and
+   * written in if the set is ticked without anything typed.
+   */
+  suggestion: { weightKg: number; reps: number } | null;
   onRest: (seconds: number, label: string) => void;
   onPr: (name: string, e1RMKg: number) => void;
 }) {
@@ -612,6 +620,14 @@ function SetRow({
 
   const kind = setKind(set);
   const mark = SET_KIND_MARK[kind];
+
+  // A dim "0" in an empty field reads as a logged zero and tells you nothing.
+  // The number the app is expecting is more use and is no more of a claim.
+  const ghostWeight =
+    suggestion && suggestion.weightKg > 0 && !isWarmupSet(set)
+      ? String(round(units === 'imperial' ? kgToLb(suggestion.weightKg) : suggestion.weightKg, 1))
+      : null;
+  const ghostReps = suggestion && suggestion.reps > 0 && !isWarmupSet(set) ? String(suggestion.reps) : null;
 
   const commitWeight = (t: string) => {
     setWeight(t);
@@ -642,6 +658,26 @@ function SetRow({
 
   const onToggle = () => {
     const wasComplete = set.completed;
+
+    // Ticking a set whose fields are still empty used to record a completed set
+    // with no numbers in it — a hole in the volume, the PR check and the
+    // history. The ghost in the field is what the app expected, so that is what
+    // it writes rather than nothing.
+    // Not for a warm-up: its ghost is the working weight, which is the one
+    // number a warm-up set is definitely not.
+    if (!wasComplete && suggestion && tracking !== 'duration' && !isWarmupSet(set)) {
+      const patch: { weightKg?: number; reps?: number } = {};
+      if (set.weightKg == null && suggestion.weightKg > 0) patch.weightKg = suggestion.weightKg;
+      if (set.reps == null && suggestion.reps > 0) patch.reps = suggestion.reps;
+      if (patch.weightKg != null || patch.reps != null) {
+        updateSet(weId, set.id, patch);
+        if (patch.weightKg != null) {
+          setWeight(String(round(units === 'imperial' ? kgToLb(patch.weightKg) : patch.weightKg, 1)));
+        }
+        if (patch.reps != null) setReps(String(patch.reps));
+      }
+    }
+
     const newPr = toggle(weId, set.id);
     if (newPr) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -677,7 +713,7 @@ function SetRow({
         <Cell
           value={weight}
           onChange={commitWeight}
-          placeholder={tracking === 'bodyweight' ? '+0' : '0'}
+          placeholder={ghostWeight ?? (tracking === 'bodyweight' ? '+0' : '0')}
           label={
             tracking === 'bodyweight'
               ? `Added weight in ${units === 'imperial' ? 'pounds' : 'kilos'}, set ${index}`
@@ -694,7 +730,7 @@ function SetRow({
           keyboard="numbers-and-punctuation"
         />
       ) : (
-        <Cell value={reps} onChange={commitReps} placeholder="0" label={`Reps, set ${index}`} />
+        <Cell value={reps} onChange={commitReps} placeholder={ghostReps ?? '0'} label={`Reps, set ${index}`} />
       )}
       <Cell value={rpe} onChange={commitRpe} placeholder="-" label={`Rate of perceived exertion, set ${index}`} />
       {/* The most-tapped control in the app, and it was the one a screen

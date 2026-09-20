@@ -203,7 +203,14 @@ export default function Onboarding() {
         <LinearProgress progress={(step + 1) / TOTAL_STEPS} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+      {/* Centred rather than top-aligned: most steps are one question and two
+          controls, and pinned to the top they sat above half a phone screen of
+          nothing. flexGrow keeps a long step (equipment, dietary) scrolling
+          from its own top, since justifyContent only distributes free space. */}
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl, flexGrow: 1, justifyContent: 'center' }}
+        keyboardShouldPersistTaps="handled"
+      >
         {step === 0 && (
           <StepShell title="What should we call you?" icon="profile" subtitle="Your coach keeps it personal.">
             <Input label="First name" value={draft.name} onChangeText={(name) => set({ name })} placeholder="Alex" autoFocus />
@@ -337,7 +344,7 @@ export default function Onboarding() {
 
         {step === 10 && (
           <StepShell title="Your starting targets" icon="trophy" subtitle="Estimates you can fine-tune any time. Not medical advice.">
-            <TargetRow label="Daily calories" value={`${previewTargets.calories}`} unit="kcal" />
+            <TargetRow label="Daily calories" value={groupThousands(previewTargets.calories)} unit="kcal" />
             <TargetRow label="Protein" value={`${previewTargets.proteinG}`} unit="g" />
             <TargetRow label="Carbs" value={`${previewTargets.carbsG}`} unit="g" />
             <TargetRow label="Fat" value={`${previewTargets.fatG}`} unit="g" />
