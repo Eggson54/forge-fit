@@ -385,15 +385,16 @@ describe('volume formatting', () => {
   });
 
   it('switches to k only once the number stops fitting', () => {
-    expect(displayVolume(1000, 'metric')).toEqual({ value: '1,000', unit: 'kg' });
-    expect(displayVolume(9999, 'metric')).toEqual({ value: '9,999', unit: 'kg' });
+    expect(displayVolume(999, 'metric')).toEqual({ value: '999', unit: 'kg' });
+    expect(displayVolume(1000, 'metric')).toEqual({ value: '1k', unit: 'kg' });
+    expect(displayVolume(8882, 'metric')).toEqual({ value: '8.9k', unit: 'kg' });
     expect(displayVolume(12500, 'metric')).toEqual({ value: '12.5k', unit: 'kg' });
     expect(displayVolume(250000, 'metric')).toEqual({ value: '250k', unit: 'kg' });
   });
 
   it('converts before deciding the format', () => {
     // 5000 kg is 11,023 lb — compact in one unit, grouped in the other.
-    expect(displayVolume(5000, 'metric').value).toBe('5,000');
+    expect(displayVolume(5000, 'metric').value).toBe('5k');
     expect(displayVolume(5000, 'imperial')).toEqual({ value: '11k', unit: 'lb' });
   });
 });

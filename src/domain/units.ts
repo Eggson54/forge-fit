@@ -61,6 +61,9 @@ export function displayVolume(kg: number, units: 'imperial' | 'metric'): { value
   const unit = units === 'imperial' ? 'lb' : 'kg';
   const n = units === 'imperial' ? kgToLb(kg) : kg;
   if (n >= 100_000) return { value: `${groupThousands(round(n / 1000))}k`, unit };
-  if (n >= 10_000) return { value: `${round(n / 1000, 1)}k`, unit };
+  // Abbreviated from a thousand rather than ten thousand, so a list of
+  // sessions does not print "8,882 lb" directly above "10.7k lb" — two
+  // formats for the same quantity, which reads as two different units.
+  if (n >= 1_000) return { value: `${round(n / 1000, 1)}k`, unit };
   return { value: groupThousands(n), unit };
 }

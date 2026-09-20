@@ -228,7 +228,7 @@ export default function ExerciseLibrary() {
                       {e.isCustom ? ' · custom' : ''}
                     </Text>
                     <Text variant="caption" color={colors.textDim} numberOfLines={1}>
-                      {label(e.primaryMuscle)} · {e.equipment} · {e.difficulty}
+                      {label(e.primaryMuscle)} · {label(e.equipment)} · {label(e.difficulty)}
                     </Text>
                   </View>
                   <Pressable

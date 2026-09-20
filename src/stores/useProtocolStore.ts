@@ -7,6 +7,9 @@ import { uid } from '../lib/uid';
 import { analytics } from '../services/analytics';
 import { jsonStorage, STORE_KEYS } from './persist';
 
+/** How far back adherence looks. Exported so the screen can name it. */
+export const ADHERENCE_WINDOW_DAYS = 30;
+
 /**
  * Protocol / personal-tracking store. This is a RECORD-KEEPING tool only. The
  * app never recommends doses, cycles, compounds or treatment plans — all values
@@ -70,7 +73,7 @@ export const useProtocolStore = create<ProtocolState>()(
       logsForProtocol: (protocolId) =>
         get().logs.filter((l) => l.protocolId === protocolId).sort((a, b) => (a.date < b.date ? 1 : -1)),
 
-      adherence: (protocolId, windowDays = 30) => {
+      adherence: (protocolId, windowDays = ADHERENCE_WINDOW_DAYS) => {
         const protocol = get().protocols.find((p) => p.id === protocolId);
         if (!protocol) return { taken: 0, expected: null, ratio: null };
         return computeAdherence(protocol, get().logs, windowDays, todayISO());

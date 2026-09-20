@@ -130,7 +130,10 @@ export default function Reminders() {
       </View>
 
       <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.xl }}>
-        We keep notifications purposeful — never spammy. Adjust frequency by editing days and times below each reminder.
+        We keep notifications purposeful — never spammy.{' '}
+        {reminders.length > 0
+          ? 'Adjust frequency by editing the days and times on each reminder.'
+          : 'Every reminder you add can be moved to any time and any set of days.'}
       </Text>
     </Screen>
   );

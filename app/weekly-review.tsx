@@ -116,7 +116,7 @@ export default function WeeklyReview() {
             />
             <DeltaStat
               label="Avg cals"
-              value={`${Math.round(stats.avgCalories)}`}
+              value={groupThousands(Math.round(stats.avgCalories))}
               accent={colors.calorie}
               delta={previous.avgCalories == null ? null : Math.round(stats.avgCalories - previous.avgCalories)}
               // Calories moving either way is neither good nor bad without the

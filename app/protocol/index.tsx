@@ -8,7 +8,7 @@ import { colors, spacing } from '../../src/theme';
 import { todayISO } from '../../src/domain/date';
 import { FREQUENCY_LABEL } from '../../src/domain/protocol';
 import type { Protocol } from '../../src/domain/types';
-import { useProtocolStore } from '../../src/stores/useProtocolStore';
+import { ADHERENCE_WINDOW_DAYS, useProtocolStore } from '../../src/stores/useProtocolStore';
 
 export default function ProtocolHome() {
   const protocols = useProtocolStore((s) => s.protocols.filter((p) => p.active));
@@ -120,8 +120,15 @@ function ProtocolCard({ protocol }: { protocol: Protocol }) {
           <Text variant="metric" color={adherence.ratio != null && adherence.ratio >= 0.8 ? colors.success : colors.textDim}>
             {adherence.ratio != null ? `${Math.round(adherence.ratio * 100)}%` : adherence.taken}
           </Text>
+          {/* "of 30 · 30d" was two numbers and an abbreviation stacked under a
+              percentage, and neither said what was being counted. */}
           <Text variant="caption" color={colors.textFaint}>
-            {adherence.expected != null ? `of ${adherence.expected} · 30d` : 'logged · 30d'}
+            {adherence.expected != null
+              ? `${adherence.taken} of ${adherence.expected} logged`
+              : `logged in ${ADHERENCE_WINDOW_DAYS} days`}
+          </Text>
+          <Text variant="caption" color={colors.textFaint} style={{ fontSize: 10 }}>
+            last {ADHERENCE_WINDOW_DAYS} days
           </Text>
         </View>
       </View>

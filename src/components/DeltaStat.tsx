@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from './ui/Text';
 import { colors } from '../theme';
+import { groupThousands } from '../domain/units';
 
 export interface DeltaStatProps {
   label: string;
@@ -52,7 +53,9 @@ export function DeltaStat({ label, value, accent, delta, unit = '', higherIsBett
           // value, and the sign is the part that carries the meaning.
           <Text variant="caption" color={better ? colors.success : colors.warning}>
             {delta > 0 ? '+' : '−'}
-            {Math.abs(delta) % 1 === 0 ? Math.abs(delta) : Math.abs(delta).toFixed(1)}
+            {Math.abs(delta) % 1 === 0
+              ? groupThousands(Math.abs(delta))
+              : Math.abs(delta).toFixed(1)}
             {unit}
           </Text>
         )}
