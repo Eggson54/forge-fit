@@ -11,6 +11,9 @@ import { useReminderStore } from '../stores/useReminderStore';
 import { useRoutineStore } from '../stores/useRoutineStore';
 import { useWorkoutStore } from '../stores/useWorkoutStore';
 import { buildExport, exportFilename, type ExportDocument } from '../domain/exportShape';
+import { buildCsv, csvFilename } from '../domain/csv';
+import { setKind } from '../domain/sets';
+import { MEASUREMENT_SITES } from '../domain/measurements';
 
 /** Read every store and assemble the portable export document. */
 export function collectUserData(): ExportDocument {
@@ -94,13 +97,110 @@ export async function exportUserData(): Promise<boolean> {
   }
 }
 
-function downloadOnWeb(json: string, filename: string): boolean {
+/**
+ * The same records as a spreadsheet.
+ *
+ * Only the tables a person would actually open in Excel — sets, food, weight,
+ * measurements, gym claims. A CSV of the coach conversation or the integration
+ * flags would be columns nobody reads, and JSON already carries everything for
+ * a restore.
+ */
+export function collectCsv(): string {
+  const logs = useLogStore.getState();
+  const workouts = useWorkoutStore.getState();
+  const gyms = useGymStore.getState();
+  const gymsById = gyms.gymsById();
+
+  const setRows: unknown[][] = [];
+  for (const w of workouts.workouts) {
+    if (w.status !== 'completed') continue;
+    for (const ex of w.exercises) {
+      ex.sets.forEach((s, i) => {
+        setRows.push([
+          w.date,
+          w.name,
+          w.gym?.name ?? '',
+          w.effort ?? '',
+          ex.name,
+          i + 1,
+          setKind(s),
+          s.weightKg ?? '',
+          s.reps ?? '',
+          s.rpe ?? '',
+          s.completed ? 'yes' : 'no',
+          s.isPr ? 'yes' : '',
+          ex.notes ?? '',
+        ]);
+      });
+    }
+  }
+
+  return buildCsv([
+    {
+      name: 'Sets',
+      headers: [
+        'date', 'workout', 'gym', 'session effort', 'exercise', 'set',
+        'kind', 'weight kg', 'reps', 'rpe', 'completed', 'pr', 'exercise note',
+      ],
+      rows: setRows,
+    },
+    {
+      name: 'Food',
+      headers: ['date', 'meal', 'item', 'servings', 'serving', 'calories', 'protein g', 'carbs g', 'fat g', 'estimate'],
+      rows: logs.nutrition.map((n) => [
+        n.date, n.slot, n.name, n.quantity, n.servingLabel,
+        n.macros.calories, n.macros.proteinG, n.macros.carbsG, n.macros.fatG,
+        n.isEstimate ? 'yes' : 'no',
+      ]),
+    },
+    { name: 'Weight', headers: ['date', 'weight kg'], rows: logs.weight.map((w) => [w.date, w.weightKg]) },
+    { name: 'Water', headers: ['date', 'ounces'], rows: logs.water.map((w) => [w.date, w.amountOz]) },
+    { name: 'Sleep', headers: ['date', 'minutes', 'quality'], rows: logs.sleep.map((s) => [s.date, s.minutes, s.quality ?? '']) },
+    { name: 'Steps', headers: ['date', 'steps', 'source'], rows: logs.steps.map((s) => [s.date, s.steps, s.source]) },
+    {
+      // One row per date with a column per site, matching how the log is
+      // stored and how a spreadsheet wants to chart it.
+      name: 'Measurements',
+      headers: ['date', ...MEASUREMENT_SITES.map((site) => `${site.label.toLowerCase()} cm`)],
+      rows: logs.measurements.map((m) => [
+        m.date,
+        ...MEASUREMENT_SITES.map((site) => m[site.key] ?? ""),
+      ]),
+    },
+    {
+      name: 'Gyms',
+      headers: ['gym', 'claimed', 'visits', 'points'],
+      rows: gyms.claims.map((c) => [
+        gymsById[c.gymId]?.name ?? c.gymId,
+        c.claimedAt.slice(0, 10),
+        c.visits.length,
+        c.pointsEarned,
+      ]),
+    },
+  ]);
+}
+
+export async function exportUserCsv(): Promise<boolean> {
+  const csv = collectCsv();
+  if (!csv) return false;
+  try {
+    if (Platform.OS === 'web') {
+      return downloadOnWeb(csv, csvFilename(), 'text/csv');
+    }
+    await Share.share({ title: 'ForgeFit CSV export', message: csv });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function downloadOnWeb(json: string, filename: string, mime = 'application/json'): boolean {
   // Guarded because this also runs under SSR and in tests, where there is no
   // document to hang an anchor off.
   const doc = typeof document === 'undefined' ? null : document;
   if (!doc || typeof URL?.createObjectURL !== 'function') return false;
 
-  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const url = URL.createObjectURL(new Blob([json], { type: mime }));
   const link = doc.createElement('a');
   link.href = url;
   link.download = filename;

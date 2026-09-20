@@ -95,3 +95,48 @@ export function changeVerdict(site: MeasurementSite, deltaCm: number, goal: Goal
   if (goal === 'maintain') return 'neutral';
   return grew ? 'toward' : 'away';
 }
+
+export interface SiteTarget {
+  site: MeasurementSite;
+  target: number;
+  latest: number | null;
+  /** Remaining distance in cm, always positive; null without a reading. */
+  remainingCm: number | null;
+  /** True once the latest reading is within the noise band of the target. */
+  reached: boolean;
+  /** Whether the target is above or below where you are now. */
+  direction: 'up' | 'down' | 'there';
+}
+
+/**
+ * Progress toward a measurement goal.
+ *
+ * No percentage bar here, deliberately. A bar needs a start point, and the
+ * honest start — the first reading ever taken — is often from a different body
+ * and a different tape technique. The distance remaining is a number that
+ * cannot be wrong.
+ */
+export function siteTargets(
+  logs: MeasurementLog[],
+  targets: Record<string, number> | undefined,
+): SiteTarget[] {
+  if (!targets) return [];
+  const out: SiteTarget[] = [];
+  for (const site of MEASUREMENT_SITES) {
+    const target = targets[site.key];
+    if (typeof target !== 'number' || target <= 0) continue;
+    const latest = latestBySite(logs)[site.key] ?? null;
+    const value = latest?.cm ?? null;
+    const gap = value == null ? null : Math.round(Math.abs(target - value) * 10) / 10;
+    const reached = gap != null && gap <= NOISE_CM;
+    out.push({
+      site,
+      target,
+      latest: value,
+      remainingCm: gap,
+      reached,
+      direction: value == null || reached ? 'there' : target > value ? 'up' : 'down',
+    });
+  }
+  return out;
+}

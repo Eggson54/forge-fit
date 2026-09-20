@@ -31,9 +31,15 @@ export interface WarmupOptions {
   unit: Unit;
   /** Bodyweight and machine work has no bar to round to. */
   barbell?: boolean;
+  /**
+   * Denominations to round to. Defaults to the standard set, but the gym you
+   * are standing in may not have the small plates the ramp would otherwise
+   * assume.
+   */
+  plates?: number[];
 }
 
-export function warmupPlan({ workingWeight, bar, unit, barbell = true }: WarmupOptions): WarmupStep[] {
+export function warmupPlan({ workingWeight, bar, unit, barbell = true, plates }: WarmupOptions): WarmupStep[] {
   if (!Number.isFinite(workingWeight) || workingWeight <= 0) return [];
 
   const steps: WarmupStep[] = [];
@@ -47,7 +53,7 @@ export function warmupPlan({ workingWeight, bar, unit, barbell = true }: WarmupO
   for (const r of RAMP) {
     const target = Math.round(workingWeight * r.pct * 100) / 100;
     if (barbell && bar > 0 && target <= bar) continue;
-    const loaded = barbell && bar > 0 ? planPlates(target, bar, unit).achievable : target;
+    const loaded = barbell && bar > 0 ? planPlates(target, bar, unit, plates).achievable : target;
     // A stage whose target needs less than the smallest plate rounds back down
     // to the empty bar, which is not a warm-up stage — drop it rather than
     // listing the bar twice under different percentages.

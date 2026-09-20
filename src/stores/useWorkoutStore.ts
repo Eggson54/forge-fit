@@ -7,6 +7,7 @@ import { toggleSupersetAt } from '../domain/superset';
 import { findPreviousPerformance, recommendNext, type PreviousPerformance } from '../domain/progressiveOverload';
 import type {
   Exercise,
+  SessionEffort,
   Experience,
   MuscleGroup,
   SetEntry,
@@ -56,6 +57,10 @@ interface WorkoutState {
   setWorkoutNote: (note: string) => void;
   /** Attach or clear the venue on the active session. */
   setWorkoutGym: (gym: { id: string; name: string } | null) => void;
+  /** How hard the finished session felt, 1–5. */
+  setWorkoutEffort: (workoutId: string, effort: SessionEffort | null) => void;
+  /** Prepend warm-up sets to an exercise, in ramp order. */
+  addWarmupSets: (workoutExerciseId: string, sets: { weightKg: number; reps: number }[]) => void;
   /** Start a new session with the same exercises and sets as a past one. */
   repeatWorkout: (workoutId: string) => string | null;
   /** Returns the new personal record this completion set, if any. */
@@ -248,6 +253,41 @@ export const useWorkoutStore = create<WorkoutState>()(
       setWorkoutNote: (note) => mutateActive((w) => ({ ...w, notes: note.trim() ? note : undefined })),
 
       setWorkoutGym: (gym) => mutateActive((w) => ({ ...w, gym: gym ?? undefined })),
+
+      // Not restricted to the active session: effort is rated on the summary
+      // screen, by which point the workout is finished.
+      setWorkoutEffort: (workoutId, effort) =>
+        set((s) => ({
+          workouts: s.workouts.map((w) =>
+            w.id === workoutId ? { ...w, effort: effort ?? undefined } : w,
+          ),
+        })),
+
+      addWarmupSets: (weId, warmups) =>
+        mutateActive((w) => ({
+          ...w,
+          exercises: w.exercises.map((e) =>
+            e.id === weId
+              ? {
+                  ...e,
+                  // Ahead of any existing warm-ups as well as the work sets:
+                  // re-running the ramp after changing the target weight should
+                  // replace the plan, not stack a second one behind the first.
+                  sets: [
+                    ...warmups.map((wu) => ({
+                      id: uid('s_'),
+                      weightKg: wu.weightKg,
+                      reps: wu.reps,
+                      rpe: null,
+                      completed: false,
+                      kind: 'warmup' as const,
+                    })),
+                    ...e.sets.filter((s) => !isWarmupSet(s)),
+                  ],
+                }
+              : e,
+          ),
+        })),
 
       repeatWorkout: (workoutId) => {
         const source = get().workouts.find((w) => w.id === workoutId);

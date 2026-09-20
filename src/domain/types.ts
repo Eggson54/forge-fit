@@ -66,6 +66,11 @@ export interface Profile {
    * should not make them before it works.
    */
   availablePlates?: number[];
+  /**
+   * Goal measurement per site, in centimetres. Keyed loosely so a site added
+   * later does not invalidate a stored profile.
+   */
+  measurementTargets?: Record<string, number>;
   /** Quick-add water amounts in oz, e.g. the size of the bottle they carry. */
   waterQuickAddOz?: number[];
 }

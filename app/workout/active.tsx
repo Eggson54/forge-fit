@@ -17,6 +17,8 @@ import { SET_KIND_LABEL, SET_KIND_MARK, isWarmupSet, nextSetKind, setKind } from
 import { amountLabel, loadLabel, trackingFor } from '../../src/domain/tracking';
 import { exerciseById } from '../../src/data/exercises';
 import { SUPERSET_TRANSITION_SECONDS, groupExercises, restAfterSet, supersetLabel, type ExerciseGroup } from '../../src/domain/superset';
+import { warmupPlan } from '../../src/domain/warmup';
+import { barsAt, platesAt } from '../../src/domain/gymKit';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
@@ -370,6 +372,9 @@ function ExerciseBlock({
   // everything else it needs from there, and the group in between has no
   // business carrying a gym id.
   const workoutGymId = useWorkoutStore((s) => s.activeWorkout()?.gym?.id ?? null);
+  const addWarmupSets = useWorkoutStore((s) => s.addWarmupSets);
+  const gymKit = useGymStore((s) => s.kitFor(workoutGymId));
+  const profilePlates = useProfileStore((s) => s.profile.availablePlates);
   const experience = useProfileStore((s) => s.profile.experience);
   const units = useProfileStore((s) => s.profile.units);
   const previousFor = useWorkoutStore((s) => s.previousFor);
@@ -388,6 +393,26 @@ function ExerciseBlock({
   })();
 
   const tracking = trackingFor(exerciseById(exercise.exerciseId));
+
+  const addWarmup = () => {
+    if (heaviestEntered == null) return;
+    const library = exerciseById(exercise.exerciseId);
+    const barbell = library?.equipment === 'barbell';
+    const bars = barsAt(units, gymKit);
+    const plan = warmupPlan({
+      workingWeight: heaviestEntered,
+      bar: barbell ? (bars[0] ?? 0) : 0,
+      unit: units,
+      barbell,
+      plates: platesAt(units, gymKit, profilePlates),
+    });
+    if (plan.length === 0) return;
+    addWarmupSets(
+      exercise.id,
+      plan.map((step) => ({ weightKg: toKg(step.loadedWeight, units), reps: step.reps })),
+    );
+    Haptics.selectionAsync().catch(() => {});
+  };
   const prev = previousFor(exercise.exerciseId);
   const rec = recommendationFor(exercise.exerciseId, experience, units);
   const recWeight = rec ? displayWeight(rec.weightKg, units) : null;
@@ -539,10 +564,25 @@ function ExerciseBlock({
         </Pressable>
       )}
 
-      <Pressable onPress={() => addSet(exercise.id)} style={styles.addSet}>
-        <Icon name="plus" size={16} color={colors.primary} />
-        <Text variant="label" color={colors.primary}>Add set</Text>
-      </Pressable>
+      <View style={{ flexDirection: 'row', gap: spacing.md }}>
+        <Pressable onPress={() => addSet(exercise.id)} style={[styles.addSet, { flex: 1 }]}>
+          <Icon name="plus" size={16} color={colors.primary} />
+          <Text variant="label" color={colors.primary}>Add set</Text>
+        </Pressable>
+        {/* The warm-up tool could always build a ramp; it could never put one
+            in the session. Writing it here is the whole point of having it. */}
+        {heaviestEntered != null && tracking !== 'duration' && (
+          <Pressable
+            onPress={addWarmup}
+            style={[styles.addSet, { flex: 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Add warm-up sets ramping to ${heaviestEntered}`}
+          >
+            <Icon name="chart" size={15} color={colors.textDim} strokeWidth={1.9} />
+            <Text variant="label" color={colors.textDim}>Warm-up</Text>
+          </Pressable>
+        )}
+      </View>
     </Card>
   );
 }

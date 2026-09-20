@@ -5,6 +5,7 @@ import { buildCsv, csvCell, csvFilename, csvRows } from '../domain/csv';
 import { canImport, inspectImport } from '../domain/importShape';
 import { EXPORT_VERSION, buildExport } from '../domain/exportShape';
 import { STORE_KEYS, UNEXPORTED_STORES, type StoreKey } from '../domain/storeKeys';
+import { NOT_RESTORED, RESTORE_MAP } from '../domain/restoreMap';
 import type { SetEntry, Workout } from '../domain/types';
 
 const set = (over: Partial<SetEntry> = {}): SetEntry => ({
@@ -260,5 +261,62 @@ describe('import validation', () => {
     expect(canImport(EXPORT_VERSION, EXPORT_VERSION)).toBe(true);
     expect(canImport(1, EXPORT_VERSION)).toBe(true);
     expect(canImport(null, EXPORT_VERSION)).toBe(false);
+  });
+});
+
+describe('restore mapping', () => {
+  it('covers every exportable store, so a new one cannot be silently skipped', () => {
+    const exportable = (Object.keys(STORE_KEYS) as StoreKey[]).filter((k) => !UNEXPORTED_STORES.includes(k));
+    for (const key of exportable) {
+      expect(typeof RESTORE_MAP[key as Exclude<StoreKey, 'auth'>]).toBe('function');
+    }
+    expect(Object.keys(RESTORE_MAP).sort()).toEqual([...exportable].sort());
+  });
+
+  it('renames the fields the export renamed on the way out', () => {
+    expect(RESTORE_MAP.profile({ coachSettings: { personality: 'savage' } })).toEqual({
+      coach: { personality: 'savage' },
+    });
+    expect(RESTORE_MAP.workouts({ personalRecords: { bench: 100 } })).toEqual({ prs: { bench: 100 } });
+    expect(RESTORE_MAP.coach({ conversation: [{ id: 't' }] })).toEqual({ turns: [{ id: 't' }] });
+  });
+
+  it('never restores the subscription tier', () => {
+    // A file is trivially editable; restoring entitlement from one is a free
+    // upgrade.
+    const out = RESTORE_MAP.profile({ profile: { name: 'A' }, subscription: { tier: 'pro' } });
+    expect(out).not.toHaveProperty('subscription');
+    expect(out).toHaveProperty('profile');
+  });
+
+  it('never restores photos, whose paths the export redacted', () => {
+    const out = RESTORE_MAP.logs({
+      weight: [{ date: '2026-01-01' }],
+      photos: [{ id: 'p', uri: '[stored on device]' }],
+    });
+    expect(out).not.toHaveProperty('photos');
+    expect(out).toHaveProperty('weight');
+  });
+
+  it('wraps the arrays the export writes bare', () => {
+    expect(RESTORE_MAP.reminders([{ id: 'r' }] as never)).toEqual({ reminders: [{ id: 'r' }] });
+    expect(RESTORE_MAP.routines([{ id: 'rt' }] as never)).toEqual({ routines: [{ id: 'rt' }] });
+  });
+
+  it('drops keys the store does not have rather than writing them through', () => {
+    const out = RESTORE_MAP.gyms({ claims: [], kits: {}, somethingElse: 1 })!;
+    expect(Object.keys(out).sort()).toEqual(['claims', 'kits']);
+  });
+
+  it('returns an empty object for a snapshot with nothing usable in it', () => {
+    expect(RESTORE_MAP.programs({ nonsense: true })).toEqual({});
+  });
+
+  it('every deliberate omission is explained to the user', () => {
+    for (const row of NOT_RESTORED) {
+      expect(row.what.length).toBeGreaterThan(3);
+      expect(row.why.length).toBeGreaterThan(20);
+    }
+    expect(NOT_RESTORED.map((r) => r.what)).toEqual(expect.arrayContaining(['Subscription tier', 'Progress photos']));
   });
 });

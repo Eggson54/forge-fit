@@ -6,11 +6,12 @@ import { AnimatedNumber, Celebration, FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { MuscleThumb } from '../../src/components/body/MuscleThumb';
-import { colors, domainAccent, spacing } from '../../src/theme';
+import { colors, domainAccent, radius, spacing } from '../../src/theme';
 import { formatDayMonth, formatDurationShort } from '../../src/domain/date';
 import { workoutStats } from '../../src/domain/strength';
 import { muscleShares, weeklySetsPerMuscle } from '../../src/domain/volume';
 import { STRENGTH_NOISE_PCT, compareSessions, summariseComparison } from '../../src/domain/sessionCompare';
+import { EFFORT_BLURB, EFFORT_LABEL, EFFORT_SCALE } from '../../src/domain/effort';
 import { trackingFor } from '../../src/domain/tracking';
 import { exerciseById } from '../../src/data/exercises';
 import { displayVolume, displayWeight, groupThousands } from '../../src/domain/units';
@@ -29,6 +30,7 @@ export default function WorkoutDetail() {
   const bodyweightKg = useProfileStore((s) => s.profile.weightKg ?? null);
   const saveRoutine = useRoutineStore((s) => s.saveFromWorkout);
   const repeatWorkout = useWorkoutStore((s) => s.repeatWorkout);
+  const setWorkoutEffort = useWorkoutStore((s) => s.setWorkoutEffort);
   const activeId = useWorkoutStore((s) => s.activeId);
 
   // Above the early return below: a hook that only sometimes runs changes the
@@ -142,6 +144,41 @@ export default function WorkoutDetail() {
           </Text>
         </Card>
       ) : null}
+
+      {/* Asked once, at the end, while the memory is fresh. Optional: a
+          session nobody rated is not a session that felt like nothing. */}
+      {workout.status === 'completed' && (
+        <Card style={{ marginBottom: spacing.md, gap: spacing.md }}>
+          <View style={{ gap: 2 }}>
+            <Text variant="overline" color={colors.textFaint}>HOW HARD WAS THAT?</Text>
+            <Text variant="caption" color={colors.textDim}>
+              {workout.effort
+                ? EFFORT_BLURB[workout.effort]
+                : 'One tap. It only ever describes how it felt to you.'}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            {EFFORT_SCALE.map((value) => {
+              const on = workout.effort === value;
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => setWorkoutEffort(workout.id, on ? null : value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`Effort ${value} of 5: ${EFFORT_LABEL[value]}`}
+                  style={[styles.effortChip, on && { backgroundColor: EFFORT_TINT[value], borderColor: EFFORT_TINT[value] }]}
+                >
+                  <Text variant="label" color={on ? colors.bg : colors.textDim}>{value}</Text>
+                  <Text variant="caption" color={on ? colors.bg : colors.textFaint} style={{ fontSize: 9 }}>
+                    {EFFORT_LABEL[value]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      )}
 
       {/* A finished workout says what you did. It never said the thing anyone
           actually wants to know, which is whether it beat last time. */}
@@ -291,6 +328,27 @@ export default function WorkoutDetail() {
     </Screen>
   );
 }
+
+const EFFORT_TINT: Record<number, string> = {
+  1: colors.water,
+  2: colors.success,
+  3: colors.lime,
+  4: colors.amber,
+  5: colors.danger,
+};
+
+const styles = {
+  effortChip: {
+    flex: 1,
+    alignItems: 'center' as const,
+    gap: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+};
 
 /** Percent change, or null when there is no baseline to change from. */
 function pctChange(before: number, now: number): number | null {
