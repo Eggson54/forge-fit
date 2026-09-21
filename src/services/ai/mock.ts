@@ -1,6 +1,7 @@
 import { answerCoachQuestion, weeklyReviewSummary } from '../../domain/coach';
 import { UNKNOWN_TEXT, classifyQuestion, refusalText } from '../../domain/coachQuestions';
 import { compoundAnswer, compoundById, findCompound } from '../../domain/peptides';
+import { readingAnswer } from '../../domain/coachReadings';
 import { sanitizeMacros } from '../../domain/nutrition';
 import { EXERCISE_LIBRARY } from '../../data/exercises';
 import { FOOD_DB } from '../../data/foods';
@@ -115,6 +116,14 @@ export class MockAIService implements AIService {
       }
       if (route.kind === 'unknown') {
         return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };
+      }
+
+      // Computed, not generated. Without the numbers the coach says it cannot
+      // read that yet rather than falling through to a coaching branch that
+      // would answer a different question than the one asked.
+      if (route.kind === 'reading') {
+        if (!req.readings) return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };
+        return { text: readingAnswer(route.reading, req.readings), tone: 'reflect' };
       }
       const answer = answerCoachQuestion(req.context, req.settings, route.intent);
       return { text: answer.text, tone: answer.tone };

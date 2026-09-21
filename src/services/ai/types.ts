@@ -8,6 +8,7 @@ import type {
   Units,
 } from '../../domain/types';
 import type { CoachContext, CoachIntent, WeeklyStats } from '../../domain/coach';
+import type { CoachReadingData } from '../../domain/coachReadings';
 
 /** Structured contracts for every AI function. Responses are validated before use. */
 
@@ -61,6 +62,14 @@ export interface CoachMessageRequest {
    * with `declined` set rather than an invented reply.
    */
   question?: string;
+  /**
+   * Numbers already computed from the athlete's logs. A question about
+   * maintenance calories or recovery is answered from these rather than
+   * generated, because a plausible-sounding calorie figure is the worst kind
+   * of wrong answer this app could give. Omitted when the caller has not
+   * assembled them; the coach then says it cannot read that yet.
+   */
+  readings?: CoachReadingData;
 }
 export interface CoachMessageResult {
   text: string;

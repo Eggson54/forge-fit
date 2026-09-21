@@ -28,6 +28,8 @@ export type RefusalTopic =
 
 export type QuestionRoute =
   | { kind: 'intent'; intent: CoachIntent }
+  /** A number the app can compute from the athlete's own logs. */
+  | { kind: 'reading'; reading: CoachReading }
   /** A question of fact about a compound in the reference. */
   | { kind: 'compound'; compoundId: string; ask: CompoundAsk }
   | { kind: 'refuse'; topic: RefusalTopic }
@@ -93,6 +95,38 @@ const INJURY = [
   'symptom', 'symptoms', 'diagnose', 'diagnosis', 'swollen', 'numb', 'numbness',
 ];
 
+/**
+ * Questions the app can answer from the athlete's own logs, by arithmetic
+ * rather than by generation.
+ *
+ * These are checked before the dosing refusal, which is the only reason they
+ * need to exist as a list: "how many calories should I eat" opens with "how
+ * many", and a pattern written to stop the app putting a number on a peptide
+ * dose was quietly refusing to answer an ordinary nutrition question. The
+ * check only runs when no compound was named and nothing medical was
+ * mentioned, so the refusal still wins wherever it should.
+ */
+export type CoachReading = 'energy' | 'recovery' | 'composition';
+
+const ENERGY_WORDS = [
+  'calories', 'calorie', 'kcal', 'maintenance', 'tdee', 'deficit', 'surplus',
+  'cutting', 'bulking', 'metabolism', 'macros', 'protein',
+];
+const RECOVERY_WORDS = [
+  'recovered', 'recovery', 'rested', 'sore', 'soreness', 'fresh', 'overtraining',
+  'rest day', 'train today', 'muscle today',
+];
+const COMPOSITION_WORDS = [
+  'body fat', 'bodyfat', 'lean mass', 'fat mass', 'composition', 'body comp', 'recomp',
+];
+
+function readingOf(text: string): CoachReading | null {
+  if (has(text, COMPOSITION_WORDS)) return 'composition';
+  if (has(text, RECOVERY_WORDS)) return 'recovery';
+  if (has(text, ENERGY_WORDS)) return 'energy';
+  return null;
+}
+
 const WEAKEST = ['slack', 'slacking', 'weak', 'weakest', 'worst', 'behind', 'gap', 'gaps', 'failing', 'struggling', 'lacking', 'missing'];
 const PUSH = ['push', 'motivate', 'motivation', 'hype', 'lazy', 'unmotivated', 'tired', 'skip', 'quit', 'give up', 'rough'];
 const NEXT = ['next', 'now', 'do first', 'priority', 'quick win', 'easiest', 'should i do'];
@@ -102,20 +136,31 @@ const ON_TRACK = ['on track', 'doing', 'going', 'progress', 'well', 'improving',
  * Pick the branch a typed question belongs to.
  *
  * Order matters and is the whole design:
- *  1. Sourcing and dosing, before anything can make them look answerable.
- *  2. The compound reference, so a question of fact gets a real answer even
- *     when it happens to mention pain or the word "safe".
- *  3. Injury, then medication topics with no reference entry.
- *  4. The ordinary coaching intents.
+ *  1. Sourcing, before anything can make it look answerable.
+ *  2. Readings the logs can answer — but only when no compound was named and
+ *     nothing medical was mentioned, so "how much should I take" cannot slip
+ *     through on the word "calories".
+ *  3. Dosing, then the compound reference, so a question of fact gets a real
+ *     answer even when it happens to mention pain or the word "safe".
+ *  4. Injury, then medication topics with no reference entry.
+ *  5. The ordinary coaching intents.
  */
 export function classifyQuestion(raw: string): QuestionRoute {
   const text = raw.trim().toLowerCase();
   if (!text) return { kind: 'unknown' };
 
   if (SOURCING_PATTERNS.some((p) => p.test(text))) return { kind: 'refuse', topic: 'sourcing' };
-  if (DOSING_PATTERNS.some((p) => p.test(text))) return { kind: 'refuse', topic: 'dosing' };
 
   const compound = findCompound(text);
+
+  // Diet and recovery questions the logs can answer, ahead of the dosing
+  // refusal but behind every check that would name a drug.
+  if (!compound && !has(text, MEDICAL)) {
+    const reading = readingOf(text);
+    if (reading) return { kind: 'reading', reading };
+  }
+
+  if (DOSING_PATTERNS.some((p) => p.test(text))) return { kind: 'refuse', topic: 'dosing' };
   if (compound) return { kind: 'compound', compoundId: compound.id, ask: compoundAsk(text) };
 
   if (has(text, INJURY)) return { kind: 'refuse', topic: 'injury' };
@@ -151,4 +196,4 @@ export function refusalText(topic: RefusalTopic, compoundName?: string): string 
 
 /** What the coach says when it simply did not follow the question. */
 export const UNKNOWN_TEXT =
-  "I didn't follow that. I can tell you where you're slacking, what to do next, whether you're on track, push you into today's session — or answer questions about a compound: what it is, whether it works, the risks, its legal status, and whether it's banned in tested sport. Doses, cycles and where to buy are the ones I won't touch.";
+  "I didn't follow that. I can tell you where you're slacking, what to do next, whether you're on track, push you into today's session, read your maintenance calories, what's recovered and where your body composition sits — or answer questions about a compound: what it is, whether it works, the risks, its legal status, and whether it's banned in tested sport. Doses, cycles and where to buy are the ones I won't touch.";

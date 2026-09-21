@@ -216,3 +216,60 @@ describe('the reference as a whole', () => {
     }
   });
 });
+
+describe('classifyQuestion — readings the logs can answer', () => {
+  const reading = (q: string) => {
+    const r = classifyQuestion(q);
+    return r.kind === 'reading' ? r.reading : r.kind;
+  };
+
+  it('answers an ordinary calorie question instead of refusing it', () => {
+    // "How many" opens the dosing refusal. It used to swallow this one whole.
+    expect(reading('how many calories should I eat')).toBe('energy');
+    expect(reading("what's my maintenance")).toBe('energy');
+    expect(reading('how much protein do I need')).toBe('energy');
+    expect(reading('am I in a deficit')).toBe('energy');
+  });
+
+  it('routes recovery questions', () => {
+    expect(reading('am I recovered')).toBe('recovery');
+    expect(reading('what should I train today')).toBe('recovery');
+    expect(reading('should I take a rest day')).toBe('recovery');
+  });
+
+  it('routes body composition questions', () => {
+    expect(reading('what is my body fat')).toBe('composition');
+    expect(reading('how much lean mass do I have')).toBe('composition');
+  });
+
+  it('still refuses a dose even when the question mentions calories', () => {
+    // A compound was named, so the reading check never runs.
+    expect(classifyQuestion('how much tren should I take to cut calories')).toEqual({
+      kind: 'refuse',
+      topic: 'dosing',
+    });
+  });
+
+  it('still refuses anything medical that happens to mention a macro', () => {
+    expect(classifyQuestion('should I take clen to cut calories')).toEqual({
+      kind: 'refuse',
+      topic: 'dosing',
+    });
+    expect(classifyQuestion('my thyroid medication and my calories')).toEqual({
+      kind: 'refuse',
+      topic: 'medical',
+    });
+  });
+
+  it('still refuses a sourcing question above everything', () => {
+    expect(classifyQuestion('where can I buy something for my body fat')).toEqual({
+      kind: 'refuse',
+      topic: 'sourcing',
+    });
+  });
+
+  it('leaves the ordinary coaching intents alone', () => {
+    expect(classifyQuestion('where am I slacking')).toEqual({ kind: 'intent', intent: 'weakest' });
+    expect(classifyQuestion('push me')).toEqual({ kind: 'intent', intent: 'push' });
+  });
+});

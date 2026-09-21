@@ -9,6 +9,7 @@ import { formatDateWithWeekday, todayISO } from '../src/domain/date';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { useCoachStore, type CoachTurn } from '../src/stores/useCoachStore';
 import { buildCoachContext, useDailySummary } from '../src/stores/useDailySummary';
+import { useCoachReadings } from '../src/stores/useCoachReadings';
 import { ai } from '../src/services/ai';
 import type { CoachSettings } from '../src/domain/types';
 import { openGaps, type CoachIntent } from '../src/domain/coach';
@@ -27,6 +28,17 @@ const PROMPTS: { label: string; intent: CoachIntent }[] = [
   { label: 'Am I on track?', intent: 'on_track' },
 ];
 
+/**
+ * Chips that ask in words rather than by intent, because the answers behind
+ * them are computed from the logs and come back the same way whether the
+ * athlete taps or types.
+ */
+const READING_PROMPTS = [
+  "What's my maintenance?",
+  'Am I recovered?',
+  "What's my body fat?",
+];
+
 export default function CoachScreen() {
   // Opened with a question already in hand — from the protocol tracker's
   // reference card, or a deep link. It is asked once and then cleared, so
@@ -34,6 +46,9 @@ export default function CoachScreen() {
   const params = useLocalSearchParams<{ ask?: string }>();
   const settings = useProfileStore((s) => s.effectiveCoach());
   const summary = useDailySummary();
+  // Maintenance, recovery and body composition, computed from the logs. The
+  // coach answers those three from numbers rather than from a model.
+  const readings = useCoachReadings();
   const turns = useCoachStore((s) => s.turns);
   const append = useCoachStore((s) => s.append);
   const markGreeted = useCoachStore((s) => s.markGreeted);
@@ -84,7 +99,7 @@ export default function CoachScreen() {
     if (!question || busy) return;
     setBusy(true);
     append({ role: 'you', text: question });
-    const msg = await ai.coachMessage({ context: buildCoachContext(summary), settings, question });
+    const msg = await ai.coachMessage({ context: buildCoachContext(summary), settings, question, readings });
     append({ role: 'coach', text: msg.text, tone: msg.tone, declined: msg.declined, reference: msg.reference });
     setBusy(false);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -133,6 +148,9 @@ export default function CoachScreen() {
           >
             {PROMPTS.map((p) => (
               <Chip key={p.intent} label={p.label} onPress={() => ask(p.label, p.intent)} />
+            ))}
+            {READING_PROMPTS.map((q) => (
+              <Chip key={q} label={q} onPress={() => sendQuestion(q)} />
             ))}
           </ScrollView>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl }}>
