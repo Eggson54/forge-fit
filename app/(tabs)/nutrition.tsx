@@ -140,9 +140,16 @@ export default function Nutrition() {
         <ListRow
           icon="list"
           tint={colors.protein}
-          title="Saved meals"
-          subtitle="Log a repeat in one tap"
+          title="Saved meals & recipes"
+          subtitle="Log a repeat in one tap, or a plate from a batch"
           onPress={() => router.push('/nutrition/meals')}
+        />
+        <ListRow
+          icon="clock"
+          tint={colors.sleep}
+          title="Meal timing"
+          subtitle="Your eating window and how protein falls across the day"
+          onPress={() => router.push('/nutrition/timing')}
         />
       </Card>
 
