@@ -82,6 +82,13 @@ const SCREENS: SearchEntry[] = [
     keywords: ['eating window', 'fasting', 'intermittent', 'overnight', 'protein spread', 'when to eat'],
     href: '/nutrition/timing',
   },
+  {
+    id: 's_health',
+    kind: 'screen',
+    title: 'Health monitor',
+    keywords: ['hrv', 'resting heart rate', 'rhr', 'respiratory', 'temperature', 'blood oxygen', 'spo2', 'vitals', 'baseline'],
+    href: '/health',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },

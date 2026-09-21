@@ -1,6 +1,7 @@
 import { Platform, Share } from 'react-native';
 import { useCoachStore } from '../stores/useCoachStore';
 import { useGamificationStore } from '../stores/useGamificationStore';
+import { useVitalsStore } from '../stores/useVitalsStore';
 import { useGymStore } from '../stores/useGymStore';
 import { useIntegrationStore } from '../stores/useIntegrationStore';
 import { useLogStore } from '../stores/useLogStore';
@@ -69,11 +70,15 @@ export function collectUserData(): ExportDocument {
       kits: useGymStore.getState().kits,
     },
     integrations: {
-      appleWatchConnected: integrations.appleWatchConnected,
-      stravaConnected: integrations.stravaConnected,
-      stravaAthlete: integrations.stravaAthlete,
+      // Connection *state* only. The access and refresh tokens live in the
+      // keychain and stay there: an export is a file that gets emailed and
+      // dropped in cloud storage, and a Strava token in one is a Strava
+      // account somebody else can read.
+      providers: integrations.providers,
       activities: integrations.activities,
+      watchStatus: integrations.watchStatus,
     },
+    vitals: { days: useVitalsStore.getState().days },
   });
 }
 

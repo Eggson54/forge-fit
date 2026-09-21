@@ -56,7 +56,11 @@ export const RESTORE_MAP: Record<Exclude<StoreKey, 'auth'>, Restorer> = {
   protocols: (s) => pick(s, ['protocols', 'logs']),
   coach: (s) => (s.conversation !== undefined ? { turns: s.conversation } : pick(s, ['turns'])),
   programs: (s) => pick(s, ['enrolment']),
-  integrations: (s) => pick(s, ['appleWatchConnected', 'stravaConnected', 'stravaAthlete', 'activities']),
+  // Connection state, not tokens: those live in the keychain and are never
+  // exported, so a restored file cannot hand somebody else's Strava account
+  // to a new device.
+  integrations: (s) => pick(s, ['providers', 'activities', 'watchStatus']),
+  vitals: (s) => pick(s, ['days']),
   gyms: (s) => pick(s, ['claims', 'kits']),
 };
 

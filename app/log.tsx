@@ -11,6 +11,7 @@ import { displayWeight, round, toKg } from '../src/domain/units';
 import { useLogStore } from '../src/stores/useLogStore';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { health } from '../src/services/health';
+import { useVitalsStore } from '../src/stores/useVitalsStore';
 
 /** How the night went. The store has always stored this; nothing asked for it. */
 const QUALITY: { value: number; label: string }[] = [
@@ -78,15 +79,27 @@ export default function LogActivity() {
   const pullHealth = async () => {
     setPulling(true);
     const today = todayISO();
-    const [s, sl] = await Promise.all([health.getSteps(today), health.getSleepMinutes(today)]);
-    if (s != null) {
-      logSteps(s, 'health');
-      setSteps(String(s));
+    const day = await health.readDay(today);
+    if (day.steps != null) {
+      logSteps(day.steps, 'health');
+      setSteps(String(day.steps));
     }
-    if (sl != null) {
-      logSleep(sl);
-      setSleepInput(formatSleep(sl));
+    if (day.sleepMinutes != null) {
+      logSleep(day.sleepMinutes);
+      setSleepInput(formatSleep(day.sleepMinutes));
     }
+    // The passive signals come across in the same read, so a manual pull fills
+    // the health monitor too rather than leaving it a day behind.
+    useVitalsStore.getState().record({
+      date: today,
+      restingHeartRate: day.restingHeartRate,
+      hrvMs: day.hrvMs,
+      respiratoryRate: day.respiratoryRate,
+      wristTemperatureC: day.wristTemperatureC,
+      oxygenSaturationPct: day.oxygenSaturationPct,
+      activeEnergyKcal: day.activeEnergyKcal,
+      source: 'health',
+    });
     setPulling(false);
   };
 

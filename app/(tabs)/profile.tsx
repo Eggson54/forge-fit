@@ -143,6 +143,13 @@ export default function Profile() {
 
       <SectionHeader title="Tracking" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+        <ListRow
+          icon="shield"
+          tint={colors.info}
+          title="Health Monitor"
+          subtitle="Resting heart rate, HRV, temperature — against your own normal"
+          onPress={() => router.push('/health')}
+        />
         <ListRow icon="scale" tint={colors.water} title="Weight & Body" onPress={() => router.push('/progress/weight')} />
         <ListRow icon="camera" tint={colors.fat} title="Progress Photos" onPress={() => router.push('/progress/photos')} />
         <ListRow
