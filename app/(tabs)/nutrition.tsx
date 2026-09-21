@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { AdSlot, Button, Card, IconButton, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { AdSlot, Button, Card, IconButton, ListRow, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { Masthead } from '../../src/components/Masthead';
@@ -10,6 +10,7 @@ import { lastNDays, todayISO } from '../../src/domain/date';
 import { groupThousands } from '../../src/domain/units';
 import type { MealSlot, NutritionEntry } from '../../src/domain/types';
 import { scaleMacros, sumMacros, waterQuickAdds } from '../../src/domain/nutrition';
+import { observedTdee } from '../../src/domain/energyBalance';
 import { itemsFromEntries, mealMacros, mealsForSlot, suggestMealName } from '../../src/domain/savedMeals';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
@@ -39,6 +40,10 @@ export default function Nutrition() {
   const addWater = useLogStore((s) => s.addWater);
   const quickAdds = waterQuickAdds(useProfileStore((s) => s.profile.waterQuickAddOz));
   const removeFood = useLogStore((s) => s.removeFood);
+  const allNutrition = useLogStore((s) => s.nutrition);
+  const weighIns = useLogStore((s) => s.weight);
+  // Shown on the row only once there is enough behind it to be worth showing.
+  const maintenance = useMemo(() => observedTdee(allNutrition, weighIns), [allNutrition, weighIns]);
 
   const remaining = targets.calories - macros.calories;
 
@@ -122,6 +127,23 @@ export default function Nutrition() {
       <SectionHeader title="This week" action="Trends" onAction={() => router.push('/nutrition/trends')} />
       <Card onPress={() => router.push('/nutrition/trends')} style={{ marginBottom: spacing.md }}>
         <WeekGlance />
+      </Card>
+
+      <Card padded={false} style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
+        <ListRow
+          icon="flame"
+          tint={colors.primary}
+          title="Energy balance"
+          subtitle={maintenance ? `Your maintenance reads ${groupThousands(maintenance.kcal)} kcal` : 'Measure your maintenance from your own logs'}
+          onPress={() => router.push('/nutrition/energy')}
+        />
+        <ListRow
+          icon="list"
+          tint={colors.protein}
+          title="Saved meals"
+          subtitle="Log a repeat in one tap"
+          onPress={() => router.push('/nutrition/meals')}
+        />
       </Card>
 
       {/* Meals */}

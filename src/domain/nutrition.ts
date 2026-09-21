@@ -60,6 +60,15 @@ export function maintenanceCalories(p: Pick<Profile, 'weightKg' | 'heightCm' | '
 }
 
 /**
+ * The lowest intake the app will ever put in front of someone. Whatever the
+ * arithmetic says, a recommendation below this is not one worth making without
+ * a clinician involved.
+ */
+export function calorieFloor(sex: Profile['sex']): number {
+  return sex === 'female' ? 1200 : 1500;
+}
+
+/**
  * Compute recommended daily targets from a profile. Fat is set to ~25% of
  * calories, protein by bodyweight, and carbs fill the remainder. A hard floor
  * keeps recommendations in a safe range (never suggests dangerously low intake).
@@ -69,9 +78,7 @@ export function recommendedTargets(p: Profile): Targets {
   const weightKg = p.weightKg ?? 75;
 
   let calories = maintenance + GOAL_DELTA[p.goal];
-  // Safety floor: never recommend below a sensible minimum.
-  const floor = p.sex === 'female' ? 1200 : 1500;
-  calories = Math.max(floor, calories);
+  calories = Math.max(calorieFloor(p.sex), calories);
 
   const proteinG = Math.round(weightKg * GOAL_PROTEIN_PER_KG[p.goal]);
   const fatCalories = calories * 0.25;

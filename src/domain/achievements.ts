@@ -27,6 +27,19 @@ export const ACHIEVEMENT_CATALOG: Omit<Achievement, 'unlockedAt'>[] = [
   { id: 'gyms_25', title: 'Iron Cartographer', description: 'Claim 25 different gyms', icon: 'map', tint: '#FFB020', metric: 'gymsClaimed', target: 25 },
   { id: 'gym_kinds_5', title: 'Not Fussy', description: 'Train in 5 different kinds of gym', icon: 'star', tint: '#C6F135', metric: 'gymKindsClaimed', target: 5 },
   { id: 'rare_gym', title: 'Off The Beaten Rack', description: 'Claim a rare or legendary gym', icon: 'trophy', tint: '#C084FC', metric: 'rareGymsClaimed', target: 1 },
+
+  // Conditioning. Counted in sessions and minutes rather than distance, for
+  // the same reason the gym badges count places and not mileage: a badge that
+  // pays per mile is a badge that rewards going further than you meant to.
+  { id: 'first_cardio', title: 'Off The Rack', description: 'Log your first conditioning session', icon: 'steps', tint: '#39E6C3', metric: 'cardioSessions', target: 1 },
+  { id: 'cardio_25', title: 'Two Engines', description: 'Log 25 conditioning sessions', icon: 'steps', tint: '#7FB2FF', metric: 'cardioSessions', target: 25 },
+  { id: 'cardio_600', title: 'Ten Hours', description: 'Log 600 minutes of conditioning', icon: 'timer', tint: '#C6F135', metric: 'cardioMinutes', target: 600 },
+  { id: 'cardio_kinds_4', title: 'Cross Trained', description: 'Log 4 different kinds of conditioning', icon: 'repeat', tint: '#FFB020', metric: 'cardioKinds', target: 4 },
+
+  // Strength standards. The threshold is "intermediate on three lifts", which
+  // is a real milestone rather than a number that only counts sessions.
+  { id: 'intermediate_3', title: 'No Longer New', description: 'Reach Intermediate on 3 main lifts', icon: 'levels', tint: '#39E6C3', metric: 'liftsAtIntermediate', target: 3 },
+  { id: 'intermediate_all', title: 'Across The Board', description: 'Reach Intermediate on every main lift', icon: 'levels', tint: '#C6F135', metric: 'liftsAtIntermediate', target: 6 },
 ];
 
 export type AchievementInputs = Record<AchievementMetric, number>;
@@ -90,6 +103,10 @@ const METRIC_NOUN: Record<AchievementMetric, [one: string, many: string]> = {
   gymsClaimed: ['gym', 'gyms'],
   gymKindsClaimed: ['kind', 'kinds'],
   rareGymsClaimed: ['gym', 'gyms'],
+  cardioSessions: ['session', 'sessions'],
+  cardioMinutes: ['minute', 'minutes'],
+  cardioKinds: ['kind', 'kinds'],
+  liftsAtIntermediate: ['lift', 'lifts'],
 };
 
 export function remainingLabel(metric: AchievementMetric, remaining: number): string {

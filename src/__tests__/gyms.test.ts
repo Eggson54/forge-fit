@@ -380,6 +380,10 @@ describe('gym achievements', () => {
     gymsClaimed: 0,
     gymKindsClaimed: 0,
     rareGymsClaimed: 0,
+    cardioSessions: 0,
+    cardioMinutes: 0,
+    cardioKinds: 0,
+    liftsAtIntermediate: 0,
   };
 
   it('unlocks the first-gym badge on one claim and nothing further', () => {

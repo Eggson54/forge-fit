@@ -346,7 +346,11 @@ export type AchievementMetric =
   | 'bestDisciplineScore'
   | 'gymsClaimed'
   | 'gymKindsClaimed'
-  | 'rareGymsClaimed';
+  | 'rareGymsClaimed'
+  | 'cardioSessions'
+  | 'cardioMinutes'
+  | 'cardioKinds'
+  | 'liftsAtIntermediate';
 
 export interface StreakState {
   workout: number;

@@ -170,6 +170,7 @@ export default function WorkoutTab() {
             { icon: 'timer' as IconName, label: 'Intervals', href: '/tools/interval' },
             { icon: 'target' as IconName, label: 'Rep max', href: '/tools/one-rep-max' },
             { icon: 'levels' as IconName, label: 'Standards', href: '/workout/standards', tint: colors.info },
+            { icon: 'moon' as IconName, label: 'Recovery', href: '/workout/recovery', tint: colors.success },
             { icon: 'scale' as IconName, label: 'Measure', href: '/progress/measurements' },
             {
               icon: 'map' as IconName,

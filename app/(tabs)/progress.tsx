@@ -300,6 +300,7 @@ export default function Progress() {
         <ListRow icon="steps" tint={colors.steps} title="Conditioning" onPress={() => router.push('/progress/cardio')} />
         <ListRow icon="camera" tint={colors.fat} title="Progress Photos" onPress={() => router.push('/progress/photos')} />
         <ListRow icon="scale" tint={colors.water} title="Body Measurements" onPress={() => router.push('/progress/measurements')} />
+        <ListRow icon="chart" tint={colors.protein} title="Body Composition" onPress={() => router.push('/progress/body-fat')} />
         <ListRow icon="trophy" tint={colors.amber} title="Personal Records" onPress={() => router.push('/workout/records')} />
         <ListRow icon="shield" tint={colors.lime} title="Achievements & Streaks" onPress={() => router.push('/achievements')} />
         <ListRow icon="bolt" tint={colors.primary} title="Weekly AI Review" onPress={() => router.push('/weekly-review')} />
