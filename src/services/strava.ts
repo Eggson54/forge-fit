@@ -290,6 +290,57 @@ export const strava = {
   /** Sample data for the browser preview, never presented as real. */
   demoActivities,
 
+  /**
+   * The exact redirect URI this build will send to Strava.
+   *
+   * Surfaced because it is the single most common reason a correct-looking
+   * Strava setup fails: the callback domain registered on strava.com has to
+   * match, and nobody can match a value they cannot see.
+   */
+  redirectUri(): string | null {
+    if (Platform.OS === 'web') return null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const AuthSession = require('expo-auth-session');
+      return AuthSession.makeRedirectUri({ scheme: 'forgefit', path: 'strava' });
+    } catch {
+      return null;
+    }
+  },
+
+  /** Token state, for the diagnostics screen. Never returns the tokens. */
+  async tokenState(): Promise<{ stored: boolean; expiresAt: number | null; expired: boolean }> {
+    const tokens = await readTokens();
+    if (!tokens) return { stored: false, expiresAt: null, expired: true };
+    return { stored: true, expiresAt: tokens.expiresAt, expired: tokenExpired(tokens.expiresAt) };
+  },
+
+  /**
+   * Prove the exchange endpoint is actually deployed and reachable.
+   *
+   * Posts a deliberately empty body: a well-formed 400 back means the route
+   * exists and is running, which is exactly what needs checking. A 404 means
+   * the function was never deployed; a network error means the URL is wrong.
+   */
+  async pingBackend(): Promise<{ ok: boolean; detail: string }> {
+    if (!config.strava.exchangeUrl) return { ok: false, detail: 'No exchange URL configured.' };
+    try {
+      const res = await fetch(config.strava.exchangeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (res.status === 400) return { ok: true, detail: 'Endpoint is live and validating input.' };
+      if (res.status === 503) {
+        return { ok: false, detail: 'Endpoint is live but the server has no Strava client secret set.' };
+      }
+      if (res.status === 404) return { ok: false, detail: 'No function at that URL — it was never deployed.' };
+      return { ok: res.ok, detail: `Endpoint answered ${res.status}.` };
+    } catch (e) {
+      return { ok: false, detail: `Could not reach it: ${(e as Error).message}` };
+    }
+  },
+
   get platformNote() {
     return Platform.OS === 'web' ? 'Connect on the mobile app for live Strava sync.' : '';
   },

@@ -1,4 +1,4 @@
-import { applyCors, readJson, stravaToken } from '../_lib/cors.js';
+import { applyCors, readJson, stravaToken } from '../_lib/cors.mjs';
 
 /**
  * Refresh token -> new tokens.

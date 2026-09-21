@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0B0B0F"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.forgefit.app",
@@ -23,6 +25,11 @@
         "NSPhotoLibraryUsageDescription": "ForgeFit lets you attach progress photos and meal photos from your library.",
         "NSHealthShareUsageDescription": "ForgeFit can read steps, weight, workouts, sleep and heart rate from Apple Health to keep your dashboard accurate.",
         "NSHealthUpdateUsageDescription": "ForgeFit can write completed workouts and body weight to Apple Health."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": [],
+        "com.apple.developer.healthkit.background-delivery": true
       }
     },
     "android": {
@@ -31,7 +38,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0B0F"
       },
-      "permissions": ["CAMERA", "POST_NOTIFICATIONS", "ACTIVITY_RECOGNITION"]
+      "permissions": [
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "ACTIVITY_RECOGNITION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -44,15 +55,29 @@
       "expo-notifications",
       [
         "expo-camera",
-        { "cameraPermission": "ForgeFit uses the camera to estimate meal nutrition and capture progress photos." }
+        {
+          "cameraPermission": "ForgeFit uses the camera to estimate meal nutrition and capture progress photos."
+        }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "ForgeFit reads steps, sleep, weight, heart rate and the passive signals your Watch records, so your dashboard reflects what actually happened.",
+          "NSHealthUpdateUsageDescription": "ForgeFit can write completed workouts and body weight back to Apple Health.",
+          "background": true
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": { "origin": false },
-      "eas": { "projectId": "00000000-0000-0000-0000-000000000000" }
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
     }
   }
 }

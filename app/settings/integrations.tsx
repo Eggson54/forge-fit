@@ -233,6 +233,14 @@ export default function Integrations() {
       </Card>
 
       <Button
+        title="Run diagnostics"
+        variant="secondary"
+        onPress={() => router.push('/settings/diagnostics')}
+      />
+      <Text variant="caption" color={colors.textFaint} center style={{ paddingTop: spacing.sm }}>
+        Calls each layer for real and reports which one is stopping you.
+      </Text>
+      <Button
         title="See your health monitor"
         variant="ghost"
         onPress={() => router.push('/health')}
