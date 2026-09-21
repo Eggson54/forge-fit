@@ -37,6 +37,7 @@ const LABEL: Record<StoreKey, string> = {
   vitals: 'Resting heart rate, HRV and the other passive signals',
   journal: 'Journal entries and your own factors',
   biomarkers: 'Blood results you entered',
+  cycle: 'Cycle tracking',
 };
 
 /** Counts records in a store snapshot, however it is shaped. */

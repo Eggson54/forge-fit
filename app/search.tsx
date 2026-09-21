@@ -124,6 +124,13 @@ const SCREENS: SearchEntry[] = [
     keywords: ['bloodwork', 'labs', 'panel', 'cholesterol', 'ldl', 'hdl', 'hba1c', 'testosterone', 'ferritin', 'biomarkers', 'reference range'],
     href: '/bloodwork',
   },
+  {
+    id: 's_cycle',
+    kind: 'screen',
+    title: 'Cycle',
+    keywords: ['period', 'menstrual', 'cycle', 'ovulation', 'luteal', 'follicular', 'flow', 'pms'],
+    href: '/cycle',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },

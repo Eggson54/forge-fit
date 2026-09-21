@@ -23,7 +23,7 @@ export default function SignUp() {
     setLoading(true);
     try {
       await signUp(email, password);
-      router.replace('/onboarding');
+      router.replace('/');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -54,7 +54,13 @@ export default function SignUp() {
               </Text>
             )}
             <Button title="Create Account" onPress={onSubmit} loading={loading} size="lg" />
-            <SocialAuthButtons onDone={() => router.replace('/onboarding')} />
+            {/* Through the entry router, not straight to onboarding. Tapping
+                Google on this screen is how a *returning* user often signs
+                back in — they land on Create account on a fresh install — and
+                sending them to onboarding unconditionally made them redo
+                eleven steps they had already done. `/` already knows the
+                difference, from onboardedAt. */}
+            <SocialAuthButtons onDone={() => router.replace('/')} />
           </View>
 
           <Link href="/(auth)/sign-in" asChild>

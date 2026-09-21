@@ -144,6 +144,16 @@ export default function Diagnostics() {
       });
     }
 
+    if (isCloudEnabled() && Platform.OS === 'ios') {
+      out.push({
+        label: 'Apple authorized client ID',
+        status: 'warn',
+        detail:
+          'Native Apple sign-in sends an identity token issued to this bundle ID, and Supabase rejects it unless the same value is listed under Authentication → Providers → Apple → Authorized Client IDs.',
+        copy: 'com.forgefit.app',
+      });
+    }
+
     out.push({
       label: 'Apple Sign In',
       status: appleReady ? 'pass' : Platform.OS === 'ios' ? 'fail' : 'warn',

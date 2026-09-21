@@ -3,6 +3,7 @@ import { useCoachStore } from '../stores/useCoachStore';
 import { useGamificationStore } from '../stores/useGamificationStore';
 import { useVitalsStore } from '../stores/useVitalsStore';
 import { useBiomarkerStore } from '../stores/useBiomarkerStore';
+import { useCycleStore } from '../stores/useCycleStore';
 import { useJournalStore } from '../stores/useJournalStore';
 import { useGymStore } from '../stores/useGymStore';
 import { useIntegrationStore } from '../stores/useIntegrationStore';
@@ -82,6 +83,7 @@ export function collectUserData(): ExportDocument {
     },
     vitals: { days: useVitalsStore.getState().days },
     biomarkers: { readings: useBiomarkerStore.getState().readings },
+    cycle: { enabled: useCycleStore.getState().enabled, days: useCycleStore.getState().days },
     journal: {
       entries: useJournalStore.getState().entries,
       customFactors: useJournalStore.getState().customFactors,

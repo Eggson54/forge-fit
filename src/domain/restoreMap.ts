@@ -63,6 +63,7 @@ export const RESTORE_MAP: Record<Exclude<StoreKey, 'auth'>, Restorer> = {
   vitals: (s) => pick(s, ['days']),
   journal: (s) => pick(s, ['entries', 'customFactors', 'enabledKeys']),
   biomarkers: (s) => pick(s, ['readings']),
+  cycle: (s) => pick(s, ['enabled', 'days']),
   gyms: (s) => pick(s, ['claims', 'kits']),
 };
 
