@@ -1,3 +1,8 @@
+// Loaded first and on its own line: Hermes ships URL without searchParams,
+// and both the OAuth callback handler and the Strava redirect parser need it.
+// Relying on another module to pull it in makes correctness depend on import
+// order, which is not a thing to depend on.
+import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { View } from 'react-native';

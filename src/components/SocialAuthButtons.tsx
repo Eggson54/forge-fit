@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
@@ -20,6 +20,35 @@ export function SocialAuthButtons({ onDone }: { onDone?: () => void }) {
   const signInWithApple = useAuthStore((s) => s.signInWithApple);
   const [busy, setBusy] = useState<null | 'google' | 'apple'>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Whether Apple Sign In can actually run here.
+   *
+   * The button used to render everywhere, including on Android and the web,
+   * where tapping it could only ever produce an error. Apple also reports
+   * unavailable on a simulator with no Apple ID signed in, which is exactly
+   * where this gets tested.
+   */
+  const [appleAvailable, setAppleAvailable] = useState(Platform.OS === 'ios');
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let alive = true;
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const AppleAuthentication = require('expo-apple-authentication');
+        const ok = typeof AppleAuthentication.isAvailableAsync === 'function'
+          ? await AppleAuthentication.isAvailableAsync()
+          : true;
+        if (alive) setAppleAvailable(Boolean(ok));
+      } catch {
+        if (alive) setAppleAvailable(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const run = async (which: 'google' | 'apple', fn: () => Promise<void>) => {
     setError(null);
@@ -63,24 +92,26 @@ export function SocialAuthButtons({ onDone }: { onDone?: () => void }) {
           )}
         </Pressable>
 
-        <Pressable
-          style={[styles.btn, { backgroundColor: '#000000', borderColor: '#3A3A3C', borderWidth: 1 }]}
-          disabled={busy !== null}
-          accessibilityRole="button"
-          accessibilityLabel="Continue with Apple"
-          onPress={() => run('apple', signInWithApple)}
-        >
-          {busy === 'apple' ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <AppleIcon />
-              <Text variant="bodyStrong" color="#FFFFFF">
-                Apple
-              </Text>
-            </>
-          )}
-        </Pressable>
+        {appleAvailable && (
+          <Pressable
+            style={[styles.btn, { backgroundColor: '#000000', borderColor: '#3A3A3C', borderWidth: 1 }]}
+            disabled={busy !== null}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Apple"
+            onPress={() => run('apple', signInWithApple)}
+          >
+            {busy === 'apple' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <AppleIcon />
+                <Text variant="bodyStrong" color="#FFFFFF">
+                  Apple
+                </Text>
+              </>
+            )}
+          </Pressable>
+        )}
       </View>
 
       {error && (

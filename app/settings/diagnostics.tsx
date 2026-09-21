@@ -6,6 +6,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, radius, spacing } from '../../src/theme';
 import { todayISO } from '../../src/domain/date';
 import { config } from '../../src/services/config';
+import { isCloudEnabled } from '../../src/services/supabase';
 import { health, healthDialect, healthLoadError } from '../../src/services/health';
 import { strava } from '../../src/services/strava';
 import { watch } from '../../src/services/watch';
@@ -39,6 +40,10 @@ export default function Diagnostics() {
   const run = useCallback(async () => {
     setRunning(true);
     const out: Check[] = [];
+
+    // Resolved up front so the checks below stay declarative.
+    const authRedirect = makeAuthRedirectUri();
+    const appleReady = await appleAvailable();
 
     out.push({
       label: 'Platform',
@@ -112,6 +117,42 @@ export default function Diagnostics() {
           : w.reason ?? 'No Watch-written samples found.',
       });
     }
+
+    // --- Sign in ------------------------------------------------------------
+    out.push({
+      label: 'Supabase',
+      status: isCloudEnabled() ? 'pass' : 'warn',
+      detail: isCloudEnabled()
+        ? 'Configured. Google and Apple sign-in go through it.'
+        : 'Not configured, so sign-in runs in local mode: accounts stay on this device and Google/Apple hand you a local account instead. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY for the real thing.',
+    });
+
+    if (isCloudEnabled()) {
+      out.push({
+        label: 'OAuth flow',
+        status: 'pass',
+        detail:
+          'PKCE. The callback handler accepts both a ?code= and an #access_token= fragment, so either Supabase setting works.',
+      });
+      out.push({
+        label: 'Sign-in redirect URL',
+        status: authRedirect ? 'pass' : 'warn',
+        detail: authRedirect
+          ? 'This has to be listed under Redirect URLs in Supabase → Authentication → URL Configuration, or Google will bounce straight back out.'
+          : 'Only resolvable in the native app.',
+        copy: authRedirect ?? undefined,
+      });
+    }
+
+    out.push({
+      label: 'Apple Sign In',
+      status: appleReady ? 'pass' : Platform.OS === 'ios' ? 'fail' : 'warn',
+      detail: appleReady
+        ? 'Available on this device. The nonce is sent hashed to Apple and raw to Supabase, and the name Apple only gives once is captured on first sign-in.'
+        : Platform.OS === 'ios'
+          ? 'Apple reports it unavailable — sign in to an Apple ID in Settings, or run on a device rather than a bare simulator.'
+          : 'iOS only. The button is hidden here rather than shown and failing.',
+    });
 
     // --- Strava -------------------------------------------------------------
     out.push({
@@ -211,6 +252,32 @@ export default function Diagnostics() {
       <View style={{ height: spacing.xl }} />
     </Screen>
   );
+}
+
+/** The redirect URL this build sends to Supabase, for pasting into its settings. */
+function makeAuthRedirectUri(): string | null {
+  if (Platform.OS === 'web') return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { makeRedirectUri } = require('expo-auth-session');
+    return makeRedirectUri({ scheme: 'forgefit', path: 'auth-callback' });
+  } catch {
+    return null;
+  }
+}
+
+/** Whether Apple will actually present its sheet on this device. */
+async function appleAvailable(): Promise<boolean> {
+  if (Platform.OS !== 'ios') return false;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const AppleAuthentication = require('expo-apple-authentication');
+    return typeof AppleAuthentication.isAvailableAsync === 'function'
+      ? Boolean(await AppleAuthentication.isAvailableAsync())
+      : true;
+  } catch {
+    return false;
+  }
 }
 
 const TINT: Record<Status, string> = {

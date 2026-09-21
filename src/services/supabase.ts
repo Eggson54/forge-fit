@@ -17,7 +17,22 @@ export function getSupabase(): SupabaseClient | null {
       storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
+      // There is no browser URL to read a session out of in a native app.
       detectSessionInUrl: false,
+      /**
+       * PKCE, explicitly.
+       *
+       * supabase-js defaults to the implicit flow, which returns the session
+       * in the URL *fragment* — and a fragment never reaches
+       * `exchangeCodeForSession`, so the Google callback handler found no
+       * `?code=`, created no session, and reported "sign in failed" every
+       * single time. PKCE returns the code as a query parameter, which is
+       * what that handler is written for.
+       *
+       * PKCE also needs the code verifier to survive between opening the
+       * browser and coming back; that is what `storage` above is for.
+       */
+      flowType: 'pkce',
     },
   });
   return client;

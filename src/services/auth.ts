@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { getSupabase, isCloudEnabled } from './supabase';
 import { secureStore, storage } from './storage';
+import { EMPTY_CALLBACK_MESSAGE, readOAuthCallback } from '../domain/oauthCallback';
 
 /**
  * Auth service. Uses Supabase Auth when configured (email/password, Apple OAuth,
@@ -17,6 +18,32 @@ export interface AuthUser {
 
 const LOCAL_USER_KEY = 'forgefit:local_user';
 const LOCAL_CREDS_KEY = 'forgefit:local_creds'; // { email, salt, hash }
+const APPLE_NAME_KEY = 'forgefit:apple_name';
+
+/** Apply whatever the redirect handed back. Parsing lives in the domain. */
+async function completeOAuthCallback(
+  supa: NonNullable<ReturnType<typeof getSupabase>>,
+  callbackUrl: string,
+): Promise<void> {
+  const result = readOAuthCallback(callbackUrl);
+
+  if (result.kind === 'code') {
+    const { error } = await supa.auth.exchangeCodeForSession(result.code);
+    if (error) throw new Error(error.message);
+    return;
+  }
+  if (result.kind === 'session') {
+    const { error } = await supa.auth.setSession({
+      access_token: result.accessToken,
+      refresh_token: result.refreshToken,
+    });
+    if (error) throw new Error(error.message);
+    return;
+  }
+  // The provider can report a refusal by redirecting rather than by failing.
+  if (result.kind === 'denied') throw new Error(result.reason);
+  throw new Error(EMPTY_CALLBACK_MESSAGE);
+}
 
 async function hash(password: string, salt: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${password}`);
@@ -87,48 +114,99 @@ export const auth = {
       });
       if (error || !data?.url) throw new Error(error?.message ?? 'Could not start Google sign in.');
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-      if (result.type !== 'success' || !result.url) throw new Error('Google sign in was cancelled.');
-      // Exchange the returned code/tokens for a session.
-      const url = new URL(result.url);
-      const code = url.searchParams.get('code');
-      if (code) {
-        const { error: exErr } = await supa.auth.exchangeCodeForSession(code);
-        if (exErr) throw new Error(exErr.message);
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        throw new Error('Google sign in was cancelled.');
       }
+      if (result.type !== 'success' || !result.url) throw new Error('Google sign in did not come back.');
+
+      await completeOAuthCallback(supa, result.url);
+
       const { data: u } = await supa.auth.getUser();
-      if (!u.user) throw new Error('Google sign in failed.');
+      if (!u.user) throw new Error('Google signed you in but no session came back. Check that the redirect URL is allowed in your Supabase auth settings.');
       return { id: u.user.id, email: u.user.email ?? null, isLocal: false };
     } catch (e) {
       throw new Error((e as Error).message || 'Google sign in failed.');
     }
   },
 
-  /** Apple Sign In (iOS native identity token → Supabase). Local demo fallback otherwise. */
+  /**
+   * Apple Sign In: native identity token straight to Supabase.
+   *
+   * Two things here are easy to get wrong and both are silent.
+   *
+   * The nonce: Apple embeds a *hashed* nonce in the identity token, and
+   * Supabase verifies it against the raw one. Send the token without the raw
+   * nonce and a project with nonce checking on rejects it with a message
+   * about nothing in particular.
+   *
+   * The name: Apple returns the user's name on the *first* authorization and
+   * never again. Not capturing it there means it is gone permanently — the
+   * only recovery is the user deleting the app from their Apple ID settings.
+   */
   async signInWithApple(): Promise<AuthUser> {
     const supa = getSupabase();
-    // Web / no cloud: offer a local demo account so the flow is still usable.
-    if (Platform.OS !== 'ios' || !supa) {
+    if (Platform.OS !== 'ios') {
       if (!supa) return this.demoAccount('apple');
       throw new Error('Apple Sign In runs on iOS. Use email or Google here.');
     }
+    if (!supa) return this.demoAccount('apple');
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const AppleAuthentication = require('expo-apple-authentication');
+
+      // Present on an iPhone running iOS 13+, absent on a simulator with no
+      // Apple ID signed in — where signInAsync throws something unhelpful.
+      if (typeof AppleAuthentication.isAvailableAsync === 'function') {
+        const available = await AppleAuthentication.isAvailableAsync();
+        if (!available) {
+          throw new Error('Apple Sign In is not available on this device. Sign in to an Apple ID in Settings first.');
+        }
+      }
+
+      const rawNonce = await Crypto.randomUUID();
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce,
+      );
+
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
+        nonce: hashedNonce,
       });
       if (!credential.identityToken) throw new Error('No identity token from Apple.');
-      const { data, error } = await supa.auth.signInWithIdToken({ provider: 'apple', token: credential.identityToken });
+
+      const { data, error } = await supa.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+        nonce: rawNonce,
+      });
       if (error) throw new Error(error.message);
+
+      // Stash the name now or lose it forever.
+      const name = [credential.fullName?.givenName, credential.fullName?.familyName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      if (name) {
+        await storage.set(APPLE_NAME_KEY, name);
+        await supa.auth.updateUser({ data: { full_name: name } }).catch(() => undefined);
+      }
+
       return { id: data.user.id, email: data.user.email ?? null, isLocal: false };
     } catch (e) {
       const err = e as { code?: string; message?: string };
       if (err.code === 'ERR_REQUEST_CANCELED') throw new Error('Apple sign in was cancelled.');
       throw new Error(err.message || 'Apple sign in failed.');
     }
+  },
+
+  /** The name Apple gave on first sign-in, if it ever did. */
+  async appleName(): Promise<string | null> {
+    return (await storage.get<string>(APPLE_NAME_KEY)) ?? null;
   },
 
   /** Provision a local demo account (offline mode) tagged by provider. */
