@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Pressable, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
-import { AdSlot, Card, IconButton, Screen, SectionHeader, Text, Well } from '../../src/components/ui';
+import { AdSlot, Card, IconButton, ProgressRing, Screen, SectionHeader, Text, Well } from '../../src/components/ui';
 import { AnimatedNumber, AnimatedProgressRing, FadeIn } from '../../src/components/anim';
 import { Icon } from '../../src/components/Icon';
 import { CoachCard } from '../../src/components/CoachCard';
@@ -20,6 +20,8 @@ import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
 import { currentAchievementInputs } from '../../src/stores/achievementInputs';
 import { buildCoachContext, useDailySummary } from '../../src/stores/useDailySummary';
+import { useReadiness } from '../../src/stores/useReadiness';
+import { BAND_LABEL, BAND_TINT } from '../../src/domain/readiness';
 import { ai } from '../../src/services/ai';
 import { analytics } from '../../src/services/analytics';
 import type { CoachMessageResult } from '../../src/services/ai/types';
@@ -38,6 +40,7 @@ export default function Home() {
   const profile = useProfileStore((s) => s.profile);
   const coachSettings = useProfileStore((s) => s.effectiveCoach());
   const summary = useDailySummary();
+  const readiness = useReadiness();
   const streak = useGamificationStore((s) => s.streaks.daily);
   const addWater = useLogStore((s) => s.addWater);
   // The largest configured amount: the quick action is for the common case of
@@ -262,6 +265,31 @@ export default function Home() {
           <WeekStrip days={weekDays} target={profile.trainingDaysPerWeek} onPress={() => router.push('/(tabs)/progress')} />
         </Well>
       </FadeIn>
+
+      {/* A readiness reading only appears once there is something behind it.
+          A score built on nothing is a horoscope, and a horoscope on the home
+          screen is worse than a gap. */}
+      {readiness && (
+        <FadeIn delay={120}>
+          <Card
+            onPress={() => router.push('/readiness')}
+            style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+          >
+            <ProgressRing progress={readiness.score / 100} size={54} stroke={6} color={BAND_TINT[readiness.band]}>
+              <Text variant="label" color={BAND_TINT[readiness.band]}>{readiness.score}</Text>
+            </ProgressRing>
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <Text variant="label" color={BAND_TINT[readiness.band]}>
+                Readiness · {BAND_LABEL[readiness.band]}
+              </Text>
+              <Text variant="caption" color={colors.textFaint} numberOfLines={2}>
+                {readiness.headline}
+              </Text>
+            </View>
+            <Icon name="chevron_right" size={16} color={colors.textFaint} />
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Metrics */}
       <SectionHeader title="Today" />

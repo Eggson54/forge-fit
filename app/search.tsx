@@ -67,6 +67,13 @@ const SCREENS: SearchEntry[] = [
     keywords: ['rest', 'sore', 'muscle', 'days since', 'fresh', 'recovered', 'split'],
     href: '/workout/recovery',
   },
+  {
+    id: 's_readiness',
+    kind: 'screen',
+    title: 'Readiness',
+    keywords: ['recovery score', 'ready', 'fatigue', 'sleep', 'deload', 'fresh', 'tired'],
+    href: '/readiness',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },
