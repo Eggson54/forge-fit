@@ -61,6 +61,7 @@ export const RESTORE_MAP: Record<Exclude<StoreKey, 'auth'>, Restorer> = {
   // to a new device.
   integrations: (s) => pick(s, ['providers', 'activities', 'watchStatus']),
   vitals: (s) => pick(s, ['days']),
+  journal: (s) => pick(s, ['entries', 'customFactors', 'enabledKeys']),
   gyms: (s) => pick(s, ['claims', 'kits']),
 };
 

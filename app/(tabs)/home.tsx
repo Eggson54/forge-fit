@@ -344,6 +344,7 @@ export default function Home() {
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
         <QuickAction icon="dumbbell" tint={colors.primary} label="Workout" onPress={() => router.push('/(tabs)/workout')} />
         <QuickAction icon="nutrition" tint={colors.calorie} label="Food" onPress={() => router.push('/nutrition/add')} />
+        <QuickAction icon="document" tint={colors.sleep} label="Journal" onPress={() => router.push('/journal')} />
         {/* The athlete's own bottle size, not a hardcoded 16oz. */}
         <QuickAction
           icon="water"

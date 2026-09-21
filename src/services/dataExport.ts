@@ -2,6 +2,7 @@ import { Platform, Share } from 'react-native';
 import { useCoachStore } from '../stores/useCoachStore';
 import { useGamificationStore } from '../stores/useGamificationStore';
 import { useVitalsStore } from '../stores/useVitalsStore';
+import { useJournalStore } from '../stores/useJournalStore';
 import { useGymStore } from '../stores/useGymStore';
 import { useIntegrationStore } from '../stores/useIntegrationStore';
 import { useLogStore } from '../stores/useLogStore';
@@ -79,6 +80,11 @@ export function collectUserData(): ExportDocument {
       watchStatus: integrations.watchStatus,
     },
     vitals: { days: useVitalsStore.getState().days },
+    journal: {
+      entries: useJournalStore.getState().entries,
+      customFactors: useJournalStore.getState().customFactors,
+      enabledKeys: useJournalStore.getState().enabledKeys,
+    },
   });
 }
 

@@ -16,6 +16,7 @@ export const STORE_KEYS = {
   integrations: 'forgefit.integrations',
   gyms: 'forgefit.gyms',
   vitals: 'forgefit.vitals',
+  journal: 'forgefit.journal',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;
