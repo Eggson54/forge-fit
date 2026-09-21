@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Tabs } from 'expo-router';
@@ -7,8 +7,10 @@ import { BlurView } from 'expo-blur';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { Text } from '../../src/components/ui/Text';
 import { colors, spacing } from '../../src/theme';
+import { visibleTabs, type TabKey } from '../../src/domain/layout';
+import { useLayoutStore } from '../../src/stores/useLayoutStore';
 
-const TABS: { name: string; label: string; icon: IconName }[] = [
+const TABS: { name: TabKey; label: string; icon: IconName }[] = [
   { name: 'home', label: 'Home', icon: 'home' },
   { name: 'workout', label: 'Workout', icon: 'dumbbell' },
   { name: 'nutrition', label: 'Nutrition', icon: 'nutrition' },
@@ -18,6 +20,13 @@ const TABS: { name: string; label: string; icon: IconName }[] = [
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+
+  // Hidden tabs stay registered as routes and only leave the bar. Dropping
+  // the <Tabs.Screen> instead would turn every link into that tab — from
+  // search, from a card, from a notification — into a dead end.
+  const hiddenTabs = useLayoutStore((s) => s.hiddenTabs);
+  const shown = useMemo(() => new Set(visibleTabs(hiddenTabs)), [hiddenTabs]);
+
   return (
     <Tabs
       screenOptions={{ headerShown: false }}
@@ -27,7 +36,7 @@ export default function TabsLayout() {
           <View style={styles.bar}>
             {state.routes.map((route, index) => {
               const tab = TABS.find((t) => t.name === route.name);
-              if (!tab) return null;
+              if (!tab || !shown.has(tab.name)) return null;
               const focused = state.index === index;
               return (
                 <Pressable

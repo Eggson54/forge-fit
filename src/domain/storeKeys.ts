@@ -19,6 +19,9 @@ export const STORE_KEYS = {
   journal: 'forgefit.journal',
   biomarkers: 'forgefit.biomarkers',
   cycle: 'forgefit.cycle',
+  mealPlan: 'forgefit.mealplan',
+  layout: 'forgefit.layout',
+  checkIns: 'forgefit.checkins',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;

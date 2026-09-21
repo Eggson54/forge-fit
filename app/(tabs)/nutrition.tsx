@@ -145,6 +145,13 @@ export default function Nutrition() {
           onPress={() => router.push('/nutrition/meals')}
         />
         <ListRow
+          icon="calendar"
+          tint={colors.carbs}
+          title="Week plan & grocery list"
+          subtitle="Plan the week, then take the list to the shop"
+          onPress={() => router.push('/nutrition/plan')}
+        />
+        <ListRow
           icon="clock"
           tint={colors.sleep}
           title="Meal timing"

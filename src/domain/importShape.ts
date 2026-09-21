@@ -38,6 +38,9 @@ const LABEL: Record<StoreKey, string> = {
   journal: 'Journal entries and your own factors',
   biomarkers: 'Blood results you entered',
   cycle: 'Cycle tracking',
+  mealPlan: 'Meal plan and shopping list',
+  layout: 'Home screen layout',
+  checkIns: 'Check-in schedule and Ghost Mode',
 };
 
 /** Counts records in a store snapshot, however it is shaped. */

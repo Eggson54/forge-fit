@@ -22,6 +22,14 @@ export const RANK_TIERS: RankTier[] = [
   { key: 'apex', name: 'Apex', min: 875, color: '#C6F135' },
 ];
 
+/**
+ * The lifts the strength component of a rank is measured on.
+ *
+ * Held here rather than at each call site so Profile and Home cannot drift
+ * into scoring the same athlete differently.
+ */
+export const BIG3_LIFT_IDS = ['barbell_bench_press', 'barbell_squat', 'deadlift'];
+
 export interface RankInputs {
   completedWorkouts: number;
   longestDailyStreak: number;

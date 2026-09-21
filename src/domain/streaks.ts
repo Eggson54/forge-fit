@@ -34,6 +34,16 @@ export interface DailyOutcome {
    * thing.
    */
   restDay?: boolean;
+  /**
+   * Ghost Mode was on for this day.
+   *
+   * Every streak carries forward untouched and the date advances, so the run
+   * neither grows nor breaks — which is the promise Ghost Mode makes. It can
+   * only hold for days the app was actually opened; a phone left in a drawer
+   * for a fortnight still comes back to a gap, and no flag in here can
+   * invent the days nobody was there for.
+   */
+  paused?: boolean;
 }
 
 /**
@@ -42,6 +52,8 @@ export interface DailyOutcome {
  * re-computation is idempotent.
  */
 export function applyDailyOutcome(prev: StreakState, o: DailyOutcome): StreakState {
+  if (o.paused) return { ...prev, lastActiveDate: o.date };
+
   const next: StreakState = { ...prev };
 
   if (prev.lastActiveDate === o.date) {

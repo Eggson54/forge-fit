@@ -10,14 +10,13 @@ import { RankCard } from '../../src/components/RankCard';
 import { colors, domainAccent, radius, spacing } from '../../src/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { displayWeight } from '../../src/domain/units';
-import { computeRank } from '../../src/domain/rank';
+import { BIG3_LIFT_IDS, computeRank } from '../../src/domain/rank';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 import { useGymStore } from '../../src/stores/useGymStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useGamificationStore } from '../../src/stores/useGamificationStore';
 
-const BIG3 = ['barbell_bench_press', 'barbell_squat', 'deadlift'];
 
 export default function Profile() {
   const user = useAuthStore((s) => s.user);
@@ -37,7 +36,7 @@ export default function Profile() {
   const rank = computeRank({
     completedWorkouts: workouts,
     longestDailyStreak: longestStreak,
-    bestBig3E1RMKg: BIG3.reduce((sum, id) => sum + (prs[id] ?? 0), 0),
+    bestBig3E1RMKg: BIG3_LIFT_IDS.reduce((sum, id) => sum + (prs[id] ?? 0), 0),
     bodyweightKg: profile.weightKg,
     bestDisciplineScore: bestDiscipline,
   });

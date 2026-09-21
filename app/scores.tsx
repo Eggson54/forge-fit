@@ -7,9 +7,11 @@ import { ScreenHeader } from '../src/components/ScreenHeader';
 import { Icon } from '../src/components/Icon';
 import { colors, domainAccent, spacing } from '../src/theme';
 import { groupThousands } from '../src/domain/units';
-import { MAX_STRAIN, SCORES_CAVEAT, bandFor, type Score, type ScorePart } from '../src/domain/scores';
+import { MAX_STRAIN, SCORES_CAVEAT, bandFor, formatHours, type Score, type ScorePart } from '../src/domain/scores';
 import { BAND_LABEL, BAND_TINT } from '../src/domain/readiness';
+import { MORE_SCORES_CAVEAT, type StressReading } from '../src/domain/moreScores';
 import { useScores } from '../src/stores/useScores';
+import { useMoreScores } from '../src/stores/useMoreScores';
 import { useReadiness } from '../src/stores/useReadiness';
 
 /**
@@ -22,6 +24,7 @@ import { useReadiness } from '../src/stores/useReadiness';
  */
 export default function Scores() {
   const s = useScores();
+  const more = useMoreScores();
   const readiness = useReadiness();
 
   const anything =
@@ -152,6 +155,86 @@ export default function Scores() {
         </FadeIn>
       )}
 
+      {more.stress && (
+        <FadeIn delay={330}>
+          <Card style={{ gap: spacing.md, marginBottom: spacing.md }}>
+            <Text variant="overline" color={colors.textFaint}>STRESS</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
+              <Text variant="metric" color={stressTint(more.stress.band)}>{more.stress.score}</Text>
+              <Text variant="label" color={stressTint(more.stress.band)}>
+                {more.stress.band.replace('_', ' ')}
+              </Text>
+            </View>
+            <Text variant="caption" color={colors.textDim}>{more.stress.headline}</Text>
+            {more.stress.parts.map((part) => (
+              <View key={part.label} style={{ gap: 2 }}>
+                <Text variant="label" color={colors.textDim}>{part.label}</Text>
+                <Text variant="caption" color={colors.textFaint}>{part.note}</Text>
+              </View>
+            ))}
+          </Card>
+        </FadeIn>
+      )}
+
+      {more.cardioFocus.focus !== 'none' && (
+        <FadeIn delay={360}>
+          <Card style={{ gap: spacing.sm, marginBottom: spacing.md }} onPress={() => router.push('/progress/cardio')}>
+            <Text variant="overline" color={colors.textFaint}>CONDITIONING MIX</Text>
+            <View style={{ flexDirection: 'row' }}>
+              <StatTile value={`${Math.round(more.cardioFocus.easyShare * 100)}%`} label="Easy" accent={colors.success} />
+              <StatTile value={`${Math.round(more.cardioFocus.easyMinutes)}m`} label="Base" accent={colors.steps} />
+              <StatTile value={`${Math.round(more.cardioFocus.hardMinutes)}m`} label="Intensity" accent={colors.primary} />
+            </View>
+            <Text variant="caption" color={colors.textFaint}>{more.cardioFocus.note}</Text>
+          </Card>
+        </FadeIn>
+      )}
+
+      {more.hrRecovery && (
+        <FadeIn delay={390}>
+          <Card style={{ gap: spacing.sm, marginBottom: spacing.md }} onPress={() => router.push('/health')}>
+            <Text variant="overline" color={colors.textFaint}>HEART-RATE RECOVERY</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
+              <Text variant="metric" color={more.hrRecovery.drop > 0 ? colors.success : colors.amber}>
+                {more.hrRecovery.drop > 0 ? '−' : ''}{Math.abs(more.hrRecovery.drop)}
+              </Text>
+              <Text variant="caption" color={colors.textDim}>bpm from the window's high</Text>
+            </View>
+            <Text variant="caption" color={colors.textFaint}>{more.hrRecovery.note}</Text>
+          </Card>
+        </FadeIn>
+      )}
+
+      {more.sleepNeed && (
+        <FadeIn delay={420}>
+          <Card style={{ gap: spacing.sm, marginBottom: spacing.md }} onPress={() => router.push('/progress/habits')}>
+            <Text variant="overline" color={colors.textFaint}>SLEEP NEED</Text>
+            <View style={{ flexDirection: 'row' }}>
+              <StatTile value={formatHours(more.sleepNeed.suggested)} label="Your nights suggest" accent={colors.sleep} />
+              <StatTile value={formatHours(more.sleepNeed.current)} label="Your target" accent={colors.textDim} />
+            </View>
+            <Text variant="caption" color={colors.textFaint}>{more.sleepNeed.note}</Text>
+          </Card>
+        </FadeIn>
+      )}
+
+      {(more.weightProjection || more.bodyFatProjection) && (
+        <FadeIn delay={450}>
+          <Card style={{ gap: spacing.sm, marginBottom: spacing.md }} onPress={() => router.push('/progress/weight')}>
+            <Text variant="overline" color={colors.textFaint}>IF THE TREND HOLDS</Text>
+            {more.weightProjection && (
+              <Text variant="caption" color={colors.textDim}>{more.weightProjection.note}</Text>
+            )}
+            {more.bodyFatProjection && (
+              <Text variant="caption" color={colors.textDim}>{more.bodyFatProjection.note}</Text>
+            )}
+            <Text variant="caption" color={colors.textFaint}>
+              A projection is a line drawn through what has already happened. It knows nothing about next month.
+            </Text>
+          </Card>
+        </FadeIn>
+      )}
+
       <SectionHeader title="How to read these" accent={domainAccent.progress} />
       <Card tone="alt" style={{ gap: spacing.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -159,6 +242,7 @@ export default function Scores() {
           <Text variant="overline" color={colors.textDim}>INDEXES, NOT MEASUREMENTS</Text>
         </View>
         <Text variant="caption" color={colors.textFaint}>{SCORES_CAVEAT}</Text>
+        <Text variant="caption" color={colors.textFaint}>{MORE_SCORES_CAVEAT}</Text>
       </Card>
 
       <Pressable
@@ -243,3 +327,10 @@ const styles = StyleSheet.create({
   fill: { height: '100%', borderRadius: 6 },
   targetBand: { position: 'absolute', top: 0, bottom: 0, backgroundColor: `${colors.success}33` },
 });
+
+function stressTint(band: StressReading['band']): string {
+  if (band === 'high') return colors.danger;
+  if (band === 'elevated') return colors.amber;
+  if (band === 'moderate') return colors.steps;
+  return colors.success;
+}

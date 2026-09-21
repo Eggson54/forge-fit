@@ -70,6 +70,8 @@ export default function Settings() {
         <ListRow icon="flame" tint={colors.primary} title="AI Coach" subtitle="Personality & aggression" onPress={() => router.push('/settings/coach')} />
         <ListRow icon="target" tint={colors.protein} title="Goals & Targets" onPress={() => router.push('/settings/goals')} />
         <ListRow icon="bell" tint={colors.amber} title="Notifications & Reminders" onPress={() => router.push('/settings/notifications')} />
+        <ListRow icon="clock" tint={colors.sleep} title="Check-ins & Ghost Mode" subtitle="When the app speaks first" onPress={() => router.push('/settings/check-ins')} />
+        <ListRow icon="sliders" tint={colors.carbs} title="Customise" subtitle="Home sections, tabs, the big button" onPress={() => router.push('/settings/customize')} />
         <ListRow icon="repeat" tint={colors.steps} title="Recompute targets from profile" onPress={() => { recompute(); Alert.alert('Updated', 'Targets recalculated from your profile.'); }} />
       </Card>
 

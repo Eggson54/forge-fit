@@ -232,6 +232,38 @@ describe('streaks', () => {
     expect(s.daily).toBe(1);
     expect(s.longestDaily).toBe(2);
   });
+
+  it('holds every streak across a paused day rather than breaking or growing it', () => {
+    let s = emptyStreaks();
+    const full = { workoutDone: true, proteinHit: true, nutritionHit: true, hydrationHit: true, dayComplete: true };
+    s = applyDailyOutcome(s, { date: '2026-01-01', ...full });
+    s = applyDailyOutcome(s, { date: '2026-01-02', ...full });
+    expect(s.daily).toBe(2);
+
+    // Ghost Mode on: nothing counted, nothing lost.
+    s = applyDailyOutcome(s, { date: '2026-01-03', ...full, paused: true });
+    expect(s.daily).toBe(2);
+    expect(s.protein).toBe(2);
+
+    // And the day still advanced, so the next real day is continuous.
+    s = applyDailyOutcome(s, { date: '2026-01-04', ...full });
+    expect(s.daily).toBe(3);
+  });
+
+  it('pauses a missed day too, instead of resetting it to zero', () => {
+    let s = emptyStreaks();
+    const full = { workoutDone: true, proteinHit: true, nutritionHit: true, hydrationHit: true, dayComplete: true };
+    s = applyDailyOutcome(s, { date: '2026-02-01', ...full });
+    s = applyDailyOutcome(s, { date: '2026-02-02', ...full });
+
+    s = applyDailyOutcome(s, {
+      date: '2026-02-03',
+      workoutDone: false, proteinHit: false, nutritionHit: false, hydrationHit: false, dayComplete: false,
+      paused: true,
+    });
+    expect(s.daily).toBe(2);
+    expect(s.hydration).toBe(2);
+  });
 });
 
 describe('achievements', () => {

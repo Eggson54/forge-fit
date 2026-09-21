@@ -4,6 +4,9 @@ import { useGamificationStore } from '../stores/useGamificationStore';
 import { useVitalsStore } from '../stores/useVitalsStore';
 import { useBiomarkerStore } from '../stores/useBiomarkerStore';
 import { useCycleStore } from '../stores/useCycleStore';
+import { useMealPlanStore } from '../stores/useMealPlanStore';
+import { useLayoutStore } from '../stores/useLayoutStore';
+import { useCheckInStore } from '../stores/useCheckInStore';
 import { useJournalStore } from '../stores/useJournalStore';
 import { useGymStore } from '../stores/useGymStore';
 import { useIntegrationStore } from '../stores/useIntegrationStore';
@@ -84,6 +87,18 @@ export function collectUserData(): ExportDocument {
     vitals: { days: useVitalsStore.getState().days },
     biomarkers: { readings: useBiomarkerStore.getState().readings },
     cycle: { enabled: useCycleStore.getState().enabled, days: useCycleStore.getState().days },
+    mealPlan: { plan: useMealPlanStore.getState().plan, checked: useMealPlanStore.getState().checked },
+    layout: {
+      order: useLayoutStore.getState().order,
+      hidden: useLayoutStore.getState().hidden,
+      hiddenTabs: useLayoutStore.getState().hiddenTabs,
+      action: useLayoutStore.getState().action,
+    },
+    checkIns: {
+      checkIns: useCheckInStore.getState().checkIns,
+      ghost: useCheckInStore.getState().ghost,
+      thinking: useCheckInStore.getState().thinking,
+    },
     journal: {
       entries: useJournalStore.getState().entries,
       customFactors: useJournalStore.getState().customFactors,

@@ -28,6 +28,21 @@ import type { CoachMessageResult } from '../../src/services/ai/types';
 import { useProgramStore } from '../../src/stores/useProgramStore';
 import { programById } from '../../src/data/programs';
 import { waterQuickAdds } from '../../src/domain/nutrition';
+import { BIG3_LIFT_IDS, computeRank, pointsToNext } from '../../src/domain/rank';
+import { visibleSections, type HomeSectionKey } from '../../src/domain/layout';
+import { ghostActive } from '../../src/domain/checkIns';
+import { useLayoutStore } from '../../src/stores/useLayoutStore';
+import { useCheckInStore } from '../../src/stores/useCheckInStore';
+
+/**
+ * What Ghost Mode takes off the home screen.
+ *
+ * The coach and the rank card — the two that talk to you and the one that
+ * ranks you. Deliberately not the discipline block: it carries the suggested
+ * session, and taking that away would leave someone who only wanted quiet
+ * with no way to start a workout from here.
+ */
+const QUIET_SECTIONS = new Set<HomeSectionKey>(['coach', 'streak']);
 
 const GREETING: Record<ReturnType<typeof timeOfDay>, string> = {
   morning: 'Good morning',
@@ -42,6 +57,28 @@ export default function Home() {
   const summary = useDailySummary();
   const readiness = useReadiness();
   const streak = useGamificationStore((s) => s.streaks.daily);
+  const longestStreak = useGamificationStore((s) => s.streaks.longestDaily);
+  const bestDiscipline = useGamificationStore((s) => s.bestDisciplineScore);
+  const prs = useWorkoutStore((s) => s.prs);
+
+  // Selected as the two stored arrays rather than through the store's
+  // `sections()` helper: a selector that builds a fresh array on every call
+  // never compares equal, and this screen would re-render forever.
+  // Ghost Mode takes the scores off this screen and stops the coach opening
+  // its mouth. Nothing is hidden or deleted — Progress, Scores and the coach
+  // screen all still work if you go to them.
+  const ghost = useCheckInStore((s) => s.ghost);
+  const quiet = useMemo(() => ghostActive(ghost), [ghost]);
+
+  const sectionOrder = useLayoutStore((s) => s.order);
+  const sectionHidden = useLayoutStore((s) => s.hidden);
+  const sections = useMemo(
+    () =>
+      visibleSections({ order: sectionOrder, hidden: sectionHidden }).filter(
+        (key) => !(quiet && QUIET_SECTIONS.has(key)),
+      ),
+    [sectionOrder, sectionHidden, quiet],
+  );
   const addWater = useLogStore((s) => s.addWater);
   // The largest configured amount: the quick action is for the common case of
   // finishing a bottle, not for sipping.
@@ -103,6 +140,14 @@ export default function Home() {
   const [coachLoading, setCoachLoading] = useState(true);
 
   const loadCoach = useCallback(async () => {
+    // Ghost Mode's promise is that the coach stops speaking first. Hiding the
+    // card while still asking the model for a message would keep the network
+    // call, the cost and the log entry, and only hide the evidence.
+    if (useCheckInStore.getState().quiet()) {
+      setCoachMsg(null);
+      setCoachLoading(false);
+      return;
+    }
     setCoachLoading(true);
     try {
       const ctx = buildCoachContext(summary);
@@ -113,7 +158,7 @@ export default function Home() {
       setCoachLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [summary.discipline.score, coachSettings.personality, coachSettings.aggression, coachSettings.enabled]);
+  }, [summary.discipline.score, coachSettings.personality, coachSettings.aggression, coachSettings.enabled, quiet]);
 
   useEffect(() => {
     loadCoach();
@@ -136,10 +181,11 @@ export default function Home() {
       // four of four planned sessions should not read as a broken streak on
       // the three days off.
       restDay: !summary.workoutPlanned,
+      paused: useCheckInStore.getState().quiet(),
     });
     g.noteDisciplineScore(summary.discipline.score);
     g.syncAchievements(currentAchievementInputs());
-  }, [summary.date, summary.discipline.score, summary.workoutCompleted, summary.proteinG, summary.caloriesTarget, summary.calories, summary.waterOz, summary.proteinTarget, summary.waterTarget, summary.workoutPlanned]);
+  }, [summary.date, summary.discipline.score, summary.workoutCompleted, summary.proteinG, summary.caloriesTarget, summary.calories, summary.waterOz, summary.proteinTarget, summary.waterTarget, summary.workoutPlanned, quiet]);
 
   const w = summary.workoutCompleted;
 
@@ -148,32 +194,31 @@ export default function Home() {
   const todayStats = todayWorkout ? workoutStats(todayWorkout, profile.weightKg ?? null) : null;
   const todayVol = todayStats ? displayVolume(todayStats.totalVolumeKg, profile.units) : null;
 
-  return (
-    <Screen
-      gradient
-      refreshControl={<RefreshControl refreshing={false} onRefresh={loadCoach} tintColor={colors.primary} />}
-    >
-      <Masthead
-        eyebrow={GREETING[timeOfDay()]}
-        title={profile.name || 'Athlete'}
-        right={
-          <>
-            <StreakBadge count={streak} />
-            <IconButton accessibilityLabel="Search lifts, foods and screens" onPress={() => router.push('/search')}>
-              <Icon name="search" size={21} color={colors.text} />
-            </IconButton>
-            <IconButton accessibilityLabel="Reminders" onPress={() => router.push('/reminders')}>
-              <Icon name="bell" size={22} color={colors.text} />
-            </IconButton>
-          </>
-        }
-      />
 
-      {/* Coach */}
+  const rank = computeRank({
+    completedWorkouts: completed.length,
+    longestDailyStreak: longestStreak,
+    bestBig3E1RMKg: BIG3_LIFT_IDS.reduce((sum, id) => sum + (prs[id] ?? 0), 0),
+    bodyweightKg: profile.weightKg,
+    bestDisciplineScore: bestDiscipline,
+  });
+
+  /**
+   * The home screen's sections, keyed so the order can be the athlete's.
+   *
+   * A map rather than a run of JSX, because the order is stored and any of
+   * these can be switched off. Nothing here is the only route to a feature —
+   * every section also lives on its own tab — so rearranging this screen
+   * can tidy it but never lose anything.
+   */
+  const blocks: Record<HomeSectionKey, React.ReactNode> = {
+    coach: (
       <FadeIn delay={40}>
         <CoachCard message={coachMsg} personality={coachSettings.personality} loading={coachLoading} onPress={() => router.push('/coach')} />
       </FadeIn>
-
+    ),
+    discipline: (
+      <>
       {/* Discipline + Workout */}
       <FadeIn delay={120} style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
         <Card style={{ flex: 1, alignItems: 'center', gap: spacing.sm }}>
@@ -257,7 +302,10 @@ export default function Home() {
           </View>
         </Card>
       </FadeIn>
-
+      </>
+    ),
+    week: (
+      <>
       {/* The week strip is a track, so it sits in a well rather than on a
           raised card — set into the page instead of floating above it. */}
       <FadeIn delay={80}>
@@ -265,7 +313,10 @@ export default function Home() {
           <WeekStrip days={weekDays} target={profile.trainingDaysPerWeek} onPress={() => router.push('/(tabs)/progress')} />
         </Well>
       </FadeIn>
-
+      </>
+    ),
+    readiness: (
+      <>
       {/* A readiness reading only appears once there is something behind it.
           A score built on nothing is a horoscope, and a horoscope on the home
           screen is worse than a gap. */}
@@ -290,7 +341,10 @@ export default function Home() {
           </Card>
         </FadeIn>
       )}
-
+      </>
+    ),
+    today: (
+      <>
       {/* Metrics */}
       <SectionHeader title="Today" />
       <Card>
@@ -338,7 +392,10 @@ export default function Home() {
           last
         />
       </Card>
-
+      </>
+    ),
+    quickAdd: (
+      <>
       {/* Quick actions */}
       <SectionHeader title="Quick add" />
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -365,6 +422,56 @@ export default function Home() {
           onPress={() => router.push({ pathname: '/log', params: { focus: 'weight' } })}
         />
       </View>
+      </>
+    ),
+    streak: (
+      <FadeIn delay={60}>
+        <Card
+          onPress={() => router.push('/leaderboard')}
+          style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+        >
+          <ProgressRing progress={rank.progressToNext} size={54} stroke={6} color={rank.tier.color}>
+            <Icon name="levels" size={20} color={rank.tier.color} />
+          </ProgressRing>
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text variant="label" color={rank.tier.color}>
+              {rank.tier.name} · {rank.score}
+            </Text>
+            <Text variant="caption" color={colors.textFaint} numberOfLines={2}>
+              {rank.nextTier ? `${pointsToNext(rank)} points to ${rank.nextTier.name}` : 'Top tier — nothing above this one.'}
+              {streak > 0 ? ` · ${streak} day streak` : ''}
+            </Text>
+          </View>
+          <Icon name="chevron_right" size={16} color={colors.textFaint} />
+        </Card>
+      </FadeIn>
+    ),
+  };
+
+  return (
+    <Screen
+      gradient
+      refreshControl={<RefreshControl refreshing={false} onRefresh={loadCoach} tintColor={colors.primary} />}
+    >
+      <Masthead
+        eyebrow={GREETING[timeOfDay()]}
+        title={profile.name || 'Athlete'}
+        right={
+          <>
+            <StreakBadge count={streak} />
+            <IconButton accessibilityLabel="Search lifts, foods and screens" onPress={() => router.push('/search')}>
+              <Icon name="search" size={21} color={colors.text} />
+            </IconButton>
+            <IconButton accessibilityLabel="Reminders" onPress={() => router.push('/reminders')}>
+              <Icon name="bell" size={22} color={colors.text} />
+            </IconButton>
+          </>
+        }
+      />
+
+      {sections.map((key) => (
+        <React.Fragment key={key}>{blocks[key]}</React.Fragment>
+      ))}
 
       <View style={{ marginTop: spacing.lg }}>
         <AdSlot placement="home_feed" />

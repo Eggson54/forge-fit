@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Reminder, ReminderType } from '../domain/types';
 import { uid } from '../lib/uid';
 import { notifications } from '../services/notifications';
+import { useCheckInStore } from './useCheckInStore';
 import { jsonStorage, STORE_KEYS } from './persist';
 
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -47,7 +48,8 @@ export const useReminderStore = create<ReminderState>()(
           enabled: true,
           ...overrides,
         };
-        const notificationIds = await notifications.schedule(base);
+        const quiet = useCheckInStore.getState().quiet();
+        const notificationIds = await notifications.schedule(quiet ? { ...base, enabled: false } : base);
         const reminder = { ...base, notificationIds };
         set((s) => ({ reminders: [reminder, ...s.reminders] }));
         return reminder;
@@ -57,7 +59,8 @@ export const useReminderStore = create<ReminderState>()(
         const existing = get().reminders.find((r) => r.id === id);
         if (!existing) return;
         const merged = { ...existing, ...patch };
-        const notificationIds = await notifications.schedule(merged);
+        const quiet = useCheckInStore.getState().quiet();
+        const notificationIds = await notifications.schedule(quiet ? { ...merged, enabled: false } : merged);
         set((s) => ({ reminders: s.reminders.map((r) => (r.id === id ? { ...merged, notificationIds } : r)) }));
       },
 
@@ -73,9 +76,19 @@ export const useReminderStore = create<ReminderState>()(
         set((s) => ({ reminders: s.reminders.filter((r) => r.id !== id) }));
       },
 
+      /**
+       * Re-lay every reminder against the OS.
+       *
+       * Also the one place Ghost Mode is enforced for notifications: while it
+       * is on, each reminder is scheduled as disabled, which cancels whatever
+       * was already queued and books nothing new. The reminder's own
+       * `enabled` flag is untouched, so turning Ghost Mode off and calling
+       * this again brings back exactly what was there before.
+       */
       rescheduleAll: async () => {
+        const quiet = useCheckInStore.getState().quiet();
         for (const r of get().reminders) {
-          const notificationIds = await notifications.schedule(r);
+          const notificationIds = await notifications.schedule(quiet ? { ...r, enabled: false } : r);
           set((s) => ({ reminders: s.reminders.map((x) => (x.id === r.id ? { ...x, notificationIds } : x)) }));
         }
       },
