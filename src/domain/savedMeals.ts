@@ -18,6 +18,12 @@ export interface SavedMealItem {
 export interface SavedMeal {
   id: string;
   name: string;
+  /**
+   * How many servings the batch makes. Absent on an ordinary saved meal,
+   * which is one portion of itself; set, it makes this a recipe and the
+   * per-serving numbers are the whole divided by it. See `recipes.ts`.
+   */
+  servings?: number;
   /** The slot it is usually eaten in; the user can log it into any slot. */
   slot: MealSlot;
   items: SavedMealItem[];

@@ -8,6 +8,16 @@ import { Icon } from '../../src/components/Icon';
 import { colors, noOutline, radius, spacing } from '../../src/theme';
 import { formatDayMonth } from '../../src/domain/date';
 import { mealMacros, rankMeals } from '../../src/domain/savedMeals';
+import {
+  MAX_SERVINGS,
+  RECIPE_NOTE,
+  isRecipe,
+  perServing,
+  portionChoices,
+  portionLabel,
+  portionMacros,
+  servingsOf,
+} from '../../src/domain/recipes';
 import type { MealSlot } from '../../src/domain/types';
 import { useLogStore } from '../../src/stores/useLogStore';
 
@@ -22,11 +32,15 @@ export default function SavedMeals() {
   const meals = useLogStore((s) => s.savedMeals);
   const logSavedMeal = useLogStore((s) => s.logSavedMeal);
   const renameMeal = useLogStore((s) => s.renameMeal);
+  const setMealServings = useLogStore((s) => s.setMealServings);
   const removeMeal = useLogStore((s) => s.removeMeal);
 
   const ranked = useMemo(() => rankMeals(meals), [meals]);
   const [editing, setEditing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
+  // How much of each recipe to log. Kept per meal rather than one shared
+  // value, so picking half a curry does not silently halve the next one too.
+  const [portions, setPortions] = useState<Record<string, number>>({});
 
   const commitRename = (id: string) => {
     renameMeal(id, draftName);
@@ -46,7 +60,12 @@ export default function SavedMeals() {
       ) : (
         <View style={{ gap: spacing.md }}>
           {ranked.map((m, i) => {
-            const totals = mealMacros(m.items);
+            const recipe = isRecipe(m);
+            const servings = servingsOf(m);
+            const portion = portions[m.id] ?? 1;
+            // A recipe's numbers are about a plate; a saved meal's are about
+            // the whole thing, which is the same thing when it makes one.
+            const totals = recipe ? portionMacros(m, portion) : mealMacros(m.items);
             return (
               <FadeIn key={m.id} delay={Math.min(200, i * 30)}>
                 <Card style={{ gap: spacing.md }}>
@@ -77,7 +96,8 @@ export default function SavedMeals() {
                         </Pressable>
                       )}
                       <Text variant="caption" color={colors.textDim}>
-                        {SLOT_LABEL[m.slot]} · {m.items.length} item{m.items.length === 1 ? '' : 's'} ·{' '}
+                        {SLOT_LABEL[m.slot]} · {m.items.length} item{m.items.length === 1 ? '' : 's'}
+                        {recipe ? ` · makes ${servings}` : ''} ·{' '}
                         {m.timesLogged === 0
                           ? `saved ${formatDayMonth(m.createdAt)}`
                           : `logged ${m.timesLogged}×`}
@@ -111,7 +131,40 @@ export default function SavedMeals() {
                         </Text>
                       </View>
                     ))}
+                    {recipe && (
+                      <Text variant="caption" color={colors.textFaint}>
+                        The whole batch. One serving is {perServing(m).calories} kcal.
+                      </Text>
+                    )}
                   </View>
+
+                  <Servings
+                    value={m.servings ?? null}
+                    onChange={(n) => {
+                      setMealServings(m.id, n);
+                      setPortions((p) => ({ ...p, [m.id]: 1 }));
+                    }}
+                  />
+
+                  {recipe && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
+                      <Text variant="caption" color={colors.textFaint}>Logging</Text>
+                      {portionChoices(servings).map((p) => (
+                        <Pressable
+                          key={p}
+                          onPress={() => setPortions((prev) => ({ ...prev, [m.id]: p }))}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: p === portion }}
+                          accessibilityLabel={`Log ${portionLabel(p, servings)}`}
+                          style={[styles.slotChip, p === portion && { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}
+                        >
+                          <Text variant="caption" color={p === portion ? colors.primary : colors.text}>
+                            {portionLabel(p, servings)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
 
                   <View style={styles.totals}>
                     <Macro label="kcal" value={totals.calories} tint={colors.calorie} />
@@ -130,7 +183,7 @@ export default function SavedMeals() {
                       <Pressable
                         key={slot}
                         onPress={() => {
-                          const n = logSavedMeal(m.id, slot);
+                          const n = logSavedMeal(m.id, slot, undefined, recipe ? portion : undefined);
                           if (n > 0) router.push('/(tabs)/nutrition');
                         }}
                         accessibilityRole="button"
@@ -155,6 +208,9 @@ export default function SavedMeals() {
           today&apos;s entries never changes it. Logging one adds every item to the slot you pick, and each
           item stays marked as an estimate — saving something does not make it a measurement.
         </Text>
+        <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.sm }}>
+          {RECIPE_NOTE}
+        </Text>
       </Card>
     </Screen>
   );
@@ -169,7 +225,60 @@ function Macro({ label, value, tint }: { label: string; value: number; tint: str
   );
 }
 
+/**
+ * How many servings the batch makes.
+ *
+ * A stepper rather than a text field: the number is almost always between two
+ * and six, and a keyboard for that is a keyboard nobody wanted. Dropping back
+ * to one takes the field off entirely, so a meal that is not a recipe does not
+ * carry a divide-by-one.
+ */
+function Servings({ value, onChange }: { value: number | null; onChange: (n: number | null) => void }) {
+  const current = value ?? 1;
+  const step = (delta: number) => {
+    const next = Math.max(1, Math.min(MAX_SERVINGS, current + delta));
+    onChange(next <= 1 ? null : next);
+  };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+      <Text variant="caption" color={colors.textFaint} style={{ flex: 1, minWidth: 0 }}>
+        {current === 1 ? 'One portion' : `Makes ${current} servings`}
+      </Text>
+      <Pressable
+        onPress={() => step(-1)}
+        disabled={current <= 1}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Fewer servings"
+        style={[styles.step, current <= 1 && { opacity: 0.35 }]}
+      >
+        <Icon name="minus" size={14} color={colors.text} />
+      </Pressable>
+      <Pressable
+        onPress={() => step(1)}
+        disabled={current >= MAX_SERVINGS}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="More servings"
+        style={styles.step}
+      >
+        <Icon name="plus" size={14} color={colors.text} />
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = {
+  step: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
   iconBtn: {
     width: 34,
     height: 34,

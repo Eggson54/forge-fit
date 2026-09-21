@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { todayISO } from '../domain/date';
 import { sumMacros } from '../domain/nutrition';
+import { MAX_SERVINGS, isRecipe, scaleToPortions, servingsOf } from '../domain/recipes';
 import type {
   FoodMacros,
   MeasurementLog,
@@ -43,11 +44,22 @@ interface LogState {
   removeFood: (id: string) => void;
 
   savedMeals: SavedMeal[];
-  saveMeal: (input: { name: string; slot: MealSlot; items: SavedMealItem[] }) => SavedMeal;
+  saveMeal: (input: { name: string; slot: MealSlot; items: SavedMealItem[]; servings?: number }) => SavedMeal;
   renameMeal: (id: string, name: string) => void;
+  /**
+   * Set how many servings a saved meal makes, turning it into a recipe.
+   * Passing 1 or null takes the field off again rather than storing a
+   * divide-by-one nobody asked for.
+   */
+  setMealServings: (id: string, servings: number | null) => void;
   removeMeal: (id: string) => void;
-  /** Logs every item of a saved meal into the given slot and date. */
-  logSavedMeal: (id: string, slot?: MealSlot, date?: string) => number;
+  /**
+   * Logs a saved meal into the given slot and date. `portions` divides a
+   * recipe: half a tray of a four-serving bake logs two servings' worth of
+   * every ingredient. Defaults to the whole thing for a plain saved meal and
+   * to one serving for a recipe.
+   */
+  logSavedMeal: (id: string, slot?: MealSlot, date?: string, portions?: number) => number;
 
   addWater: (amountOz: number, date?: string) => void;
   logWeight: (weightKg: number, date?: string) => void;
@@ -115,7 +127,7 @@ export const useLogStore = create<LogState>()(
 
       removeFood: (id) => set((s) => ({ nutrition: s.nutrition.filter((n) => n.id !== id) })),
 
-      saveMeal: ({ name, slot, items }) => {
+      saveMeal: ({ name, slot, items, servings }) => {
         const meal: SavedMeal = {
           id: uid('sm_'),
           name: name.trim() || suggestMealName(items, slot),
@@ -126,6 +138,7 @@ export const useLogStore = create<LogState>()(
           createdAt: new Date().toISOString(),
           timesLogged: 0,
           lastLoggedAt: null,
+          ...(servings != null && servings > 1 ? { servings: Math.round(servings) } : null),
         };
         set((s) => ({ savedMeals: [meal, ...s.savedMeals] }));
         return meal;
@@ -136,15 +149,31 @@ export const useLogStore = create<LogState>()(
           savedMeals: s.savedMeals.map((m) => (m.id === id ? { ...m, name: name.trim() || m.name } : m)),
         })),
 
+      setMealServings: (id, servings) =>
+        set((s) => ({
+          savedMeals: s.savedMeals.map((m) => {
+            if (m.id !== id) return m;
+            const next = servings != null && servings > 1 ? Math.round(servings) : null;
+            if (next == null) {
+              const { servings: _dropped, ...rest } = m;
+              return rest;
+            }
+            return { ...m, servings: Math.min(MAX_SERVINGS, next) };
+          }),
+        })),
+
       removeMeal: (id) => set((s) => ({ savedMeals: s.savedMeals.filter((m) => m.id !== id) })),
 
-      logSavedMeal: (id, slot, date) => {
+      logSavedMeal: (id, slot, date, portions) => {
         const meal = get().savedMeals.find((m) => m.id === id);
         if (!meal) return 0;
         const when = date ?? todayISO();
         const target = slot ?? meal.slot;
         const now = new Date().toISOString();
-        const entries: NutritionEntry[] = meal.items.map((item) => ({
+        // A recipe logs one serving unless asked otherwise; a plain saved
+        // meal is one portion of itself, so the scaling is a no-op there.
+        const items = scaleToPortions(meal, portions ?? (isRecipe(meal) ? 1 : servingsOf(meal)));
+        const entries: NutritionEntry[] = items.map((item) => ({
           id: uid('n_'),
           date: when,
           slot: target,
