@@ -36,6 +36,7 @@ const LABEL: Record<StoreKey, string> = {
   gyms: 'Gyms and claims',
   vitals: 'Resting heart rate, HRV and the other passive signals',
   journal: 'Journal entries and your own factors',
+  biomarkers: 'Blood results you entered',
 };
 
 /** Counts records in a store snapshot, however it is shaped. */

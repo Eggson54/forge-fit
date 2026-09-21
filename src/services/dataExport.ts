@@ -2,6 +2,7 @@ import { Platform, Share } from 'react-native';
 import { useCoachStore } from '../stores/useCoachStore';
 import { useGamificationStore } from '../stores/useGamificationStore';
 import { useVitalsStore } from '../stores/useVitalsStore';
+import { useBiomarkerStore } from '../stores/useBiomarkerStore';
 import { useJournalStore } from '../stores/useJournalStore';
 import { useGymStore } from '../stores/useGymStore';
 import { useIntegrationStore } from '../stores/useIntegrationStore';
@@ -80,6 +81,7 @@ export function collectUserData(): ExportDocument {
       watchStatus: integrations.watchStatus,
     },
     vitals: { days: useVitalsStore.getState().days },
+    biomarkers: { readings: useBiomarkerStore.getState().readings },
     journal: {
       entries: useJournalStore.getState().entries,
       customFactors: useJournalStore.getState().customFactors,
