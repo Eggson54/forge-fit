@@ -8,8 +8,10 @@ import {
   type Readiness,
 } from '../domain/readiness';
 import { daysElapsedInWeek, weeklyVolumeSeries } from '../domain/volumeTrend';
+import { readVital } from '../domain/vitals';
 import { useLogStore } from './useLogStore';
 import { useProfileStore } from './useProfileStore';
+import { useVitalsStore } from './useVitalsStore';
 import { useWorkoutStore } from './useWorkoutStore';
 
 /**
@@ -23,9 +25,14 @@ export function useReadiness(): Readiness | null {
   const target = useProfileStore((s) => s.targets.sleepMinutes);
   const sleepLogs = useLogStore((s) => s.sleep);
   const workouts = useWorkoutStore((s) => s.completedWorkouts());
+  const vitals = useVitalsStore((s) => s.days);
 
   return useMemo(() => {
     const today = todayISO();
+    // Present only with a wearable and enough history for a baseline. Absent,
+    // the readiness math hands their weight back to everything else.
+    const hrv = readVital(vitals, 'hrvMs', { today });
+    const rhr = readVital(vitals, 'restingHeartRate', { today });
     const lastNight = sleepLogs.find((s) => s.date === today);
 
     // The most recent completed session, by date; the store's order is an
@@ -41,6 +48,8 @@ export function useReadiness(): Readiness | null {
       lastEffort: latest?.effort ?? null,
       consecutiveDays: workouts.length > 0 ? consecutiveTrainingDays(workouts, today) : null,
       loadRatio: loadRatio(series, daysElapsedInWeek(today)),
+      hrvZ: hrv?.z ?? null,
+      rhrZ: rhr?.z ?? null,
     });
-  }, [sleepLogs, workouts, target]);
+  }, [sleepLogs, workouts, target, vitals]);
 }

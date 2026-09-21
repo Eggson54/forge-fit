@@ -272,7 +272,7 @@ export default function Home() {
       {readiness && (
         <FadeIn delay={120}>
           <Card
-            onPress={() => router.push('/readiness')}
+            onPress={() => router.push('/scores')}
             style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
           >
             <ProgressRing progress={readiness.score / 100} size={54} stroke={6} color={BAND_TINT[readiness.band]}>
@@ -280,7 +280,7 @@ export default function Home() {
             </ProgressRing>
             <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
               <Text variant="label" color={BAND_TINT[readiness.band]}>
-                Readiness · {BAND_LABEL[readiness.band]}
+                Today · {BAND_LABEL[readiness.band]}
               </Text>
               <Text variant="caption" color={colors.textFaint} numberOfLines={2}>
                 {readiness.headline}

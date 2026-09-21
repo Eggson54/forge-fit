@@ -89,6 +89,13 @@ const SCREENS: SearchEntry[] = [
     keywords: ['hrv', 'resting heart rate', 'rhr', 'respiratory', 'temperature', 'blood oxygen', 'spo2', 'vitals', 'baseline'],
     href: '/health',
   },
+  {
+    id: 's_scores',
+    kind: 'screen',
+    title: 'Today — your scores',
+    keywords: ['strain', 'sleep score', 'recovery score', 'nutrition score', 'energy bank', 'cardio load', 'target strain'],
+    href: '/scores',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },

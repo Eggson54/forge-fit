@@ -232,3 +232,43 @@ describe('the caveat', () => {
     expect(READINESS_CAVEAT).toMatch(/never as medical advice/i);
   });
 });
+
+describe('the measured signals', () => {
+  it('outweighs the inferred components when a wearable is there', () => {
+    const inferred = r();
+    const collapsed = r({ hrvZ: -2.5, rhrZ: 2.2 });
+    // Everything else identical; the body's own report moves the number hard.
+    expect(collapsed.score).toBeLessThan(inferred.score - 15);
+  });
+
+  it('knows which direction is good for each', () => {
+    // HRV up and resting heart rate down are both the good direction.
+    expect(r({ hrvZ: 1.5 }).score).toBeGreaterThanOrEqual(r({ hrvZ: -1.5 }).score);
+    expect(r({ rhrZ: -1.5 }).score).toBeGreaterThanOrEqual(r({ rhrZ: 1.5 }).score);
+  });
+
+  it('does not keep rewarding an unusually good morning', () => {
+    // A great HRV is a fine morning, not a licence to double the session.
+    expect(r({ hrvZ: 4 }).score).toBe(r({ hrvZ: 8 }).score);
+  });
+
+  it('leaves them out entirely when there is no wearable', () => {
+    expect(r().components.map((c) => c.key)).not.toContain('hrv');
+    expect(r({ hrvZ: null, rhrZ: null }).components.map((c) => c.key)).not.toContain('rhr');
+  });
+
+  it('ignores a value that is not a number rather than scoring it', () => {
+    expect(r({ hrvZ: Number.NaN }).components.map((c) => c.key)).not.toContain('hrv');
+  });
+
+  it('still renormalises to one with the extra components in', () => {
+    const total = r({ hrvZ: -1, rhrZ: 1 }).components.reduce((a, c) => a + c.weight, 0);
+    expect(total).toBeCloseTo(1, 1);
+  });
+
+  it('says what the signal did rather than restating the z', () => {
+    const note = r({ hrvZ: -2.4 }).components.find((c) => c.key === 'hrv')!.note;
+    expect(note).toMatch(/well below your own normal/i);
+    expect(note).not.toMatch(/-?2\.4/);
+  });
+});

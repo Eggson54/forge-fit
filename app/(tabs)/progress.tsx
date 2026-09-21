@@ -297,6 +297,8 @@ export default function Progress() {
 
       <SectionHeader title="More" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+        <ListRow icon="chart" tint={colors.lime} title="Today's Scores" subtitle="Recovery, strain, sleep, nutrition" onPress={() => router.push('/scores')} />
+        <ListRow icon="shield" tint={colors.info} title="Health Monitor" onPress={() => router.push('/health')} />
         <ListRow icon="steps" tint={colors.steps} title="Conditioning" onPress={() => router.push('/progress/cardio')} />
         <ListRow icon="camera" tint={colors.fat} title="Progress Photos" onPress={() => router.push('/progress/photos')} />
         <ListRow icon="scale" tint={colors.water} title="Body Measurements" onPress={() => router.push('/progress/measurements')} />

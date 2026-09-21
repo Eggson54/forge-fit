@@ -36,7 +36,7 @@ export const BAND_TINT: Record<ReadinessBand, string> = {
   peak: '#39E6C3',
 };
 
-export type ComponentKey = 'sleep' | 'sleepTrend' | 'effort' | 'consecutive' | 'load';
+export type ComponentKey = 'sleep' | 'sleepTrend' | 'effort' | 'consecutive' | 'load' | 'hrv' | 'rhr';
 
 export const COMPONENT_LABEL: Record<ComponentKey, string> = {
   sleep: 'Last night',
@@ -44,6 +44,8 @@ export const COMPONENT_LABEL: Record<ComponentKey, string> = {
   effort: 'Last session',
   consecutive: 'Days on the trot',
   load: 'Volume vs normal',
+  hrv: 'Heart rate variability',
+  rhr: 'Resting heart rate',
 };
 
 /** How much each component moves the number, before renormalising. */
@@ -53,6 +55,12 @@ const WEIGHT: Record<ComponentKey, number> = {
   effort: 0.2,
   consecutive: 0.16,
   load: 0.16,
+  // The two measured signals outweigh everything inferred. A body reporting
+  // an overnight HRV collapse knows something that "you trained three days in
+  // a row" is only guessing at — and when they are absent the renormalising
+  // hands their share back to the rest rather than leaving a hole.
+  hrv: 0.34,
+  rhr: 0.24,
 };
 
 export interface ReadinessInput {
@@ -71,6 +79,13 @@ export interface ReadinessInput {
    * 1.5 is half again as much.
    */
   loadRatio: number | null;
+  /**
+   * How far today's HRV sits from the athlete's own baseline, in standard
+   * deviations. Null without a wearable or without enough history.
+   */
+  hrvZ?: number | null;
+  /** The same for resting heart rate. */
+  rhrZ?: number | null;
 }
 
 export interface ReadinessComponent {
@@ -158,6 +173,27 @@ export function readiness(input: ReadinessInput): Readiness | null {
     });
   }
 
+  // HRV up is good and resting heart rate up is not, so the two signs are
+  // handled separately rather than by a shared abs().
+  if (input.hrvZ != null && Number.isFinite(input.hrvZ)) {
+    parts.push({
+      key: 'hrv',
+      label: COMPONENT_LABEL.hrv,
+      score: fromZ(input.hrvZ, true),
+      weight: WEIGHT.hrv,
+      note: zNote('HRV', input.hrvZ, true),
+    });
+  }
+  if (input.rhrZ != null && Number.isFinite(input.rhrZ)) {
+    parts.push({
+      key: 'rhr',
+      label: COMPONENT_LABEL.rhr,
+      score: fromZ(input.rhrZ, false),
+      weight: WEIGHT.rhr,
+      note: zNote('Resting heart rate', input.rhrZ, false),
+    });
+  }
+
   if (parts.length === 0) return null;
 
   const total = parts.reduce((a, p) => a + p.weight, 0);
@@ -193,6 +229,29 @@ function headlineFor(score: number, band: ReadinessBand, components: ReadinessCo
         ? 'Middling. Train, but leave a rep in the tank.'
         : 'Mostly green.';
   return `${lead} ${weakest.note}`;
+}
+
+/**
+ * A standard-deviation move turned into a 0-1 score.
+ *
+ * Being a long way the *good* way does not keep adding — an unusually high
+ * HRV is a fine morning, not a licence to double the session, and a scale that
+ * rewarded it would let one good night outvote everything else.
+ */
+function fromZ(z: number, higherIsBetter: boolean): number {
+  const favourable = higherIsBetter ? z : -z;
+  if (favourable >= 0) return Math.min(1, 0.85 + favourable * 0.1);
+  return clamp01(0.85 + favourable * 0.3);
+}
+
+function zNote(label: string, z: number, higherIsBetter: boolean): string {
+  const favourable = higherIsBetter ? z : -z;
+  const size = Math.abs(z);
+  if (size < 1) return `${label} is where it usually is.`;
+  const direction = z > 0 ? 'above' : 'below';
+  const strength = size >= 2 ? 'well' : 'a little';
+  const tail = favourable >= 0 ? '' : ' Your body is still paying for something.';
+  return `${label} is ${strength} ${direction} your own normal.${tail}`;
 }
 
 /** Ramp from `floor` to `top`, flat above it. */
