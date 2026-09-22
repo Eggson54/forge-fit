@@ -3,7 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, EmptyState, Input, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import { ElevationProfile, TraceMap } from '../../src/components/TraceMap';
+import { ElevationProfile } from '../../src/components/TraceMap';
+import { MapView } from '../../src/components/MapView';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { distanceMeters } from '../../src/domain/geo';
@@ -20,7 +21,9 @@ import {
 } from '../../src/domain/track';
 import { BEST_EFFORTS_NOTE } from '../../src/domain/bestEfforts';
 import { MIN_SEGMENT_M, SEGMENTS_NOTE } from '../../src/domain/segments';
+import { describeEffect, insideAnyZone } from '../../src/domain/privacy';
 import { useActivityStore } from '../../src/stores/useActivityStore';
+import { useMapStore } from '../../src/stores/useMapStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 export default function ActivityDetail() {
@@ -32,6 +35,8 @@ export default function ActivityDetail() {
   const remove = useActivityStore((s) => s.remove);
   const rename = useActivityStore((s) => s.rename);
   const units = useProfileStore((s) => s.profile.units);
+  const zones = useMapStore((s) => s.zones);
+  const sourceId = useMapStore((s) => s.sourceId);
 
   const [highlight, setHighlight] = useState<{ from: number; to: number } | null>(null);
   const [naming, setNaming] = useState(false);
@@ -61,6 +66,7 @@ export default function ActivityDetail() {
     );
   }
 
+  const zoneEffect = describeEffect(activity.points, zones);
   const distance = displayDistance(activity.distanceM / 1000, units);
   const pace = activity.movingS > 0 ? (activity.movingS / activity.distanceM) * unitM : null;
 
@@ -73,7 +79,40 @@ export default function ActivityDetail() {
     <Screen gradient>
       <ScreenHeader title={activity.name} subtitle={activity.date} />
 
-      <TraceMap points={activity.points} height={220} highlight={highlight} />
+      {/* The highlighted stretch is drawn as its own line on top rather than
+          by recolouring part of one, because a privacy zone can already have
+          cut the route into pieces and an index range no longer maps onto a
+          single polyline. */}
+      <MapView
+        routes={[activity.points]}
+        zones={zones}
+        units={units}
+        height={240}
+        sourceId={sourceId}
+        markers={[
+          { at: activity.points[0]!, color: colors.success },
+          { at: activity.points[activity.points.length - 1]!, color: colors.danger },
+        ].filter((m) => m.at && !insideAnyZone(m.at, zones))}
+      />
+      {highlight && (
+        <MapView
+          routes={[activity.points.slice(Math.max(0, highlight.from), highlight.to + 1)]}
+          zones={zones}
+          units={units}
+          height={150}
+          sourceId={sourceId}
+          routeColor={colors.lime}
+          style={{ marginTop: spacing.sm }}
+        />
+      )}
+      {zoneEffect.hidden > 0 && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xs }}>
+          <Icon name="lock" size={12} color={colors.textFaint} />
+          <Text variant="caption" color={colors.textFaint} style={{ flex: 1 }}>
+            {zoneEffect.note}
+          </Text>
+        </View>
+      )}
 
       {derived.profile.length > 2 && (
         <View style={{ marginTop: spacing.sm }}>

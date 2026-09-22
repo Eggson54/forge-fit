@@ -68,6 +68,7 @@ export const RESTORE_MAP: Record<Exclude<StoreKey, 'auth'>, Restorer> = {
   layout: (s) => pick(s, ['order', 'hidden', 'hiddenTabs', 'action']),
   checkIns: (s) => pick(s, ['checkIns', 'ghost', 'thinking']),
   activities: (s) => pick(s, ['activities', 'segments', 'segmentEfforts']),
+  map: (s) => pick(s, ['zones', 'sourceId', 'heatmapEnabled']),
   gyms: (s) => pick(s, ['claims', 'kits']),
 };
 

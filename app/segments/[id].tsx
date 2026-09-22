@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, EmptyState, Pill, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import { TraceMap } from '../../src/components/TraceMap';
+import { MapView } from '../../src/components/MapView';
 import { LineChart } from '../../src/components/ui';
 import { colors, spacing } from '../../src/theme';
 import { formatDistance } from '../../src/domain/geo';
@@ -11,6 +11,7 @@ import { formatDuration } from '../../src/domain/track';
 import { climbCategory, gradientPct } from '../../src/domain/segments';
 import { formatDayMonth } from '../../src/domain/date';
 import { useActivityStore } from '../../src/stores/useActivityStore';
+import { useMapStore } from '../../src/stores/useMapStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 export default function SegmentDetail() {
@@ -20,6 +21,8 @@ export default function SegmentDetail() {
   const hideSegment = useActivityStore((s) => s.hideSegment);
   const removeSegment = useActivityStore((s) => s.removeSegment);
   const units = useProfileStore((s) => s.profile.units);
+  const zones = useMapStore((s) => s.zones);
+  const sourceId = useMapStore((s) => s.sourceId);
 
   if (!segment) {
     return (
@@ -38,7 +41,14 @@ export default function SegmentDetail() {
     <Screen gradient>
       <ScreenHeader title={segment.name} subtitle={formatDistance(segment.distanceM, units)} />
 
-      <TraceMap points={segment.path} height={190} color={colors.carbs} />
+      <MapView
+        routes={[segment.path]}
+        zones={zones}
+        units={units}
+        height={210}
+        sourceId={sourceId}
+        routeColor={colors.carbs}
+      />
 
       <Card style={{ marginTop: spacing.md }}>
         <View style={{ flexDirection: 'row' }}>

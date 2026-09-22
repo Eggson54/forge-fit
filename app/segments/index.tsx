@@ -4,13 +4,14 @@ import { router } from 'expo-router';
 import { Card, EmptyState, Pill, Screen, Text } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import { TraceMap } from '../../src/components/TraceMap';
+import { MapView } from '../../src/components/MapView';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { formatDistance } from '../../src/domain/geo';
 import { formatDuration } from '../../src/domain/track';
 import { SEGMENTS_NOTE, climbCategory, gradientPct } from '../../src/domain/segments';
 import { useActivityStore } from '../../src/stores/useActivityStore';
+import { useMapStore } from '../../src/stores/useMapStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 export default function Segments() {
@@ -18,6 +19,8 @@ export default function Segments() {
   const segmentEfforts = useActivityStore((s) => s.segmentEfforts);
   const board = useActivityStore((s) => s.board);
   const units = useProfileStore((s) => s.profile.units);
+  const zones = useMapStore((s) => s.zones);
+  const sourceId = useMapStore((s) => s.sourceId);
 
   const visible = useActivityStore.getState().visibleSegments();
   const hiddenCount = segments.length - visible.length;
@@ -47,7 +50,17 @@ export default function Segments() {
                   <Icon name="chevron_right" size={15} color={colors.textFaint} />
                 </View>
 
-                <TraceMap points={segment.path} height={90} color={colors.carbs} />
+                {/* Not interactive in a list: a map that swallows the drag
+                    makes the list itself impossible to scroll past. */}
+                <MapView
+                  routes={[segment.path]}
+                  zones={zones}
+                  units={units}
+                  height={100}
+                  sourceId={sourceId}
+                  interactive={false}
+                  routeColor={colors.carbs}
+                />
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   <Text variant="caption" color={colors.textDim}>

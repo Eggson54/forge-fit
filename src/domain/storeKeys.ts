@@ -23,6 +23,7 @@ export const STORE_KEYS = {
   layout: 'forgefit.layout',
   checkIns: 'forgefit.checkins',
   activities: 'forgefit.activities',
+  map: 'forgefit.map',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;

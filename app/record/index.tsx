@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, Chip, Screen, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
-import { TraceMap } from '../../src/components/TraceMap';
+import { MapView } from '../../src/components/MapView';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { CARDIO_KINDS } from '../../src/domain/cardio';
@@ -12,6 +12,7 @@ import { displayDistance } from '../../src/domain/cardio';
 import { useRecorderStore } from '../../src/stores/useRecorderStore';
 import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { useMapStore } from '../../src/stores/useMapStore';
 
 /** Only the kinds where a route means anything. A rower has no map. */
 const OUTDOOR = ['run', 'ride', 'walk', 'hike'];
@@ -30,6 +31,8 @@ export default function Record() {
   const finish = useRecorderStore((s) => s.finish);
   const save = useActivityStore((s) => s.save);
   const units = useProfileStore((s) => s.profile.units);
+  const zones = useMapStore((s) => s.zones);
+  const sourceId = useMapStore((s) => s.sourceId);
 
   // A ticking clock the store does not hold: elapsed time is derived from
   // wall-clock, so re-rendering once a second is all it takes to animate it,
@@ -137,7 +140,18 @@ export default function Record() {
             </View>
           </Card>
 
-          <TraceMap points={points} height={200} style={{ marginTop: spacing.md }} />
+          {/* Live, and deliberately not interactive: a map that pans while
+              someone is running would need dragging back before it is useful
+              again, one-handed, out of breath. */}
+          <MapView
+            routes={[points]}
+            zones={zones}
+            units={units}
+            height={220}
+            sourceId={sourceId}
+            interactive={false}
+            style={{ marginTop: spacing.md }}
+          />
 
           <View style={{ gap: spacing.sm, marginTop: spacing.xl }}>
             {state === 'recording' ? (
