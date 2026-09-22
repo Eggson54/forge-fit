@@ -173,7 +173,47 @@ rule-based and tells the user so.
 
 ---
 
-## 7. Gym search — optional
+## 7. Open Wearables — Garmin, WHOOP, Oura and the rest
+
+**Free and open source (MIT), and you run it.**
+github.com/the-momentum/open-wearables
+
+A self-hosted FastAPI service that puts a dozen device makers behind one
+API with normalised data and webhooks. It is worth being precise about what
+it does and does not save you:
+
+- **It does not remove the developer accounts.** Garmin, WHOOP, Oura, Polar,
+  Suunto, Fitbit, Withings and Strava each still issue a client ID and
+  secret, and those go in *its* `.env` — `GARMIN_CLIENT_ID`,
+  `WHOOP_CLIENT_SECRET` and so on. Some of those programmes have an approval
+  step; WHOOP's in particular is not open to everyone.
+- **It removes the work.** Eight OAuth flows, eight data mappings, eight sync
+  loops and eight sets of API changes to keep up with become one client in
+  this app. That is the part that would otherwise have taken months.
+- **Nothing goes to a third party.** It runs on your machine with
+  `docker compose up`, and your health data never leaves infrastructure you
+  control. That is the reason to prefer it over a hosted aggregator.
+
+| Variable | Where it goes |
+|---|---|
+| `EXPO_PUBLIC_OPEN_WEARABLES_URL` | app bundle — the URL of your deployment |
+| `EXPO_PUBLIC_OPEN_WEARABLES_TOKEN_URL` | app bundle — `https://<your-deployment>/api/wearables/token` |
+| `OPEN_WEARABLES_URL` | **server only** |
+| `OPEN_WEARABLES_APP_ID` | **server only** |
+| `OPEN_WEARABLES_APP_SECRET` | **server only** |
+
+The split matters. The app never holds the app secret or the master API key;
+it asks `/api/wearables/token` for a short-lived, user-scoped JWT. A leaked
+JWT is one person's data for an hour. A leaked app secret is everybody's,
+for as long as nobody notices.
+
+It also closes two gaps this app had: **sleep stages**, which HealthKit
+exposes but the adapter here does not read, and **WHOOP**, which has no
+consumer API route at all.
+
+---
+
+## 8. Gym search — optional
 
 `EXPO_PUBLIC_GYM_API_URL` points at your own proxy for a points-of-interest
 source (Overpass, Mapbox, Google Places — your choice; the credential
@@ -182,7 +222,7 @@ the Iron Map falls back to its bundled list.
 
 ---
 
-## 8. Analytics — optional
+## 9. Analytics — optional
 
 `EXPO_PUBLIC_ANALYTICS_KEY`. Blank means events are logged to the console
 in development and dropped in production. Health values are never sent as
@@ -203,10 +243,10 @@ Worth saying explicitly, because these are the ones people expect to need:
 - **Apple Health / Apple Watch** — entitlements, not credentials (§3).
 - **Google or Apple sign-in** — configured in the Supabase dashboard,
   nothing in the app bundle (§1).
-- **Oura, Garmin, Fitbit, Whoop** — not integrated. Their data arrives
-  through Apple Health on iOS, which is why there is no key here. A direct
-  integration would need a developer account with each, and Whoop's in
-  particular is not open to everyone.
+- **Oura, Garmin, Fitbit, Whoop, Polar, Suunto, Withings, Samsung** — no key
+  goes in this app for any of them. Two routes: on iOS their data already
+  arrives through Apple Health, and for everything else there is
+  **Open Wearables** (§9), which is one integration instead of eight.
 
 ---
 
@@ -219,6 +259,10 @@ Worth saying explicitly, because these are the ones people expect to need:
 
 That is three services, two of them free, and it lights up most of the
 app. Everything after it is monetisation and polish.
+
+If you wear something that is not an Apple Watch, add Open Wearables (§7)
+as a fourth. It is the only route to WHOOP at all, and the only one to
+Garmin and Oura that does not mean writing each integration yourself.
 
 ---
 

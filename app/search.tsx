@@ -215,6 +215,13 @@ const SCREENS: SearchEntry[] = [
     keywords: ['custom food', 'my foods', 'add food', 'macros', 'own recipe', 'saved barcode'],
     href: '/nutrition/foods',
   },
+  {
+    id: 's_wearables',
+    kind: 'screen',
+    title: 'Open Wearables',
+    keywords: ['garmin', 'whoop', 'oura', 'polar', 'suunto', 'fitbit', 'withings', 'ultrahuman', 'samsung', 'wearable', 'self host', 'open wearables'],
+    href: '/settings/wearables',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },
