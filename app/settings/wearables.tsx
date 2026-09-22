@@ -101,18 +101,17 @@ export default function Wearables() {
           <SectionHeader title="Not set up on this build" />
           <Card style={{ gap: spacing.sm }}>
             <Text variant="caption" color={colors.textDim}>
-              Two variables point the app at your deployment, and neither is a secret:
+              One variable points the app at your own backend, and it is not a secret:
             </Text>
             <Text variant="caption" color={colors.textFaint} style={styles.mono}>
-              EXPO_PUBLIC_OPEN_WEARABLES_URL{'\n'}
-              EXPO_PUBLIC_OPEN_WEARABLES_TOKEN_URL
+              EXPO_PUBLIC_OPEN_WEARABLES_SUMMARY_URL
             </Text>
             <Text variant="caption" color={colors.textDim}>
-              The credentials that prove this app is this app live on your deployment of the backend in this repo —
-              never in the app itself, where anybody who downloads it could read them.
+              The key that reads your data lives on that backend. It grants every account on your deployment, so it
+              can never be in the app — which is why the reads go through your server rather than straight there.
             </Text>
             <Text variant="caption" color={colors.textFaint} style={styles.mono}>
-              OPEN_WEARABLES_URL{'\n'}OPEN_WEARABLES_APP_ID{'\n'}OPEN_WEARABLES_APP_SECRET
+              OPEN_WEARABLES_URL{'\n'}OPEN_WEARABLES_API_KEY
             </Text>
           </Card>
         </>

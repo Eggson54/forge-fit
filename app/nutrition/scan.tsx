@@ -15,6 +15,8 @@ import {
   type LibraryFood,
 } from '../../src/domain/foodLibrary';
 import type { MealSlot } from '../../src/domain/types';
+import { OFF_ATTRIBUTION, OFF_NOTE, type LookupResult } from '../../src/domain/productLookup';
+import { products } from '../../src/services/products';
 import { useFoodStore } from '../../src/stores/useFoodStore';
 import { useLogStore } from '../../src/stores/useLogStore';
 
@@ -49,6 +51,9 @@ export default function ScanFood() {
   const [serving, setServing] = useState('1 serving');
   const [macros, setMacros] = useState({ calories: '', proteinG: '', carbsG: '', fatG: '', fiberG: '' });
 
+  const [lookup, setLookup] = useState<LookupResult | null>(null);
+  const [looking, setLooking] = useState(false);
+
   const [camera, setCamera] = useState<{ Cam: React.ComponentType<Record<string, unknown>>; usePerm: () => [{ granted: boolean } | null, () => void] } | null>(null);
   const [permission, setPermission] = useState<'unknown' | 'granted' | 'denied' | 'unavailable'>('unknown');
   const handled = useRef<string | null>(null);
@@ -79,7 +84,36 @@ export default function ScanFood() {
     if (handled.current === raw) return;
     handled.current = raw;
     setCode(raw);
-    setKnown(byBarcode(raw));
+    setLookup(null);
+
+    const mine = byBarcode(raw);
+    setKnown(mine);
+    // Your own entry always wins. Somebody who corrected a wrong figure once
+    // should not have it quietly replaced by the wrong one again.
+    if (mine) return;
+
+    setLooking(true);
+    void products.lookup(raw).then((result) => {
+      setLookup(result);
+      setLooking(false);
+      if (result.kind === 'found') {
+        // Filled in, not saved. Everything stays editable against the packet,
+        // because it is a database anybody can edit and sometimes they are
+        // wrong.
+        setName(result.product.name);
+        setBrand(result.product.brand ?? '');
+        setServing(result.product.servingLabel);
+        setMacros({
+          calories: String(result.product.macros.calories),
+          proteinG: String(result.product.macros.proteinG),
+          carbsG: String(result.product.macros.carbsG),
+          fatG: String(result.product.macros.fatG),
+          fiberG: result.product.macros.fiberG != null ? String(result.product.macros.fiberG) : '',
+        });
+      } else if (result.kind === 'no_nutrition' && result.name) {
+        setName(result.name);
+      }
+    });
   };
 
   const logIt = (food: LibraryFood, multiplier: number) => {
@@ -178,8 +212,13 @@ export default function ScanFood() {
           </Card>
 
           <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.lg }}>
-            {BARCODE_NOTE}
+            {products.enabled() ? OFF_NOTE : BARCODE_NOTE}
           </Text>
+          {products.enabled() && (
+            <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.sm }}>
+              {OFF_ATTRIBUTION}
+            </Text>
+          )}
         </>
       )}
 
@@ -210,11 +249,52 @@ export default function ScanFood() {
       {code && !known && (
         <>
           <Card style={{ gap: spacing.sm }}>
-            <Text variant="overline" color={colors.amber}>NEW TO THE APP</Text>
-            <Text variant="body" color={colors.textDim}>
-              Nothing behind this code yet. Copy the figures off the label once and every future tin of it is a single
-              scan.
-            </Text>
+            {looking ? (
+              <>
+                <Text variant="overline" color={colors.textFaint}>LOOKING IT UP</Text>
+                <Text variant="body" color={colors.textDim}>Asking Open Food Facts about {code}…</Text>
+              </>
+            ) : lookup?.kind === 'found' ? (
+              <>
+                <Text variant="overline" color={colors.success}>FOUND IN OPEN FOOD FACTS</Text>
+                <Text variant="body" color={colors.textDim}>
+                  Filled in below. Check it against the packet before saving — anybody can edit that database, and
+                  sometimes a figure is wrong.
+                </Text>
+                {lookup.product.per100g && (
+                  <Text variant="caption" color={colors.amber}>
+                    This product publishes no serving size, so the figures are per 100 g. Set the portion to match what
+                    you actually ate.
+                  </Text>
+                )}
+                {lookup.product.missing.length > 0 && (
+                  <Text variant="caption" color={colors.amber}>
+                    No {lookup.product.missing.join(', ')} on record — those are zero below, which is a gap rather than
+                    a measurement.
+                  </Text>
+                )}
+              </>
+            ) : lookup?.kind === 'no_nutrition' ? (
+              <>
+                <Text variant="overline" color={colors.amber}>KNOWN, BUT NO FIGURES</Text>
+                <Text variant="body" color={colors.textDim}>
+                  Open Food Facts has this product but nobody has added its nutrition yet. The name is filled in.
+                </Text>
+              </>
+            ) : lookup?.kind === 'unreachable' ? (
+              <>
+                <Text variant="overline" color={colors.amber}>COULD NOT LOOK IT UP</Text>
+                <Text variant="body" color={colors.textDim}>{lookup.reason}</Text>
+              </>
+            ) : (
+              <>
+                <Text variant="overline" color={colors.amber}>NEW TO THE APP</Text>
+                <Text variant="body" color={colors.textDim}>
+                  Nothing behind this code, here or in Open Food Facts. Copy the figures off the label once and every
+                  future tin of it is a single scan.
+                </Text>
+              </>
+            )}
             <Text variant="caption" color={colors.textFaint}>{code}</Text>
           </Card>
 
@@ -286,7 +366,7 @@ export default function ScanFood() {
             <Button
               title="Scan something else"
               variant="ghost"
-              onPress={() => { handled.current = null; setCode(null); setName(''); setBrand(''); }}
+              onPress={() => { handled.current = null; setCode(null); setName(''); setBrand(''); setLookup(null); }}
             />
           </View>
         </>

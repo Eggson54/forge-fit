@@ -4,6 +4,7 @@ import { todayISO } from '../domain/date';
 import { trackStats, type TrackPoint, type TrackStats } from '../domain/track';
 import { location, type StopWatching } from '../services/location';
 import { crashLog, type RecoveredRecording } from '../services/crashLog';
+import { decide } from '../domain/autoPause';
 
 /**
  * The live recorder.
@@ -23,17 +24,6 @@ import { crashLog, type RecoveredRecording } from '../services/crashLog';
 
 export type RecorderState = 'idle' | 'requesting' | 'recording' | 'paused' | 'denied' | 'unavailable';
 
-/**
- * How slow counts as stopped, for auto-pause.
- *
- * 0.6 m/s is slower than a stroll. Set any higher and a genuine walk break
- * in the middle of a long run stops being recorded as part of the run, which
- * is the thing people complain about in every app that does this.
- */
-const AUTO_PAUSE_MS = 0.6;
-
-/** Seconds below that speed before it takes effect. */
-const AUTO_PAUSE_AFTER_S = 8;
 
 export interface Lap {
   index: number;
@@ -168,18 +158,27 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
       if (current.state !== 'recording' && !current.autoPaused) return;
 
       if (current.autoPause) {
-        const moving = typeof fix.speedMs === 'number' ? fix.speedMs >= AUTO_PAUSE_MS : null;
-        if (moving === true && current.autoPaused) {
-          set({ state: 'recording', autoPaused: false, pausedMs: current.pausedMs + (current.lastPauseAt ? Date.now() - current.lastPauseAt : 0), lastPauseAt: null });
-        } else if (moving === false && current.state === 'recording') {
-          const stillSince = stillSinceRef;
-          if (stillSince == null) {
-            stillSinceRef = fix.t;
-          } else if ((fix.t - stillSince) / 1000 >= AUTO_PAUSE_AFTER_S) {
-            set({ state: 'paused', autoPaused: true, lastPauseAt: Date.now() });
-          }
+        // The decision lives in `domain/autoPause`, under test. It is a small
+        // state machine whose mistakes are invisible on screen and expensive
+        // in the moment — one direction wastes a red light, the other drops
+        // the rest of a run — which is exactly the kind that does not belong
+        // inline in a subscription callback.
+        const decision = decide(
+          { recording: current.state === 'recording', autoPaused: current.autoPaused, stillSince: stillSinceRef },
+          { speedMs: fix.speedMs ?? null, t: fix.t },
+        );
+        stillSinceRef = decision.stillSince;
+
+        if (decision.action === 'resume') {
+          set({
+            state: 'recording',
+            autoPaused: false,
+            pausedMs: current.pausedMs + (current.lastPauseAt ? Date.now() - current.lastPauseAt : 0),
+            lastPauseAt: null,
+          });
+        } else if (decision.action === 'pause') {
+          set({ state: 'paused', autoPaused: true, lastPauseAt: Date.now() });
         }
-        if (moving !== false) stillSinceRef = null;
       }
 
       if (get().state !== 'recording') return;

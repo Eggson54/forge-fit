@@ -196,16 +196,20 @@ it does and does not save you:
 
 | Variable | Where it goes |
 |---|---|
-| `EXPO_PUBLIC_OPEN_WEARABLES_URL` | app bundle — the URL of your deployment |
-| `EXPO_PUBLIC_OPEN_WEARABLES_TOKEN_URL` | app bundle — `https://<your-deployment>/api/wearables/token` |
-| `OPEN_WEARABLES_URL` | **server only** |
-| `OPEN_WEARABLES_APP_ID` | **server only** |
-| `OPEN_WEARABLES_APP_SECRET` | **server only** |
+| `EXPO_PUBLIC_OPEN_WEARABLES_SUMMARY_URL` | app bundle — `https://<your-deployment>/api/wearables/summary` |
+| `OPEN_WEARABLES_URL` | **server only** — your Open Wearables deployment |
+| `OPEN_WEARABLES_API_KEY` | **server only** — from its developer portal |
 
-The split matters. The app never holds the app secret or the master API key;
-it asks `/api/wearables/token` for a short-lived, user-scoped JWT. A leaked
-JWT is one person's data for an hour. A leaked app secret is everybody's,
-for as long as nobody notices.
+The split is forced, not stylistic. Their SDK endpoint mints a user-scoped
+token that looks like the thing a mobile app should use — but their summary
+routes depend on `ApiKeyDep`, and `get_current_developer_optional` returns
+`None` for any token carrying `scope: "sdk"`. So an SDK token is refused on
+exactly the routes that hold the data, and the only credential those routes
+accept is the master API key, which grants **every** user's data on the
+deployment. That cannot go in a mobile bundle, so the reads are proxied.
+
+I built the SDK-token version first and it would have returned 401 on every
+call. Reading their auth code is what caught it.
 
 It also closes two gaps this app had: **sleep stages**, which HealthKit
 exposes but the adapter here does not read, and **WHOOP**, which has no
@@ -234,12 +238,11 @@ event properties.
 
 Worth saying explicitly, because these are the ones people expect to need:
 
-- **A food database.** There is not one yet, and this is the biggest gap
-  in the app: food search runs off a bundled list of 20 staples in
-  `src/data/foods.ts`. When it is replaced, Open Food Facts is the
-  obvious choice and needs **no key and no account** — it is a public
-  API. Barcode scanning is not built either; `SavedFood` carries a
-  `barcode` field and nothing fills it.
+- **A food database.** Open Food Facts needs no key and no account, and it
+  is wired in: scan a barcode and the app looks it up, fills the form, and
+  asks you to check it against the packet. `EXPO_PUBLIC_FOOD_LOOKUP=off`
+  turns it off. It is an accelerator, never a dependency — 128 staples ship
+  with the app and anything it cannot find you type once.
 - **Apple Health / Apple Watch** — entitlements, not credentials (§3).
 - **Google or Apple sign-in** — configured in the Supabase dashboard,
   nothing in the app bundle (§1).
