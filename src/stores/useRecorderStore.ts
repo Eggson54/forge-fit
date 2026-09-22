@@ -3,6 +3,7 @@ import { uid } from '../lib/uid';
 import { todayISO } from '../domain/date';
 import { trackStats, type TrackPoint, type TrackStats } from '../domain/track';
 import { location, type StopWatching } from '../services/location';
+import { crashLog, type RecoveredRecording } from '../services/crashLog';
 
 /**
  * The live recorder.
@@ -15,9 +16,9 @@ import { location, type StopWatching } from '../services/location';
  * in memory while recording and are handed to the activity store once, on
  * save.
  *
- * The cost of that choice is honest and worth stating: killing the app
- * mid-activity loses the recording. A crash-safe version needs an append-only
- * file rather than a state store, which is the right fix and not this one.
+ * The points are also streamed to `crashLog`, which writes them to disk in
+ * chunks. That is the safety net: killing the app mid-activity used to lose
+ * the whole recording, and now costs at most the last few seconds.
  */
 
 export type RecorderState = 'idle' | 'requesting' | 'recording' | 'paused' | 'denied' | 'unavailable';
@@ -64,6 +65,11 @@ interface RecorderStore {
   autoPaused: boolean;
 
   setType: (type: string) => void;
+  /** A recording left behind by a previous run of the app, if there is one. */
+  recovered: RecoveredRecording | null;
+  checkForRecovery: () => Promise<void>;
+  dismissRecovery: () => Promise<void>;
+  adoptRecovery: () => { id: string; date: string; type: string; points: TrackPoint[]; stats: TrackStats; laps: Lap[] } | null;
   setAutoPause: (on: boolean) => void;
   /** Close the current lap and start another. Returns the lap just closed. */
   lap: () => Lap | null;
@@ -100,6 +106,18 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
   lapStartIndex: 0,
   autoPause: true,
   autoPaused: false,
+
+  recovered: null,
+
+  checkForRecovery: async () => {
+    if (get().state !== 'idle') return;
+    set({ recovered: await crashLog.recover() });
+  },
+
+  dismissRecovery: async () => {
+    await crashLog.clear();
+    set({ recovered: null });
+  },
 
   setType: (type) => set({ type }),
   setAutoPause: (autoPause) => set({ autoPause, autoPaused: autoPause ? get().autoPaused : false }),
@@ -165,23 +183,23 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
       }
 
       if (get().state !== 'recording') return;
-      set((s) => ({
-        accuracy: fix.accuracyMeters,
-        points: [
-          ...s.points,
-          {
-            lat: fix.lat,
-            lon: fix.lon,
-            t: fix.t,
-            ...(fix.altitudeMeters != null ? { ele: fix.altitudeMeters } : null),
-            ...(fix.accuracyMeters != null ? { acc: fix.accuracyMeters } : null),
-          },
-        ],
-      }));
+      const point: TrackPoint = {
+        lat: fix.lat,
+        lon: fix.lon,
+        t: fix.t,
+        ...(fix.altitudeMeters != null ? { ele: fix.altitudeMeters } : null),
+        ...(fix.accuracyMeters != null ? { acc: fix.accuracyMeters } : null),
+      };
+      // Handed to the disk log before it reaches state, so a crash between
+      // the two loses nothing that was ever shown on screen.
+      crashLog.add([point]);
+      set((s) => ({ accuracy: fix.accuracyMeters, points: [...s.points, point] }));
     });
 
     stillSinceRef = null;
-    set({ state: 'recording', startedAt: Date.now(), pausedMs: 0, lastPauseAt: null, points: [], laps: [], lapStartIndex: 0, autoPaused: false });
+    const id = uid('act_');
+    await crashLog.begin({ id, type: get().type, startedAt: Date.now() });
+    set({ state: 'recording', startedAt: Date.now(), pausedMs: 0, lastPauseAt: null, points: [], laps: [], lapStartIndex: 0, autoPaused: false, recovered: null });
   },
 
   pause: () => {
@@ -206,6 +224,7 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
     unwatch?.();
     unwatch = null;
     stillSinceRef = null;
+    void crashLog.clear();
     set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, error: null, laps: [], lapStartIndex: 0, autoPaused: false });
   },
 
@@ -214,6 +233,9 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
     unwatch?.();
     unwatch = null;
     stillSinceRef = null;
+    // Cleared only once the caller has the points in hand. Clearing before
+    // this returns would make a crash during the hand-off lose the run.
+    void crashLog.clear();
 
     // Close whatever lap was running, so the last one is not silently lost.
     const tail = points.slice(lapStartIndex);
@@ -236,6 +258,24 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
     if (points.length < 5 || stats.distanceM < 20) return null;
 
     return { id: uid('act_'), date: todayISO(), type, points, stats, laps: closedLaps };
+  },
+
+  /** Adopt a recovered recording so it can be reviewed and saved as normal. */
+  adoptRecovery: () => {
+    const found = get().recovered;
+    if (!found) return null;
+    const stats = trackStats(found.points);
+    set({ recovered: null });
+    void crashLog.clear();
+    if (found.points.length < 5 || stats.distanceM < 20) return null;
+    return {
+      id: found.meta.id,
+      date: new Date(found.meta.startedAt).toISOString().slice(0, 10),
+      type: found.meta.type,
+      points: found.points,
+      stats,
+      laps: [] as Lap[],
+    };
   },
 
   stats: () => trackStats(get().points),

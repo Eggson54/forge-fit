@@ -10,6 +10,8 @@ import { CARDIO_KINDS } from '../../src/domain/cardio';
 import { formatDuration, formatPaceSec, paceFrom } from '../../src/domain/track';
 import { displayDistance } from '../../src/domain/cardio';
 import { useRecorderStore } from '../../src/stores/useRecorderStore';
+import { crashLog } from '../../src/services/crashLog';
+import { describeRecovery } from '../../src/domain/crashRecovery';
 import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useMapStore } from '../../src/stores/useMapStore';
@@ -36,6 +38,10 @@ export default function Record() {
   const autoPause = useRecorderStore((s) => s.autoPause);
   const autoPaused = useRecorderStore((s) => s.autoPaused);
   const setAutoPause = useRecorderStore((s) => s.setAutoPause);
+  const recovered = useRecorderStore((s) => s.recovered);
+  const checkForRecovery = useRecorderStore((s) => s.checkForRecovery);
+  const dismissRecovery = useRecorderStore((s) => s.dismissRecovery);
+  const adoptRecovery = useRecorderStore((s) => s.adoptRecovery);
   const suggestGearFor = useGearStore((s) => s.suggestGearFor);
   const logUse = useGearStore((s) => s.logUse);
   const units = useProfileStore((s) => s.profile.units);
@@ -45,6 +51,12 @@ export default function Record() {
   // A ticking clock the store does not hold: elapsed time is derived from
   // wall-clock, so re-rendering once a second is all it takes to animate it,
   // and nothing about the recording depends on this interval firing.
+  // Ask on open, not on app start: somebody who never records should never be
+  // told about a file they have no idea exists.
+  useEffect(() => {
+    void checkForRecovery();
+  }, [checkForRecovery]);
+
   const [, setTick] = useState(0);
   useEffect(() => {
     if (state !== 'recording') return;
@@ -60,6 +72,22 @@ export default function Record() {
 
   const [tooShort, setTooShort] = useState(false);
 
+  const store = (result: ReturnType<typeof finish>) => {
+    if (!result) return false;
+    const gear = suggestGearFor(result.type);
+    const saved = save({
+      type: result.type,
+      points: result.points,
+      date: result.date,
+      laps: result.laps.map((l) => ({ index: l.index, startIndex: l.startIndex, distanceM: l.distanceM, seconds: l.seconds })),
+      gearId: gear?.id ?? null,
+    });
+    if (!saved) return false;
+    if (gear) logUse(gear.id, saved.id, saved.date, saved.distanceM);
+    router.replace(`/record/${saved.id}`);
+    return true;
+  };
+
   const onFinish = () => {
     const result = finish();
     if (!result) {
@@ -69,25 +97,25 @@ export default function Record() {
       return;
     }
     setTooShort(false);
-    const gear = suggestGearFor(result.type);
-    const saved = save({
-      type: result.type,
-      points: result.points,
-      date: result.date,
-      laps: result.laps.map((l) => ({ index: l.index, startIndex: l.startIndex, distanceM: l.distanceM, seconds: l.seconds })),
-      gearId: gear?.id ?? null,
-    });
-    if (saved) {
-      // Mileage goes on the gear only once the activity is actually saved,
-      // so a discarded recording never ages a pair of shoes.
-      if (gear) logUse(gear.id, saved.id, saved.date, saved.distanceM);
-      router.replace(`/record/${saved.id}`);
-    }
+    // Mileage goes on the gear only once the activity is actually saved, so a
+    // discarded recording never ages a pair of shoes.
+    store(result);
   };
 
   return (
     <Screen gradient>
       <ScreenHeader title={live ? 'Recording' : 'Record a route'} />
+
+      {!live && recovered && (
+        <Card style={{ gap: spacing.md, marginBottom: spacing.md, borderColor: colors.primary, borderWidth: StyleSheet.hairlineWidth }}>
+          <Text variant="bodyStrong">An unfinished recording</Text>
+          <Text variant="caption" color={colors.textDim}>
+            {describeRecovery(recovered)}
+          </Text>
+          <Button title="Recover it" onPress={() => { if (!store(adoptRecovery())) setTooShort(true); }} />
+          <Button title="Throw it away" variant="ghost" onPress={() => void dismissRecovery()} />
+        </Card>
+      )}
 
       {!live && (
         <>
@@ -105,6 +133,11 @@ export default function Record() {
             <Text variant="caption" color={colors.textFaint}>
               Nothing is recorded until you press start, and it stops the moment you finish. The route stays on your
               device unless you turn on cloud sync.
+            </Text>
+            <Text variant="caption" color={colors.textFaint}>
+              {crashLog.available()
+                ? 'Your position is written to disk as you go, so if the app is killed mid-run you lose seconds rather than the whole thing.'
+                : 'On this platform the recording is held in memory only — closing the tab loses it. On a phone it is written to disk as you go.'}
             </Text>
           </Card>
 
@@ -133,13 +166,14 @@ export default function Record() {
             </Card>
           )}
 
-          <View style={{ marginTop: spacing.xl }}>
+          <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
             <Button
               title={state === 'requesting' ? 'Asking for location…' : 'Start'}
               size="lg"
               onPress={() => void start()}
               disabled={state === 'requesting'}
             />
+            <Button title="Import a .gpx file" variant="ghost" onPress={() => router.push('/record/import')} />
           </View>
         </>
       )}

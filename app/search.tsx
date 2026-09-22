@@ -194,6 +194,13 @@ const SCREENS: SearchEntry[] = [
     keywords: ['shoes', 'gear', 'mileage', 'bike', 'retire', 'goal', 'weekly', 'monthly', 'annual', 'target', 'distance goal'],
     href: '/gear',
   },
+  {
+    id: 's_import',
+    kind: 'screen',
+    title: 'Import a .gpx file',
+    keywords: ['import', 'gpx', 'garmin', 'export', 'migrate', 'history', 'transfer', 'bring in', 'strava export'],
+    href: '/record/import',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },

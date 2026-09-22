@@ -25,6 +25,7 @@ import { describeEffect, insideAnyZone } from '../../src/domain/privacy';
 import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useMapStore } from '../../src/stores/useMapStore';
 import { useGearStore } from '../../src/stores/useGearStore';
+import { gpxFiles } from '../../src/services/gpxFiles';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 export default function ActivityDetail() {
@@ -363,6 +364,14 @@ export default function ActivityDetail() {
             />
           </>
         )}
+        <Button
+          title="Export as GPX"
+          variant="ghost"
+          onPress={() => void gpxFiles.export(activity.points, { name: activity.name, type: activity.type })}
+        />
+        <Text variant="caption" color={colors.textFaint}>
+          A file any other app will read. Your data leaves as easily as it arrived.
+        </Text>
         <Button
           title="Delete this activity"
           variant="danger"
