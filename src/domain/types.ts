@@ -71,6 +71,22 @@ export interface Profile {
    * later does not invalidate a stored profile.
    */
   measurementTargets?: Record<string, number>;
+  /**
+   * A maximum heart rate the athlete has actually seen, rather than one
+   * derived from their age.
+   *
+   * Optional, and the difference matters: 220-minus-age is a population
+   * average that misses most individuals by ten beats or more, and every
+   * zone built on it inherits that error. When this is set, the app says the
+   * zones are measured; when it is not, it says they are a guess.
+   */
+  maxHeartRate?: number | null;
+  /**
+   * Threshold pace in seconds per kilometre — the pace holdable for about an
+   * hour. The only anchor that means the same thing to a three-hour and a
+   * five-hour marathoner, so pace zones are expressed as multiples of it.
+   */
+  thresholdPaceSecPerKm?: number | null;
   /** Quick-add water amounts in oz, e.g. the size of the bottle they carry. */
   waterQuickAddOz?: number[];
 }

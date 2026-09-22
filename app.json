@@ -24,7 +24,12 @@
         "NSCameraUsageDescription": "ForgeFit uses the camera to estimate the nutrition of your meals and to capture progress photos.",
         "NSPhotoLibraryUsageDescription": "ForgeFit lets you attach progress photos and meal photos from your library.",
         "NSHealthShareUsageDescription": "ForgeFit can read steps, weight, workouts, sleep and heart rate from Apple Health to keep your dashboard accurate.",
-        "NSHealthUpdateUsageDescription": "ForgeFit can write completed workouts and body weight to Apple Health."
+        "NSHealthUpdateUsageDescription": "ForgeFit can write completed workouts and body weight to Apple Health.",
+        "NSLocationWhenInUseUsageDescription": "ForgeFit records your route while an outdoor activity is running. Recording only happens while an activity is running, and you start it yourself.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ForgeFit keeps recording your route when your screen is off or you switch apps mid-run. It never records unless you have started an activity.",
+        "UIBackgroundModes": [
+          "location"
+        ]
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,
@@ -39,9 +44,14 @@
         "backgroundColor": "#0B0B0F"
       },
       "permissions": [
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACTIVITY_RECOGNITION",
         "CAMERA",
-        "POST_NOTIFICATIONS",
-        "ACTIVITY_RECOGNITION"
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -65,6 +75,16 @@
           "NSHealthShareUsageDescription": "ForgeFit reads steps, sleep, weight, heart rate and the passive signals your Watch records, so your dashboard reflects what actually happened.",
           "NSHealthUpdateUsageDescription": "ForgeFit can write completed workouts and body weight back to Apple Health.",
           "background": true
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ForgeFit records your route while an outdoor activity is running, so it can show distance, pace, elevation and your segment times.",
+          "locationWhenInUsePermission": "ForgeFit records your route while an outdoor activity is running, so it can show distance, pace, elevation and your segment times.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ]
     ],

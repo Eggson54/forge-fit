@@ -82,14 +82,40 @@ async function browserPermission(): Promise<LocationStatus> {
 
 // --- Native ----------------------------------------------------------------
 
+interface NativeFix {
+  coords: {
+    latitude: number;
+    longitude: number;
+    accuracy: number | null;
+    altitude?: number | null;
+    speed?: number | null;
+  };
+  timestamp?: number;
+}
+
 interface LocationModule {
   requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
   getForegroundPermissionsAsync: () => Promise<{ status: string }>;
-  getCurrentPositionAsync: (opts: { accuracy: number }) => Promise<{
-    coords: { latitude: number; longitude: number; accuracy: number | null };
-  }>;
-  Accuracy: { Balanced: number };
+  getCurrentPositionAsync: (opts: { accuracy: number }) => Promise<NativeFix>;
+  watchPositionAsync: (
+    opts: { accuracy: number; timeInterval?: number; distanceInterval?: number },
+    callback: (fix: NativeFix) => void,
+  ) => Promise<{ remove: () => void }>;
+  Accuracy: { Balanced: number; BestForNavigation: number };
 }
+
+/** A fix as a recorder wants it: raw numbers, with whatever extras came along. */
+export interface StreamFix {
+  lat: number;
+  lon: number;
+  /** Milliseconds since epoch. */
+  t: number;
+  accuracyMeters: number | null;
+  altitudeMeters: number | null;
+  speedMs: number | null;
+}
+
+export type StopWatching = () => void;
 
 let mod: LocationModule | null | undefined;
 function load(): LocationModule | null {
@@ -141,6 +167,59 @@ export const location = {
       return { status: 'granted', fix: await this.current() };
     } catch {
       return { status: 'unavailable', fix: null };
+    }
+  },
+
+  /**
+   * A stream of fixes, for recording.
+   *
+   * `BestForNavigation` rather than `Balanced`: a recorded track is the one
+   * case where the battery cost is the point of the exercise. One fix a
+   * second is what every GPS watch does and what the analysis downstream
+   * assumes — coarser sampling puts split boundaries and segment gates in the
+   * wrong place.
+   *
+   * Returns a stop function, always. A recorder that cannot turn the receiver
+   * off is a recorder that flattens the phone.
+   */
+  async watch(onFix: (fix: StreamFix) => void): Promise<StopWatching> {
+    if (Platform.OS === 'web') {
+      const geo = typeof navigator !== 'undefined' ? navigator.geolocation : undefined;
+      if (!geo?.watchPosition) return () => {};
+      const id = geo.watchPosition(
+        (pos) =>
+          onFix({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            t: pos.timestamp ?? Date.now(),
+            accuracyMeters: pos.coords.accuracy ?? null,
+            altitudeMeters: pos.coords.altitude ?? null,
+            speedMs: pos.coords.speed ?? null,
+          }),
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
+      );
+      return () => geo.clearWatch(id);
+    }
+
+    const m = load();
+    if (!m?.watchPositionAsync) return () => {};
+    try {
+      const sub = await m.watchPositionAsync(
+        { accuracy: m.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 0 },
+        (pos) =>
+          onFix({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            t: pos.timestamp ?? Date.now(),
+            accuracyMeters: pos.coords.accuracy ?? null,
+            altitudeMeters: pos.coords.altitude ?? null,
+            speedMs: pos.coords.speed ?? null,
+          }),
+      );
+      return () => sub.remove();
+    } catch {
+      return () => {};
     }
   },
 

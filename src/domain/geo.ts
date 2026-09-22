@@ -176,3 +176,47 @@ export function offsetBy(origin: LatLon, meters: number, bearing: number): LatLo
     lon1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
   return { lat: deg(lat2), lon: ((deg(lon2) + 540) % 360) - 180 };
 }
+
+/**
+ * Distance from a point to a line segment, in metres.
+ *
+ * Flat-earth: over the tens or hundreds of metres this is used for, the error
+ * is far below the GPS noise it is being compared against, and a great-circle
+ * cross-track costs several trigonometric calls per candidate point.
+ */
+export function distanceToSegmentMeters(p: LatLon, a: LatLon, b: LatLon): number {
+  const scale = Math.cos((a.lat * Math.PI) / 180);
+  const ax = a.lon * scale;
+  const ay = a.lat;
+  const bx = b.lon * scale;
+  const by = b.lat;
+  const px = p.lon * scale;
+  const py = p.lat;
+
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy)) * 111_320;
+}
+
+/**
+ * Distance from a point to the nearest part of a polyline, in metres.
+ *
+ * To the nearest *line*, not the nearest vertex. That distinction is the whole
+ * reason this exists: stored routes are thinned, so a straight two-kilometre
+ * stretch may be two points. Measuring to vertices puts the middle of that
+ * stretch a kilometre from the route it is sitting exactly on top of.
+ */
+export function distanceToPathMeters(p: LatLon, path: LatLon[], giveUpAt = Infinity): number {
+  if (path.length === 0) return Infinity;
+  if (path.length === 1) return distanceMeters(p, path[0]!);
+
+  let best = Infinity;
+  for (let i = 1; i < path.length; i++) {
+    const d = distanceToSegmentMeters(p, path[i - 1]!, path[i]!);
+    if (d < best) best = d;
+    if (best <= giveUpAt) break;
+  }
+  return best;
+}

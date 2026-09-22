@@ -22,6 +22,7 @@ export const STORE_KEYS = {
   mealPlan: 'forgefit.mealplan',
   layout: 'forgefit.layout',
   checkIns: 'forgefit.checkins',
+  activities: 'forgefit.activities',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;

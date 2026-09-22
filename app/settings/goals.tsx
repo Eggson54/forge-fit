@@ -25,8 +25,14 @@ export default function Goals() {
   const profile = useProfileStore((s) => s.profile);
   const targets = useProfileStore((s) => s.targets);
   const setTargets = useProfileStore((s) => s.setTargets);
+  const setProfile = useProfileStore((s) => s.setProfile);
   const weights = useProfileStore((s) => s.disciplineWeights);
   const setWeights = useProfileStore((s) => s.setDisciplineWeights);
+
+  const [maxHr, setMaxHr] = useState(profile.maxHeartRate != null ? String(profile.maxHeartRate) : '');
+  const [threshold, setThreshold] = useState(
+    profile.thresholdPaceSecPerKm != null ? secToClock(profile.thresholdPaceSecPerKm) : '',
+  );
 
   const [draft, setDraft] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
@@ -167,6 +173,42 @@ export default function Goals() {
         <Field field={TARGET_FIELDS[5]!} draft={draft} setDraft={setDraft} />
       </Card>
 
+      <SectionHeader title="Heart rate & pace" />
+      <Card style={{ gap: spacing.md }}>
+        <View>
+          <Text variant="label" color={colors.textDim}>Maximum heart rate</Text>
+          <Input
+            value={maxHr}
+            onChangeText={setMaxHr}
+            keyboardType="number-pad"
+            placeholder={profile.age ? `${220 - profile.age} (estimated from your age)` : 'bpm'}
+            onBlur={() => {
+              const v = parseInt(maxHr, 10);
+              setProfile({ maxHeartRate: Number.isFinite(v) && v > 100 && v < 235 ? v : null });
+            }}
+          />
+          <Text variant="caption" color={colors.textFaint} style={{ marginTop: 4 }}>
+            The highest you have actually seen on a watch, at the end of something horrible. Without it the app falls
+            back to 220 minus your age, which is a population average that fits very few individuals — every zone,
+            every effort score and every time-in-zone number inherits that error.
+          </Text>
+        </View>
+
+        <View>
+          <Text variant="label" color={colors.textDim}>Threshold pace, per km</Text>
+          <Input
+            value={threshold}
+            onChangeText={setThreshold}
+            placeholder="4:30"
+            onBlur={() => setProfile({ thresholdPaceSecPerKm: clockToSec(threshold) })}
+          />
+          <Text variant="caption" color={colors.textFaint} style={{ marginTop: 4 }}>
+            Roughly the pace you could hold for an hour. Pace zones are expressed as multiples of it, because it is the
+            only anchor that means the same thing to a three-hour and a five-hour marathoner.
+          </Text>
+        </View>
+      </Card>
+
       <SectionHeader title="Discipline weighting" />
       <Text variant="caption" color={colors.textDim} style={{ marginBottom: spacing.md }}>
         Customize how much each area contributes to your daily discipline score.
@@ -242,3 +284,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
 });
+
+/** "4:30" from 270 seconds. */
+function secToClock(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * 270 from "4:30", and null from anything that is not a pace.
+ *
+ * Null rather than zero: a threshold of zero would put every pace in the
+ * fastest zone, which is a more confident kind of wrong than having no zones.
+ */
+function clockToSec(text: string): number | null {
+  const m = text.trim().match(/^(\d{1,2}):([0-5]\d)$/);
+  if (!m) return null;
+  const seconds = parseInt(m[1]!, 10) * 60 + parseInt(m[2]!, 10);
+  return seconds >= 120 && seconds <= 1200 ? seconds : null;
+}

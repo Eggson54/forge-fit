@@ -73,6 +73,23 @@ export default function Cardio() {
     <Screen gradient>
       <ScreenHeader title="Conditioning" subtitle="Everything that is not lifting" />
 
+      {/* Typing the numbers in is still the fastest way to log a treadmill
+          session or a class. For anything with a route, recording it gets the
+          splits, the climbing and the segment times for free. */}
+      <Card
+        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}
+        onPress={() => router.push('/record')}
+      >
+        <Icon name="map" size={20} color={colors.steps} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="bodyStrong">Record it instead</Text>
+          <Text variant="caption" color={colors.textFaint}>
+            GPS, splits, climbing and your segment times, without typing anything
+          </Text>
+        </View>
+        <Icon name="chevron_right" size={15} color={colors.textFaint} />
+      </Card>
+
       <Card style={{ gap: spacing.lg, marginBottom: spacing.md }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
           {CARDIO_KINDS.map((k) => {
