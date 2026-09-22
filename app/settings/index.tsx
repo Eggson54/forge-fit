@@ -79,6 +79,7 @@ export default function Settings() {
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
         <ListRow icon="lock" tint={colors.water} title="Privacy & Data" subtitle="What's stored & where" onPress={() => router.push('/settings/privacy')} />
         <ListRow icon="watch" tint={colors.carbs} title="Integrations" subtitle="Apple Watch, Strava, Apple Health" onPress={() => router.push('/settings/integrations')} />
+        <ListRow icon="help" tint={colors.textDim} title="Connection diagnostics" subtitle="What is failing, and which layer" onPress={() => router.push('/settings/diagnostics')} />
         <ListRow icon="card" tint={colors.success} title="Subscription" onPress={() => router.push('/settings/subscription')} />
       </Card>
 
