@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, Card, EmptyState, Input, Screen, SegmentedControl, Text } from '../../src/components/ui';
+import { Button, Card, Chip, EmptyState, IconButton, Input, Pill, Screen, SegmentedControl, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { colors, radius, spacing } from '../../src/theme';
-import type { FoodMacros, MealSlot, SavedFood } from '../../src/domain/types';
+import type { FoodMacros, MealSlot } from '../../src/domain/types';
 import { caloriesFromMacros, frequentFoods, sanitizeMacros, scaleMacros } from '../../src/domain/nutrition';
-import { searchFoods } from '../../src/data/foods';
+import { PORTIONS, type LibraryFood } from '../../src/domain/foodLibrary';
+import { useFoodStore } from '../../src/stores/useFoodStore';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { ai } from '../../src/services/ai';
 
@@ -52,22 +53,49 @@ type AddFn = ReturnType<typeof useLogStore.getState>['addFood'];
 
 function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () => void; addFood: AddFn }) {
   const [q, setQ] = useState('');
+  const [portion, setPortion] = useState(1);
   const history = useLogStore((s) => s.nutrition);
-  const results = searchFoods(q);
+  // The whole library, not just the staples: what somebody typed in
+  // themselves is what they eat, and it outranks everything shipped.
+  const results = useFoodStore((s) => s.search(q));
+  const noteUse = useFoodStore((s) => s.noteUse);
 
   // Most people eat the same dozen things, so searching a database is the slow
   // path for nearly every entry. Hidden once a query is typed, where it would
   // sit above results that answer the question better.
   const frequent = useMemo(() => (q.trim() ? [] : frequentFoods(history, 8)), [history, q]);
 
-  const save = (f: SavedFood) => {
-    addFood({ slot, name: f.name, quantity: 1, servingLabel: f.servingLabel, macros: f, source: 'search', isEstimate: false });
+  const save = (f: LibraryFood) => {
+    addFood({
+      slot,
+      name: f.brand ? `${f.brand} ${f.name}` : f.name,
+      quantity: portion,
+      servingLabel: f.servingLabel,
+      macros: scaleMacros(f, portion),
+      source: 'search',
+      isEstimate: Boolean(f.estimated),
+    });
+    noteUse(f.id);
     onSaved();
   };
 
   return (
     <View style={{ gap: spacing.sm }}>
       <Input icon="search" value={q} onChangeText={setQ} placeholder="Search foods (e.g. chicken)" autoFocus autoCapitalize="none" />
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, flex: 1 }}>
+          {PORTIONS.map((p) => (
+            <Chip key={p.label} label={p.label} selected={portion === p.multiplier} onPress={() => setPortion(p.multiplier)} />
+          ))}
+        </View>
+        <IconButton
+          accessibilityLabel="Scan a barcode"
+          onPress={() => router.push({ pathname: '/nutrition/scan', params: { slot } })}
+        >
+          <Icon name="camera" size={20} color={colors.text} />
+        </IconButton>
+      </View>
 
       {frequent.length > 0 && (
         <View style={{ marginTop: spacing.xs }}>
@@ -138,8 +166,19 @@ function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () =>
                 pressed && { opacity: 0.6 },
               ]}
             >
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyStrong">{f.name}</Text>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                    {f.brand ? `${f.brand} ${f.name}` : f.name}
+                  </Text>
+                  {/* Your own foods can share a name with a staple — the same
+                      tin of beans, scanned, sits beside the generic one. Two
+                      identical-looking rows is the sort of thing that makes
+                      people distrust a list, so the source is on the row. */}
+                  {f.source !== 'bundled' && (
+                    <Pill label={f.source === 'scanned' ? 'Scanned' : 'Yours'} color={colors.lime} />
+                  )}
+                </View>
                 <Text variant="caption" color={colors.textDim}>
                   {f.servingLabel} · P{Math.round(f.proteinG)} C{Math.round(f.carbsG)} F{Math.round(f.fatG)}
                 </Text>

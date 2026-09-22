@@ -25,6 +25,7 @@ export const STORE_KEYS = {
   activities: 'forgefit.activities',
   map: 'forgefit.map',
   gear: 'forgefit.gear',
+  foods: 'forgefit.foods',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;

@@ -70,6 +70,7 @@ export const RESTORE_MAP: Record<Exclude<StoreKey, 'auth'>, Restorer> = {
   activities: (s) => pick(s, ['activities', 'segments', 'segmentEfforts']),
   map: (s) => pick(s, ['zones', 'sourceId', 'heatmapEnabled']),
   gear: (s) => pick(s, ['gear', 'uses', 'goals']),
+  foods: (s) => pick(s, ['mine']),
   gyms: (s) => pick(s, ['claims', 'kits']),
 };
 

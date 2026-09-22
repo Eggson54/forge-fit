@@ -8,6 +8,7 @@ import { useMealPlanStore } from '../stores/useMealPlanStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { useCheckInStore } from '../stores/useCheckInStore';
 import { useActivityStore } from '../stores/useActivityStore';
+import { useFoodStore } from '../stores/useFoodStore';
 import { useGearStore } from '../stores/useGearStore';
 import { useMapStore } from '../stores/useMapStore';
 import { useJournalStore } from '../stores/useJournalStore';
@@ -117,6 +118,7 @@ export function collectUserData(): ExportDocument {
       uses: useGearStore.getState().uses,
       goals: useGearStore.getState().goals,
     },
+    foods: { mine: useFoodStore.getState().mine },
     journal: {
       entries: useJournalStore.getState().entries,
       customFactors: useJournalStore.getState().customFactors,

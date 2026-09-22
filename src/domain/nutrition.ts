@@ -101,12 +101,16 @@ export const EMPTY_MACROS: FoodMacros = { calories: 0, proteinG: 0, carbsG: 0, f
 
 /** Scale a per-serving macro set by quantity. */
 export function scaleMacros(m: FoodMacros, qty: number): FoodMacros {
+  // A quantity that is not a positive number means one serving. Without this,
+  // a half-typed portion field turns a logged meal into NaN calories, which
+  // then poisons the day's total and every score built on it.
+  const q = Number.isFinite(qty) && qty > 0 ? qty : 1;
   return {
-    calories: round(m.calories * qty),
-    proteinG: round(m.proteinG * qty, 1),
-    carbsG: round(m.carbsG * qty, 1),
-    fatG: round(m.fatG * qty, 1),
-    fiberG: round((m.fiberG ?? 0) * qty, 1),
+    calories: round(m.calories * q),
+    proteinG: round(m.proteinG * q, 1),
+    carbsG: round(m.carbsG * q, 1),
+    fatG: round(m.fatG * q, 1),
+    fiberG: round((m.fiberG ?? 0) * q, 1),
   };
 }
 

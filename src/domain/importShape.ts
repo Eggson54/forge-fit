@@ -44,6 +44,7 @@ const LABEL: Record<StoreKey, string> = {
   activities: 'Recorded routes, segments and segment times',
   map: 'Privacy zones and map preferences',
   gear: 'Shoes, bikes and your goals',
+  foods: 'Your own foods and scanned barcodes',
 };
 
 /** Counts records in a store snapshot, however it is shaped. */

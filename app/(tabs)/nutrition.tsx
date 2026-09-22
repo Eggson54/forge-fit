@@ -138,6 +138,13 @@ export default function Nutrition() {
           onPress={() => router.push('/nutrition/energy')}
         />
         <ListRow
+          icon="camera"
+          tint={colors.lime}
+          title="My foods & barcodes"
+          subtitle="What you have added yourself, and every code you have named"
+          onPress={() => router.push('/nutrition/foods')}
+        />
+        <ListRow
           icon="list"
           tint={colors.protein}
           title="Saved meals & recipes"
