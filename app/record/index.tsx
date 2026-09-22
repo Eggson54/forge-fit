@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, Card, Chip, Screen, Text } from '../../src/components/ui';
+import { Button, Card, Chip, Screen, Text, Toggle } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { MapView } from '../../src/components/MapView';
 import { Icon } from '../../src/components/Icon';
@@ -13,6 +13,7 @@ import { useRecorderStore } from '../../src/stores/useRecorderStore';
 import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useMapStore } from '../../src/stores/useMapStore';
+import { useGearStore } from '../../src/stores/useGearStore';
 
 /** Only the kinds where a route means anything. A rower has no map. */
 const OUTDOOR = ['run', 'ride', 'walk', 'hike'];
@@ -30,6 +31,13 @@ export default function Record() {
   const discard = useRecorderStore((s) => s.discard);
   const finish = useRecorderStore((s) => s.finish);
   const save = useActivityStore((s) => s.save);
+  const laps = useRecorderStore((s) => s.laps);
+  const takeLap = useRecorderStore((s) => s.lap);
+  const autoPause = useRecorderStore((s) => s.autoPause);
+  const autoPaused = useRecorderStore((s) => s.autoPaused);
+  const setAutoPause = useRecorderStore((s) => s.setAutoPause);
+  const suggestGearFor = useGearStore((s) => s.suggestGearFor);
+  const logUse = useGearStore((s) => s.logUse);
   const units = useProfileStore((s) => s.profile.units);
   const zones = useMapStore((s) => s.zones);
   const sourceId = useMapStore((s) => s.sourceId);
@@ -61,8 +69,20 @@ export default function Record() {
       return;
     }
     setTooShort(false);
-    const saved = save({ type: result.type, points: result.points, date: result.date });
-    if (saved) router.replace(`/record/${saved.id}`);
+    const gear = suggestGearFor(result.type);
+    const saved = save({
+      type: result.type,
+      points: result.points,
+      date: result.date,
+      laps: result.laps.map((l) => ({ index: l.index, startIndex: l.startIndex, distanceM: l.distanceM, seconds: l.seconds })),
+      gearId: gear?.id ?? null,
+    });
+    if (saved) {
+      // Mileage goes on the gear only once the activity is actually saved,
+      // so a discarded recording never ages a pair of shoes.
+      if (gear) logUse(gear.id, saved.id, saved.date, saved.distanceM);
+      router.replace(`/record/${saved.id}`);
+    }
   };
 
   return (
@@ -96,6 +116,17 @@ export default function Record() {
             </Card>
           )}
 
+          <Card style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text variant="bodyStrong">Auto-pause</Text>
+              <Text variant="caption" color={colors.textFaint}>
+                Stops the clock when you do. Only kicks in below a slow walk, so a walk break in the middle of a long
+                run still counts as part of it.
+              </Text>
+            </View>
+            <Toggle value={autoPause} onValueChange={setAutoPause} accessibilityLabel="Auto-pause" />
+          </Card>
+
           {error && (
             <Card style={{ marginTop: spacing.md, borderColor: colors.warning, borderWidth: StyleSheet.hairlineWidth }}>
               <Text variant="caption" color={colors.warning}>{error}</Text>
@@ -115,6 +146,14 @@ export default function Record() {
 
       {live && (
         <>
+          {autoPaused && (
+            <Card style={{ marginBottom: spacing.md, borderColor: colors.amber, borderWidth: StyleSheet.hairlineWidth }}>
+              <Text variant="caption" color={colors.amber}>
+                Auto-paused — the clock is stopped. It starts again on its own when you move.
+              </Text>
+            </Card>
+          )}
+
           <Card style={{ gap: spacing.lg, alignItems: 'center' }}>
             <Text variant="metricLg">{formatDuration(elapsed)}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.xl }}>
@@ -155,13 +194,34 @@ export default function Record() {
 
           <View style={{ gap: spacing.sm, marginTop: spacing.xl }}>
             {state === 'recording' ? (
-              <Button title="Pause" variant="secondary" size="lg" onPress={pause} />
+              <>
+                <Button title="Lap" variant="secondary" size="lg" onPress={() => takeLap()} />
+                <Button title="Pause" variant="ghost" onPress={pause} />
+              </>
             ) : (
               <Button title="Resume" size="lg" onPress={resume} />
             )}
             <Button title="Finish" variant="ghost" onPress={onFinish} />
             <Button title="Discard" variant="ghost" onPress={discard} />
           </View>
+
+          {laps.length > 0 && (
+            <Card style={{ gap: 4, marginTop: spacing.md }}>
+              <Text variant="overline" color={colors.textFaint}>LAPS</Text>
+              {laps.map((l) => {
+                const d = displayDistance(l.distanceM / 1000, units);
+                return (
+                  <View key={l.index} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Text variant="caption" color={colors.textDim} style={{ width: 22 }}>{l.index}</Text>
+                    <Text variant="body" style={{ flex: 1 }}>
+                      {d ? `${d.value} ${d.unit}` : '—'}
+                    </Text>
+                    <Text variant="bodyStrong">{formatDuration(l.seconds)}</Text>
+                  </View>
+                );
+              })}
+            </Card>
+          )}
 
           <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.lg }}>
             Pace is measured over time you were actually moving, so a pause at a crossing does not drag it down.

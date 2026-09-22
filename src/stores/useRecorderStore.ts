@@ -22,6 +22,28 @@ import { location, type StopWatching } from '../services/location';
 
 export type RecorderState = 'idle' | 'requesting' | 'recording' | 'paused' | 'denied' | 'unavailable';
 
+/**
+ * How slow counts as stopped, for auto-pause.
+ *
+ * 0.6 m/s is slower than a stroll. Set any higher and a genuine walk break
+ * in the middle of a long run stops being recorded as part of the run, which
+ * is the thing people complain about in every app that does this.
+ */
+const AUTO_PAUSE_MS = 0.6;
+
+/** Seconds below that speed before it takes effect. */
+const AUTO_PAUSE_AFTER_S = 8;
+
+export interface Lap {
+  index: number;
+  /** Index into `points` where this lap began. */
+  startIndex: number;
+  startedAt: number;
+  endedAt: number;
+  distanceM: number;
+  seconds: number;
+}
+
 interface RecorderStore {
   state: RecorderState;
   points: TrackPoint[];
@@ -34,19 +56,36 @@ interface RecorderStore {
   /** The most recent fix's own accuracy, so the UI can say "searching". */
   accuracy: number | null;
   error: string | null;
+  laps: Lap[];
+  /** Where the current lap started in `points`. */
+  lapStartIndex: number;
+  autoPause: boolean;
+  /** True while auto-pause is holding, as opposed to a deliberate pause. */
+  autoPaused: boolean;
 
   setType: (type: string) => void;
+  setAutoPause: (on: boolean) => void;
+  /** Close the current lap and start another. Returns the lap just closed. */
+  lap: () => Lap | null;
   start: () => Promise<void>;
   pause: () => void;
   resume: () => void;
   discard: () => void;
   /** Stops the receiver and returns what was recorded. */
-  finish: () => { id: string; date: string; type: string; points: TrackPoint[]; stats: TrackStats } | null;
+  finish: () => { id: string; date: string; type: string; points: TrackPoint[]; stats: TrackStats; laps: Lap[] } | null;
   stats: () => TrackStats;
   elapsedMs: () => number;
 }
 
 let unwatch: StopWatching | null = null;
+/**
+ * When the receiver first reported standing still, in fix time.
+ *
+ * Module-level rather than in the store because it changes on nearly every
+ * fix and nothing renders from it — putting it in state would re-render the
+ * recording screen once a second for no visible reason.
+ */
+let stillSinceRef: number | null = null;
 
 export const useRecorderStore = create<RecorderStore>((set, get) => ({
   state: 'idle',
@@ -57,8 +96,32 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
   lastPauseAt: null,
   accuracy: null,
   error: null,
+  laps: [],
+  lapStartIndex: 0,
+  autoPause: true,
+  autoPaused: false,
 
   setType: (type) => set({ type }),
+  setAutoPause: (autoPause) => set({ autoPause, autoPaused: autoPause ? get().autoPaused : false }),
+
+  lap: () => {
+    const { points, lapStartIndex, laps, state } = get();
+    if (state !== 'recording' && state !== 'paused') return null;
+    const slice = points.slice(lapStartIndex);
+    if (slice.length < 2) return null;
+
+    const stats = trackStats(slice);
+    const closed: Lap = {
+      index: laps.length + 1,
+      startIndex: lapStartIndex,
+      startedAt: slice[0]!.t,
+      endedAt: slice[slice.length - 1]!.t,
+      distanceM: Math.round(stats.distanceM),
+      seconds: Math.round(stats.elapsedS),
+    };
+    set({ laps: [...laps, closed], lapStartIndex: points.length - 1 });
+    return closed;
+  },
 
   start: async () => {
     if (get().state === 'recording') return;
@@ -79,6 +142,28 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
       // Fixes that arrive while paused are dropped rather than stored. Storing
       // them and filtering later would make a pause at a café look like a very
       // slow lap of the café.
+      const current = get();
+      // Auto-pause lifts itself the moment real movement returns, which is
+      // why a fix arriving while auto-paused is still processed. A fix during
+      // a *deliberate* pause is dropped — see below.
+      if (current.state === 'paused' && !current.autoPaused) return;
+      if (current.state !== 'recording' && !current.autoPaused) return;
+
+      if (current.autoPause) {
+        const moving = typeof fix.speedMs === 'number' ? fix.speedMs >= AUTO_PAUSE_MS : null;
+        if (moving === true && current.autoPaused) {
+          set({ state: 'recording', autoPaused: false, pausedMs: current.pausedMs + (current.lastPauseAt ? Date.now() - current.lastPauseAt : 0), lastPauseAt: null });
+        } else if (moving === false && current.state === 'recording') {
+          const stillSince = stillSinceRef;
+          if (stillSince == null) {
+            stillSinceRef = fix.t;
+          } else if ((fix.t - stillSince) / 1000 >= AUTO_PAUSE_AFTER_S) {
+            set({ state: 'paused', autoPaused: true, lastPauseAt: Date.now() });
+          }
+        }
+        if (moving !== false) stillSinceRef = null;
+      }
+
       if (get().state !== 'recording') return;
       set((s) => ({
         accuracy: fix.accuracyMeters,
@@ -95,19 +180,23 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
       }));
     });
 
-    set({ state: 'recording', startedAt: Date.now(), pausedMs: 0, lastPauseAt: null, points: [] });
+    stillSinceRef = null;
+    set({ state: 'recording', startedAt: Date.now(), pausedMs: 0, lastPauseAt: null, points: [], laps: [], lapStartIndex: 0, autoPaused: false });
   },
 
   pause: () => {
     if (get().state !== 'recording') return;
-    set({ state: 'paused', lastPauseAt: Date.now() });
+    stillSinceRef = null;
+    set({ state: 'paused', autoPaused: false, lastPauseAt: Date.now() });
   },
 
   resume: () => {
     const { state, lastPauseAt, pausedMs } = get();
     if (state !== 'paused') return;
+    stillSinceRef = null;
     set({
       state: 'recording',
+      autoPaused: false,
       pausedMs: pausedMs + (lastPauseAt ? Date.now() - lastPauseAt : 0),
       lastPauseAt: null,
     });
@@ -116,22 +205,37 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
   discard: () => {
     unwatch?.();
     unwatch = null;
-    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, error: null });
+    stillSinceRef = null;
+    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, error: null, laps: [], lapStartIndex: 0, autoPaused: false });
   },
 
   finish: () => {
-    const { points, type } = get();
+    const { points, type, laps, lapStartIndex } = get();
     unwatch?.();
     unwatch = null;
+    stillSinceRef = null;
+
+    // Close whatever lap was running, so the last one is not silently lost.
+    const tail = points.slice(lapStartIndex);
+    const closedLaps = tail.length >= 2
+      ? [...laps, {
+          index: laps.length + 1,
+          startIndex: lapStartIndex,
+          startedAt: tail[0]!.t,
+          endedAt: tail[tail.length - 1]!.t,
+          distanceM: Math.round(trackStats(tail).distanceM),
+          seconds: Math.round(trackStats(tail).elapsedS),
+        }]
+      : laps;
 
     const stats = trackStats(points);
-    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null });
+    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, laps: [], lapStartIndex: 0, autoPaused: false });
 
     // A recording with two fixes is a recording of standing up. Returning null
     // rather than saving it keeps the history free of entries nobody made.
     if (points.length < 5 || stats.distanceM < 20) return null;
 
-    return { id: uid('act_'), date: todayISO(), type, points, stats };
+    return { id: uid('act_'), date: todayISO(), type, points, stats, laps: closedLaps };
   },
 
   stats: () => trackStats(get().points),

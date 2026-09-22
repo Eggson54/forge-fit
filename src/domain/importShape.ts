@@ -43,6 +43,7 @@ const LABEL: Record<StoreKey, string> = {
   checkIns: 'Check-in schedule and Ghost Mode',
   activities: 'Recorded routes, segments and segment times',
   map: 'Privacy zones and map preferences',
+  gear: 'Shoes, bikes and your goals',
 };
 
 /** Counts records in a store snapshot, however it is shaped. */

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, Card, EmptyState, Input, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
+import { Button, Card, Chip, EmptyState, Input, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { ElevationProfile } from '../../src/components/TraceMap';
 import { MapView } from '../../src/components/MapView';
@@ -24,6 +24,7 @@ import { MIN_SEGMENT_M, SEGMENTS_NOTE } from '../../src/domain/segments';
 import { describeEffect, insideAnyZone } from '../../src/domain/privacy';
 import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useMapStore } from '../../src/stores/useMapStore';
+import { useGearStore } from '../../src/stores/useGearStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 export default function ActivityDetail() {
@@ -37,6 +38,10 @@ export default function ActivityDetail() {
   const units = useProfileStore((s) => s.profile.units);
   const zones = useMapStore((s) => s.zones);
   const sourceId = useMapStore((s) => s.sourceId);
+  const gear = useGearStore((s) => s.gear);
+  const logUse = useGearStore((s) => s.logUse);
+  const forgetActivity = useGearStore((s) => s.forgetActivity);
+  const annotate = useActivityStore((s) => s.annotate);
 
   const [highlight, setHighlight] = useState<{ from: number; to: number } | null>(null);
   const [naming, setNaming] = useState(false);
@@ -195,6 +200,26 @@ export default function ActivityDetail() {
         </>
       )}
 
+      {activity.laps && activity.laps.length > 0 && (
+        <>
+          <SectionHeader title="Laps" />
+          <Card style={{ gap: 2 }}>
+            {activity.laps.map((l) => (
+              <View key={l.index} style={styles.split}>
+                <Text variant="caption" color={colors.textDim} style={{ width: 22 }}>{l.index}</Text>
+                <Text variant="body" style={{ flex: 1 }}>
+                  {Math.round(l.distanceM / (units === 'imperial' ? MILE : KM) * 100) / 100} {unitLabel}
+                </Text>
+                <Text variant="bodyStrong">{formatDuration(l.seconds)}</Text>
+              </View>
+            ))}
+            <Text variant="caption" color={colors.textFaint} style={{ marginTop: spacing.xs }}>
+              Laps you took yourself, which is why they are not the same as splits.
+            </Text>
+          </Card>
+        </>
+      )}
+
       {activity.efforts.length > 0 && (
         <>
           <SectionHeader title="Best efforts" />
@@ -289,6 +314,39 @@ export default function ActivityDetail() {
         {highlight && <Button title="Clear highlight" variant="ghost" onPress={() => setHighlight(null)} />}
       </Card>
 
+      {gear.filter((g) => !g.retiredOn && g.types.includes(activity.type)).length > 0 && (
+        <>
+          <SectionHeader title="Gear" />
+          <Card style={{ gap: spacing.sm }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+              {gear
+                .filter((g) => !g.retiredOn && g.types.includes(activity.type))
+                .map((g) => (
+                  <Chip
+                    key={g.id}
+                    label={g.name}
+                    selected={activity.gearId === g.id}
+                    onPress={() => {
+                      const next = activity.gearId === g.id ? null : g.id;
+                      annotate(activity.id, { gearId: next });
+                      // Moving the distance rather than adding it again: the
+                      // use table holds one row per activity, whatever it is
+                      // attributed to.
+                      if (next) logUse(next, activity.id, activity.date, activity.distanceM);
+                      else forgetActivity(activity.id);
+                    }}
+                  />
+                ))}
+            </View>
+            <Text variant="caption" color={colors.textFaint}>
+              {activity.gearId
+                ? 'This activity’s distance counts towards that gear’s mileage.'
+                : 'Not attributed, so this distance is not counting towards anything.'}
+            </Text>
+          </Card>
+        </>
+      )}
+
       <SectionHeader title="This activity" />
       <Card style={{ gap: spacing.md }}>
         {editingName == null ? (
@@ -309,6 +367,8 @@ export default function ActivityDetail() {
           title="Delete this activity"
           variant="danger"
           onPress={() => {
+            // Gear mileage goes with the activity it came from.
+            forgetActivity(activity.id);
             remove(activity.id);
             router.back();
           }}

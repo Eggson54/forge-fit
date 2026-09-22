@@ -8,6 +8,7 @@ import { useMealPlanStore } from '../stores/useMealPlanStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { useCheckInStore } from '../stores/useCheckInStore';
 import { useActivityStore } from '../stores/useActivityStore';
+import { useGearStore } from '../stores/useGearStore';
 import { useMapStore } from '../stores/useMapStore';
 import { useJournalStore } from '../stores/useJournalStore';
 import { useGymStore } from '../stores/useGymStore';
@@ -110,6 +111,11 @@ export function collectUserData(): ExportDocument {
       zones: useMapStore.getState().zones,
       sourceId: useMapStore.getState().sourceId,
       heatmapEnabled: useMapStore.getState().heatmapEnabled,
+    },
+    gear: {
+      gear: useGearStore.getState().gear,
+      uses: useGearStore.getState().uses,
+      goals: useGearStore.getState().goals,
     },
     journal: {
       entries: useJournalStore.getState().entries,

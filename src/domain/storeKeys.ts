@@ -24,6 +24,7 @@ export const STORE_KEYS = {
   checkIns: 'forgefit.checkins',
   activities: 'forgefit.activities',
   map: 'forgefit.map',
+  gear: 'forgefit.gear',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;

@@ -187,6 +187,13 @@ const SCREENS: SearchEntry[] = [
     keywords: ['privacy', 'hide', 'home', 'address', 'safety', 'start point', 'zone', 'anonymous'],
     href: '/settings/privacy-zones',
   },
+  {
+    id: 's_gear',
+    kind: 'screen',
+    title: 'Gear & goals',
+    keywords: ['shoes', 'gear', 'mileage', 'bike', 'retire', 'goal', 'weekly', 'monthly', 'annual', 'target', 'distance goal'],
+    href: '/gear',
+  },
   { id: 's_board', kind: 'screen', title: 'Leaderboard', keywords: ['rank', 'forge score', 'friends'], href: '/leaderboard' },
   { id: 's_remind', kind: 'screen', title: 'Reminders', keywords: ['notifications', 'alerts'], href: '/reminders' },
   { id: 's_1rm', kind: 'screen', title: 'One-rep max calculator', keywords: ['1rm', 'estimate', 'max'], href: '/tools/one-rep-max' },

@@ -59,8 +59,19 @@ export interface StoredActivity {
   avgHr: number | null;
   maxHr: number | null;
   efforts: BestEffort[];
+  /** Manual laps taken while recording. Empty when nobody pressed the button. */
+  laps: RecordedLap[];
+  /** The shoes or bike this was done in, when the athlete tracks gear. */
+  gearId?: string | null;
   notes?: string;
   effort?: number;
+}
+
+export interface RecordedLap {
+  index: number;
+  startIndex: number;
+  distanceM: number;
+  seconds: number;
 }
 
 interface ActivityState {
@@ -75,9 +86,11 @@ interface ActivityState {
     notes?: string;
     effort?: number;
     date?: ISODate;
+    laps?: RecordedLap[];
+    gearId?: string | null;
   }) => StoredActivity | null;
   rename: (id: UUID, name: string) => void;
-  annotate: (id: UUID, patch: { notes?: string; effort?: number }) => void;
+  annotate: (id: UUID, patch: { notes?: string; effort?: number; gearId?: string | null }) => void;
   remove: (id: UUID) => void;
 
   createSegment: (activityId: UUID, startIndex: number, endIndex: number, name: string) => Segment | null;
@@ -131,6 +144,8 @@ export const useActivityStore = create<ActivityState>()(
           // Efforts come from the full trace: thinning removes the points that
           // sat on a straight line, which is exactly where a fast kilometre is.
           efforts: bestEffortsIn(input.points),
+          laps: input.laps ?? [],
+          gearId: input.gearId ?? null,
           notes: input.notes,
           effort: input.effort,
         };

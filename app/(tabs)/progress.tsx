@@ -307,6 +307,7 @@ export default function Progress() {
         <ListRow icon="map" tint={colors.lime} title="Your Map" subtitle="Every route you have recorded, as a heatmap" onPress={() => router.push('/map')} />
         <ListRow icon="bolt" tint={colors.carbs} title="Segments" subtitle="Your stretches, and every time on them" onPress={() => router.push('/segments')} />
         <ListRow icon="chart" tint={colors.primary} title="Fitness & Form" subtitle="Training load, best efforts, race predictions" onPress={() => router.push('/training')} />
+        <ListRow icon="target" tint={colors.amber} title="Gear & Goals" subtitle="Shoe mileage, and weekly or yearly targets" onPress={() => router.push('/gear')} />
         <ListRow icon="steps" tint={colors.steps} title="Conditioning" onPress={() => router.push('/progress/cardio')} />
         <ListRow icon="camera" tint={colors.fat} title="Progress Photos" onPress={() => router.push('/progress/photos')} />
         <ListRow icon="scale" tint={colors.water} title="Body Measurements" onPress={() => router.push('/progress/measurements')} />
