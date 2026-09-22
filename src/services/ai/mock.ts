@@ -38,13 +38,22 @@ export class MockAIService implements AIService {
     const match = FOOD_DB.find((f) => desc && f.name.toLowerCase().includes(desc.split(' ')[0] ?? ''));
     const base = match ?? FOOD_DB.find((f) => f.id === 'burrito_bowl')!;
     const { macros } = sanitizeMacros(base);
+
+    // The mock has no vision model behind it and must not imply otherwise. An
+    // image with no description is a request this mock genuinely cannot
+    // answer, so it says so and returns its lowest confidence rather than
+    // handing back a burrito bowl that looks like it was recognised.
+    const blind = Boolean(req.imageBase64) && !desc;
+
     return {
       name: match ? match.name : req.description?.trim() || 'Estimated meal',
       servingLabel: base.servingLabel,
       macros,
-      confidence: match ? 'medium' : 'low',
+      confidence: blind || !match ? 'low' : 'medium',
       isEstimate: true,
-      note: 'This is an estimate. Tap any value to correct it before saving.',
+      note: blind
+        ? 'No AI server is configured, so this build cannot actually look at the photo. These numbers are a placeholder — type what the meal was, or enter the macros yourself.'
+        : 'This is an estimate. Tap any value to correct it before saving.',
     };
   }
 

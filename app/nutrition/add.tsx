@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Chip, EmptyState, IconButton, Input, Pill, Screen, SegmentedControl, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -11,6 +11,17 @@ import { PORTIONS, type LibraryFood } from '../../src/domain/foodLibrary';
 import { useFoodStore } from '../../src/stores/useFoodStore';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { ai } from '../../src/services/ai';
+import { usdaFoods } from '../../src/services/usdaFoods';
+import { USDA_NOTE, type UsdaFoodResult } from '../../src/domain/usda';
+import {
+  CONFIDENCE_COPY,
+  PHOTO_ESTIMATE_NOTE,
+  PHOTO_PRIVACY_NOTE,
+  checkEstimate,
+  estimateSource,
+  type PhotoEstimate,
+} from '../../src/domain/photoEstimate';
+import { mealPhoto } from '../../src/services/mealPhoto';
 
 type Mode = 'search' | 'manual' | 'ai';
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -64,6 +75,70 @@ function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () =>
   // path for nearly every entry. Hidden once a query is typed, where it would
   // sit above results that answer the question better.
   const frequent = useMemo(() => (q.trim() ? [] : frequentFoods(history, 8)), [history, q]);
+
+  /**
+   * USDA FoodData Central, searched only once typing pauses.
+   *
+   * The key behind this lives on the server and is rate limited per key
+   * rather than per user, so a request per keystroke spends an hourly
+   * allowance that belongs to everyone on the deployment. Three characters
+   * because two-letter searches return noise from a database this size.
+   */
+  const [remote, setRemote] = useState<UsdaFoodResult[]>([]);
+  const [remoteState, setRemoteState] = useState<'idle' | 'loading' | 'ok' | 'off' | 'error'>('idle');
+  const [remoteNote, setRemoteNote] = useState('');
+
+  useEffect(() => {
+    if (!usdaFoods.enabled()) {
+      setRemoteState('off');
+      return;
+    }
+    const query = q.trim();
+    if (query.length < 3) {
+      setRemote([]);
+      setRemoteState('idle');
+      return;
+    }
+
+    let live = true;
+    setRemoteState('loading');
+    const timer = setTimeout(() => {
+      void usdaFoods.search(query, { pageSize: 12 }).then((outcome) => {
+        // The query may have moved on while this was in flight; a late
+        // response for "chic" landing under "chickpea" is worse than none.
+        if (!live) return;
+        if (outcome.kind === 'ok') {
+          setRemote(outcome.data);
+          setRemoteState('ok');
+          return;
+        }
+        setRemote([]);
+        setRemoteState(outcome.kind === 'not_configured' ? 'off' : 'error');
+        setRemoteNote('reason' in outcome ? outcome.reason : 'That search did not come back.');
+      });
+    }, 400);
+
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [q]);
+
+  const saveRemote = (f: UsdaFoodResult) => {
+    addFood({
+      slot,
+      name: f.brand ? `${f.brand} ${f.name}` : f.name,
+      quantity: portion,
+      servingLabel: f.servingLabel,
+      macros: scaleMacros(f.macros, portion),
+      source: 'search',
+      // Laboratory reference data is not an estimate — but a record missing
+      // macros is being completed with zeroes here, and that must not read
+      // as something that was measured.
+      isEstimate: f.missing.length > 0,
+    });
+    onSaved();
+  };
 
   const save = (f: LibraryFood) => {
     addFood({
@@ -194,6 +269,95 @@ function SearchMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () =>
           ))}
         </Card>
       )}
+
+      {/* USDA sits below the local results on purpose. What somebody has
+          logged before, or typed in themselves, is a better answer than a
+          reference record however good the reference is. */}
+      {remoteState !== 'off' && q.trim().length >= 3 && (
+        <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+          <Text variant="overline" color={colors.textDim}>
+            USDA FoodData Central
+          </Text>
+
+          {remoteState === 'loading' && (
+            <Text variant="caption" color={colors.textFaint}>
+              Searching USDA…
+            </Text>
+          )}
+          {remoteState === 'error' && (
+            <Text variant="caption" color={colors.textFaint}>
+              {remoteNote}
+            </Text>
+          )}
+          {remoteState === 'ok' && remote.length === 0 && (
+            <Text variant="caption" color={colors.textFaint}>
+              Nothing in USDA for that. Manual entry always works.
+            </Text>
+          )}
+
+          {remote.length > 0 && (
+            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+              {remote.map((f, i) => (
+                <Pressable
+                  key={f.fdcId}
+                  onPress={() => saveRemote(f)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Log ${f.name}, ${f.macros.calories} calories per ${f.servingLabel}`}
+                  style={({ pressed }) => [
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      paddingVertical: spacing.md,
+                      borderBottomWidth: i === remote.length - 1 ? 0 : StyleSheet.hairlineWidth,
+                      borderBottomColor: colors.border,
+                    },
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text variant="bodyStrong" numberOfLines={2} style={{ flexShrink: 1 }}>
+                        {f.brand ? `${f.brand} ${f.name}` : f.name}
+                      </Text>
+                    </View>
+                    <Text variant="caption" color={colors.textDim}>
+                      {f.servingLabel} · P{Math.round(f.macros.proteinG)} C{Math.round(f.macros.carbsG)} F
+                      {Math.round(f.macros.fatG)}
+                    </Text>
+                    {f.category && (
+                      <Text variant="caption" color={colors.textFaint}>
+                        {f.category}
+                      </Text>
+                    )}
+                    {/* A reference record with holes in it is still worth
+                        offering — but saying which values are missing is the
+                        difference between a gap and a silent zero. */}
+                    {f.missing.length > 0 && (
+                      <Text variant="caption" color={colors.warning}>
+                        No {f.missing.join(', ')} on this record — check before saving.
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <Text variant="bodyStrong" color={colors.calorie}>
+                      {f.macros.calories}
+                      <Text variant="caption" color={colors.textFaint}> kcal</Text>
+                    </Text>
+                    <Pill label={f.dataType === 'Branded' ? 'Brand' : 'Lab'} color={colors.info} />
+                  </View>
+                </Pressable>
+              ))}
+            </Card>
+          )}
+
+          {remoteState === 'ok' && remote.length > 0 && (
+            <Text variant="caption" color={colors.textFaint}>
+              {USDA_NOTE}
+            </Text>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -234,14 +398,47 @@ function ManualMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () =>
 
 function AIMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () => void; addFood: AddFn }) {
   const [desc, setDesc] = useState('');
+  const [photo, setPhoto] = useState<{ uri: string; base64: string; bytes: number } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [estimate, setEstimate] = useState<{ name: string; serving: string; macros: FoodMacros } | null>(null);
+  const [error, setError] = useState('');
+  const [estimate, setEstimate] = useState<PhotoEstimate | null>(null);
+
+  const canPhoto = mealPhoto.available();
+  const canCamera = mealPhoto.cameraAvailable();
+
+  const takePhoto = async (how: 'capture' | 'choose') => {
+    setError('');
+    const outcome = how === 'capture' ? await mealPhoto.capture() : await mealPhoto.choose();
+    if (outcome.kind === 'ok') {
+      setPhoto({ uri: outcome.uri, base64: outcome.base64, bytes: outcome.bytes });
+      // A new photo invalidates the estimate on screen. Leaving the old one
+      // visible under a new picture is how somebody logs the wrong meal.
+      setEstimate(null);
+      return;
+    }
+    if (outcome.kind === 'cancelled') return;
+    setError(outcome.reason);
+  };
 
   const analyze = async () => {
     setLoading(true);
+    setError('');
     try {
-      const res = await ai.analyzeFood({ description: desc });
-      setEstimate({ name: res.name, serving: res.servingLabel, macros: res.macros });
+      const res = await ai.analyzeFood({
+        ...(desc.trim() ? { description: desc.trim() } : null),
+        ...(photo ? { imageBase64: photo.base64 } : null),
+      });
+      setEstimate({
+        name: res.name,
+        servingLabel: res.servingLabel,
+        macros: res.macros,
+        confidence: res.confidence,
+        note: res.note,
+      });
+    } catch {
+      // The coach and the estimator both go through a server the athlete
+      // runs. When it is down, saying so beats a spinner that never stops.
+      setError('The AI server did not answer. You can still type the macros in by hand.');
     } finally {
       setLoading(false);
     }
@@ -252,26 +449,132 @@ function AIMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () => voi
 
   const save = () => {
     if (!estimate) return;
-    addFood({ slot, name: estimate.name, quantity: 1, servingLabel: estimate.serving, macros: estimate.macros, source: 'photo', isEstimate: true });
+    addFood({
+      slot,
+      name: estimate.name,
+      quantity: 1,
+      servingLabel: estimate.servingLabel,
+      macros: estimate.macros,
+      // Only a photograph is recorded as one. This used to say 'photo' for a
+      // typed description too, which made the history lie about where a
+      // number came from.
+      source: estimateSource(Boolean(photo)),
+      isEstimate: true,
+    });
     onSaved();
   };
+
+  const problems = estimate ? checkEstimate(estimate) : [];
+  const nothingToSend = !photo && !desc.trim();
 
   return (
     <View style={{ gap: spacing.md }}>
       <Card tone="alt">
-        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' }}>
           <Icon name="bolt" size={18} color={colors.primary} />
           <Text variant="caption" color={colors.textDim} style={{ flex: 1 }}>
-            AI returns an ESTIMATE. Describe your meal (or attach a photo in a native build) and edit any value before saving.
+            {PHOTO_ESTIMATE_NOTE}
           </Text>
         </View>
       </Card>
-      <Input label="Describe your meal" value={desc} onChangeText={setDesc} placeholder="e.g. chicken burrito bowl with rice, beans, salsa" multiline />
-      <Button title="Estimate with AI" onPress={analyze} loading={loading} icon={<Icon name="camera" size={18} color={colors.onPrimary} />} />
+
+      {canPhoto ? (
+        <View style={{ gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            {canCamera && (
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Take a photo"
+                  variant="secondary"
+                  onPress={() => void takePhoto('capture')}
+                  icon={<Icon name="camera" size={18} color={colors.text} />}
+                />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Button title="Choose a photo" variant="secondary" onPress={() => void takePhoto('choose')} />
+            </View>
+          </View>
+
+          {photo && (
+            <Card style={{ gap: spacing.sm }}>
+              <Image
+                source={{ uri: photo.uri }}
+                style={{ width: '100%', height: 180, borderRadius: radius.md }}
+                resizeMode="cover"
+                accessibilityLabel="The meal photo you attached"
+              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Text variant="caption" color={colors.textFaint} style={{ flex: 1 }}>
+                  {Math.round(photo.bytes / 1024)} KB after shrinking. {PHOTO_PRIVACY_NOTE}
+                </Text>
+              </View>
+              <Button title="Remove photo" variant="ghost" onPress={() => setPhoto(null)} />
+            </Card>
+          )}
+        </View>
+      ) : (
+        <Text variant="caption" color={colors.textFaint}>
+          This build cannot open a camera, so describe the meal instead. Photo estimates need a development build.
+        </Text>
+      )}
+
+      <Input
+        label={photo ? 'Anything the photo does not show (optional)' : 'Describe your meal'}
+        value={desc}
+        onChangeText={setDesc}
+        placeholder={photo ? 'e.g. cooked in two tablespoons of oil' : 'e.g. chicken burrito bowl with rice, beans, salsa'}
+        multiline
+      />
+
+      <Button
+        title={photo ? 'Estimate from the photo' : 'Estimate with AI'}
+        onPress={() => void analyze()}
+        loading={loading}
+        disabled={nothingToSend}
+        icon={<Icon name="bolt" size={18} color={colors.onPrimary} />}
+      />
+      {nothingToSend && (
+        <Text variant="caption" color={colors.textFaint}>
+          Attach a photo or describe the meal first.
+        </Text>
+      )}
+      {error !== '' && (
+        <Text variant="caption" color={colors.danger}>
+          {error}
+        </Text>
+      )}
 
       {estimate && (
         <Card style={{ gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text variant="label" color={colors.textDim} style={{ flex: 1 }}>
+              Estimate
+            </Text>
+            <Pill
+              label={`${cap(estimate.confidence)} confidence`}
+              color={estimate.confidence === 'low' ? colors.warning : colors.info}
+            />
+          </View>
+          <Text variant="caption" color={colors.textDim}>
+            {CONFIDENCE_COPY[estimate.confidence]}
+          </Text>
+
+          {/* A model can return macros that do not add up to the calories it
+              also returned. Overwriting one silently would hide that; the
+              athlete is the one who knows which is closer. */}
+          {problems.map((prob) => (
+            <Text key={`${prob.field}-${prob.message}`} variant="caption" color={colors.warning}>
+              {prob.message}
+            </Text>
+          ))}
+
           <Input label="Food" value={estimate.name} onChangeText={(name) => setEstimate((e) => (e ? { ...e, name } : e))} />
+          <Input
+            label="Portion"
+            value={estimate.servingLabel}
+            onChangeText={(servingLabel) => setEstimate((e) => (e ? { ...e, servingLabel } : e))}
+          />
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
             <View style={{ flex: 1 }}><Input label="Calories" value={String(estimate.macros.calories)} onChangeText={(v) => patch('calories', v)} keyboardType="number-pad" /></View>
             <View style={{ flex: 1 }}><Input label="Protein" value={String(estimate.macros.proteinG)} onChangeText={(v) => patch('proteinG', v)} keyboardType="decimal-pad" suffix="g" /></View>
@@ -280,7 +583,7 @@ function AIMode({ slot, onSaved, addFood }: { slot: MealSlot; onSaved: () => voi
             <View style={{ flex: 1 }}><Input label="Carbs" value={String(estimate.macros.carbsG)} onChangeText={(v) => patch('carbsG', v)} keyboardType="decimal-pad" suffix="g" /></View>
             <View style={{ flex: 1 }}><Input label="Fat" value={String(estimate.macros.fatG)} onChangeText={(v) => patch('fatG', v)} keyboardType="decimal-pad" suffix="g" /></View>
           </View>
-          <Button title="Save Estimate" onPress={save} />
+          <Button title="Save as an estimate" onPress={save} />
         </Card>
       )}
     </View>
