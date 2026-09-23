@@ -28,6 +28,13 @@ Create a project at supabase.com, then Project Settings → API:
 | `EXPO_PUBLIC_SUPABASE_URL` | Project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | `anon` / publishable key |
 
+Apply **every** migration in `supabase/migrations`, including `0003_social.sql`.
+That one adds following, kudos, clubs and shared activities, and it is the
+only place in this schema where one user can read another's row — so it is
+worth reading before you run it. Health data is not reachable through it:
+the public identity is a separate table with no health columns in it, and
+`profiles` stays owner-only and untouched.
+
 The anon key is *meant* to be public. What protects the data is Row Level
 Security, which `supabase/migrations/0001_init.sql` sets up — every table
 is keyed to `auth.uid()` so one account cannot read another's rows. Apply
@@ -217,7 +224,45 @@ consumer API route at all.
 
 ---
 
-## 8. Gym search — optional
+## 8. USDA FoodData Central — the reference food database
+
+**Free, and the key is free.** api.data.gov → a key in about a minute.
+
+This is the US government's laboratory-analysed nutrient database, and it
+is what Open Food Facts is worst at: OFF knows what is in a packet with a
+barcode on it, FDC knows what is in a chicken breast. Searching foods in
+the app queries it once you have this set.
+
+| Variable | Where it goes |
+|---|---|
+| `EXPO_PUBLIC_USDA_FOOD_URL` | app bundle — `https://<your-deployment>/api/food/usda` |
+| `USDA_FDC_API_KEY` | **server only** — from api.data.gov |
+
+The split is forced, not stylistic. FDC rate limits **per key**, not per
+user, so a key compiled into the app bundle would be one hourly allowance
+shared by everybody — any single user could exhaust it for the rest, and
+since anyone can unzip an app, strangers could spend it outright.
+
+Blank and USDA search is simply off: the 128 bundled staples, your own
+saved foods and barcode scanning all still work.
+
+---
+
+## 9. Photo food estimates — no new key
+
+Attaching a photo to an AI estimate uses the same `EXPO_PUBLIC_AI_API_URL`
+server as the coach (§6), which needs a route that accepts
+`{ description?, imageBase64? }` and returns
+`{ name, servingLabel, macros, confidence, note }`. Images are downscaled
+to 1024px and JPEG-compressed before sending, because a phone frame is
+3–8 MB and most vision pricing is per image.
+
+With no AI server configured the app says plainly that it cannot look at
+the photo, rather than returning a plausible-looking guess.
+
+---
+
+## 10. Gym search — optional
 
 `EXPO_PUBLIC_GYM_API_URL` points at your own proxy for a points-of-interest
 source (Overpass, Mapbox, Google Places — your choice; the credential
@@ -226,7 +271,7 @@ the Iron Map falls back to its bundled list.
 
 ---
 
-## 9. Analytics — optional
+## 11. Analytics — optional
 
 `EXPO_PUBLIC_ANALYTICS_KEY`. Blank means events are logged to the console
 in development and dropped in production. Health values are never sent as
@@ -238,18 +283,20 @@ event properties.
 
 Worth saying explicitly, because these are the ones people expect to need:
 
-- **A food database.** Open Food Facts needs no key and no account, and it
-  is wired in: scan a barcode and the app looks it up, fills the form, and
-  asks you to check it against the packet. `EXPO_PUBLIC_FOOD_LOOKUP=off`
-  turns it off. It is an accelerator, never a dependency — 128 staples ship
-  with the app and anything it cannot find you type once.
+- **A food database, to get started.** Open Food Facts needs no key and no
+  account, and it is wired in: scan a barcode and the app looks it up, fills
+  the form, and asks you to check it against the packet.
+  `EXPO_PUBLIC_FOOD_LOOKUP=off` turns it off. USDA (§8) adds laboratory
+  reference data for whole foods and does want a free key. Neither is a
+  dependency — 128 staples ship with the app and anything they cannot find
+  you type once.
 - **Apple Health / Apple Watch** — entitlements, not credentials (§3).
 - **Google or Apple sign-in** — configured in the Supabase dashboard,
   nothing in the app bundle (§1).
 - **Oura, Garmin, Fitbit, Whoop, Polar, Suunto, Withings, Samsung** — no key
   goes in this app for any of them. Two routes: on iOS their data already
   arrives through Apple Health, and for everything else there is
-  **Open Wearables** (§9), which is one integration instead of eight.
+  **Open Wearables** (§7), which is one integration instead of eight.
 
 ---
 
