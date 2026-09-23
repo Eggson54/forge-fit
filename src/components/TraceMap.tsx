@@ -17,17 +17,28 @@ import { Text } from './ui/Text';
  */
 export function TraceMap({
   points,
+  lines,
   height = 180,
   width,
   highlight,
   style,
   color = colors.primary,
 }: {
-  points: LatLon[];
+  points?: LatLon[];
+  /**
+   * Several disconnected runs, as privacy trimming produces them.
+   *
+   * Drawn without start and finish markers, on purpose. A green dot on the
+   * first surviving point would label it "where they started" — which is
+   * precisely the coordinate the privacy zone removed. The gaps are left as
+   * gaps for the same reason: joining the pieces would draw a straight line
+   * through the hidden middle, and its two ends are the hidden addresses.
+   */
+  lines?: LatLon[][];
   height?: number;
   /** Defaults to filling the parent; pass a number inside a fixed-width row. */
   width?: number;
-  /** An index range to pick out — a best effort, or a segment. */
+  /** An index range to pick out — a best effort, or a segment. Single-line only. */
   highlight?: { from: number; to: number } | null;
   style?: ViewStyle;
   color?: string;
@@ -35,9 +46,17 @@ export function TraceMap({
   const [measured, setMeasured] = React.useState(width ?? 0);
   const w = width ?? measured;
 
+  const trimmed = lines != null;
+  // Memoised because `points ?? []` allocates a fresh array on every render
+  // when the caller passes no points, which would re-run the projection below
+  // every frame for a routeless card.
+  const single = useMemo(() => points ?? [], [points]);
+
   const drawn = useMemo(() => {
-    if (!w || points.length < 2) return null;
-    const bounds = boundsOf(points);
+    const segments = trimmed ? (lines ?? []).filter((l) => l.length > 1) : single.length > 1 ? [single] : [];
+    const all = segments.flat();
+    if (!w || all.length < 2) return null;
+    const bounds = boundsOf(all);
     if (!bounds) return null;
 
     const viewport = fitViewport(padBounds(bounds, 0.08), w, height);
@@ -45,17 +64,18 @@ export function TraceMap({
     const toPoly = (ps: LatLon[]) => ps.map((p) => { const q = project(p); return `${q.x.toFixed(1)},${q.y.toFixed(1)}`; }).join(' ');
 
     const slice =
-      highlight && highlight.to > highlight.from
-        ? points.slice(Math.max(0, highlight.from), Math.min(points.length, highlight.to + 1))
+      !trimmed && highlight && highlight.to > highlight.from
+        ? single.slice(Math.max(0, highlight.from), Math.min(single.length, highlight.to + 1))
         : null;
 
     return {
-      all: toPoly(points),
+      polylines: segments.map(toPoly),
       highlighted: slice && slice.length > 1 ? toPoly(slice) : null,
-      start: project(points[0]!),
-      end: project(points[points.length - 1]!),
+      // Endpoints belong to a complete trace only; see the `lines` note above.
+      start: trimmed ? null : project(single[0]!),
+      end: trimmed ? null : project(single[single.length - 1]!),
     };
-  }, [points, w, height, highlight]);
+  }, [single, lines, trimmed, w, height, highlight]);
 
   return (
     <View
@@ -66,25 +86,30 @@ export function TraceMap({
         <Svg width={w} height={height}>
           {/* A dark casing under the line, so the route reads against the
               card whichever direction it doubles back over itself. */}
-          <Polyline points={drawn.all} fill="none" stroke={colors.bg} strokeWidth={5.5} strokeLinejoin="round" strokeLinecap="round" />
-          <Polyline
-            points={drawn.all}
-            fill="none"
-            stroke={drawn.highlighted ? colors.textFaint : color}
-            strokeWidth={2.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          {drawn.polylines.map((poly, i) => (
+            <Polyline key={`casing-${i}`} points={poly} fill="none" stroke={colors.bg} strokeWidth={5.5} strokeLinejoin="round" strokeLinecap="round" />
+          ))}
+          {drawn.polylines.map((poly, i) => (
+            <Polyline
+              key={`line-${i}`}
+              points={poly}
+              fill="none"
+              stroke={drawn.highlighted ? colors.textFaint : color}
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ))}
           {drawn.highlighted && (
             <Polyline points={drawn.highlighted} fill="none" stroke={color} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
           )}
-          <Circle cx={drawn.start.x} cy={drawn.start.y} r={5} fill={colors.success} stroke={colors.bg} strokeWidth={2} />
-          <Circle cx={drawn.end.x} cy={drawn.end.y} r={5} fill={colors.danger} stroke={colors.bg} strokeWidth={2} />
+          {drawn.start && <Circle cx={drawn.start.x} cy={drawn.start.y} r={5} fill={colors.success} stroke={colors.bg} strokeWidth={2} />}
+          {drawn.end && <Circle cx={drawn.end.x} cy={drawn.end.y} r={5} fill={colors.danger} stroke={colors.bg} strokeWidth={2} />}
         </Svg>
       ) : (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text variant="caption" color={colors.textFaint}>
-            {points.length < 2 ? 'No route recorded' : 'Drawing…'}
+            {(trimmed ? (lines ?? []).flat().length : single.length) < 2 ? 'No route recorded' : 'Drawing…'}
           </Text>
         </View>
       )}

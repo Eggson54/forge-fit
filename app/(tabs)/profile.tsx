@@ -133,6 +133,13 @@ export default function Profile() {
         </View>
       )}
 
+      <SectionHeader title="People" />
+      <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+        <ListRow icon="rivals" tint={colors.lime} title="Feed" subtitle="Activities from people you follow" onPress={() => router.push('/feed')} />
+        <ListRow icon="trophy" tint={colors.amber} title="Clubs" subtitle="Leaderboards with other people" onPress={() => router.push('/clubs')} />
+        <ListRow icon="lock" tint={colors.textDim} title="Who can see you" subtitle="Handle, visibility, follow requests" onPress={() => router.push('/settings/social')} />
+      </Card>
+
       <SectionHeader title="Coach & Goals" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
         <ListRow icon="flame" tint={colors.primary} title="AI Coach" subtitle="Personality & aggression" onPress={() => router.push('/settings/coach')} />

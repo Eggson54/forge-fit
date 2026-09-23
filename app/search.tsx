@@ -181,6 +181,27 @@ const SCREENS: SearchEntry[] = [
     href: '/map',
   },
   {
+    id: 's_feed',
+    kind: 'screen',
+    title: 'Feed',
+    keywords: ['feed', 'friends', 'follow', 'following', 'followers', 'social', 'kudos', 'people', 'activity feed'],
+    href: '/feed',
+  },
+  {
+    id: 's_clubs',
+    kind: 'screen',
+    title: 'Clubs',
+    keywords: ['club', 'clubs', 'group', 'team', 'leaderboard', 'members', 'join'],
+    href: '/clubs',
+  },
+  {
+    id: 's_social_settings',
+    kind: 'screen',
+    title: 'Who can see you',
+    keywords: ['social', 'privacy', 'visible', 'handle', 'username', 'public', 'private', 'follow requests', 'profile'],
+    href: '/settings/social',
+  },
+  {
     id: 's_privzone',
     kind: 'screen',
     title: 'Privacy zones',

@@ -350,6 +350,14 @@ export default function ActivityDetail() {
 
       <SectionHeader title="This activity" />
       <Card style={{ gap: spacing.md }}>
+        {/* Sharing is a separate screen rather than a switch here, because the
+            route it publishes is not the one drawn above — privacy zones cut
+            it first, and that difference deserves to be looked at. */}
+        <Button
+          title="Share this activity"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/share/[id]', params: { id: activity.id } })}
+        />
         {editingName == null ? (
           <Button title="Rename" variant="ghost" onPress={() => setEditingName(activity.name)} />
         ) : (
