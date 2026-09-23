@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Marks this as a single-target watchOS app rather than the old
+	     WatchKit app + extension pair. The bundle identifier, display name
+	     and companion app id are all supplied as build settings by the
+	     config plugin, so they are deliberately not repeated here. -->
+	<key>WKApplication</key>
+	<true/>
+	<key>WKRunsIndependentlyOfCompanionApp</key>
+	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>ForgeFit reads your heart rate and energy while a workout is running so it can show them on your wrist.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>ForgeFit saves the workout you record on your Watch to Apple Health, which is how it reaches the app on your phone.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
+	</array>
+</dict>
+</plist>

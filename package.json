@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "start": "expo start",
+    "dev": "expo start --dev-client",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.25.0",
+    "@bacons/apple-targets": "^5.0.0",
     "@expo-google-fonts/archivo": "^0.4.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/metro-runtime": "~4.0.1",
@@ -31,6 +33,7 @@
     "expo-camera": "~16.0.7",
     "expo-constants": "~17.0.3",
     "expo-crypto": "~14.0.1",
+    "expo-dev-client": "~5.0.20",
     "expo-document-picker": "~13.0.1",
     "expo-file-system": "~18.0.12",
     "expo-font": "~13.0.1",
