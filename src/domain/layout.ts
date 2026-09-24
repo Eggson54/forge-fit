@@ -135,13 +135,14 @@ export function actionByKey(key: string | undefined): ActionDef {
 
 // --------------------------------------------------------------- tabs ----
 
-export type TabKey = 'home' | 'workout' | 'nutrition' | 'progress' | 'profile';
+export type TabKey = 'home' | 'workout' | 'nutrition' | 'progress' | 'social' | 'profile';
 
 export const TAB_LABEL: Record<TabKey, string> = {
   home: 'Home',
   workout: 'Workout',
   nutrition: 'Nutrition',
   progress: 'Progress',
+  social: 'Social',
   profile: 'Profile',
 };
 
@@ -157,7 +158,7 @@ export const REQUIRED_TABS: TabKey[] = ['home', 'profile'];
  * search.
  */
 export function visibleTabs(hidden: string[] | undefined): TabKey[] {
-  const all: TabKey[] = ['home', 'workout', 'nutrition', 'progress', 'profile'];
+  const all: TabKey[] = ['home', 'workout', 'nutrition', 'progress', 'social', 'profile'];
   const off = new Set((hidden ?? []).filter((k): k is TabKey => all.includes(k as TabKey)));
   return all.filter((t) => REQUIRED_TABS.includes(t) || !off.has(t));
 }

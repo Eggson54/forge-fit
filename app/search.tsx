@@ -185,7 +185,14 @@ const SCREENS: SearchEntry[] = [
     kind: 'screen',
     title: 'Feed',
     keywords: ['feed', 'friends', 'follow', 'following', 'followers', 'social', 'kudos', 'people', 'activity feed'],
-    href: '/feed',
+    href: '/social',
+  },
+  {
+    id: 's_health_workouts',
+    kind: 'screen',
+    title: 'Import workouts from Apple Health',
+    keywords: ['garmin', 'whoop', 'polar', 'coros', 'suunto', 'wahoo', 'import', 'apple health', 'healthkit', 'watch', 'workouts', 'sync', 'wearable'],
+    href: '/settings/health-workouts',
   },
   {
     id: 's_clubs',

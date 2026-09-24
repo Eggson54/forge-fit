@@ -260,6 +260,7 @@ export const useIntegrationStore = create<IntegrationState>()(
                 detected: true,
                 lastSeenDate: today,
                 signals: ['heart rate variability', 'resting heart rate', 'wrist temperature'],
+                devices: ['apple_watch'],
                 companionInstalled: false,
                 reason: null,
               },

@@ -135,8 +135,8 @@ export default function Profile() {
 
       <SectionHeader title="People" />
       <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-        <ListRow icon="rivals" tint={colors.lime} title="Feed" subtitle="Activities from people you follow" onPress={() => router.push('/feed')} />
         <ListRow icon="trophy" tint={colors.amber} title="Clubs" subtitle="Leaderboards with other people" onPress={() => router.push('/clubs')} />
+        <ListRow icon="watch" tint={colors.info} title="Import from Health" subtitle="Garmin, WHOOP, Polar, the Watch" onPress={() => router.push('/settings/health-workouts')} />
         <ListRow icon="lock" tint={colors.textDim} title="Who can see you" subtitle="Handle, visibility, follow requests" onPress={() => router.push('/settings/social')} />
       </Card>
 

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { dedupe, readWorkout, type HkWorkout, type ImportedWorkout } from '../domain/healthWorkouts';
 
 /**
  * Apple Health on iOS, Health Connect on Android.
@@ -118,6 +119,13 @@ export interface HealthProvider {
   requestPermissions(metrics: HealthMetric[]): Promise<Record<string, boolean>>;
   readDay(date: string): Promise<DailyHealth>;
   getLatestWeightKg(): Promise<number | null>;
+  /**
+   * Workouts anything wrote into Health over a window.
+   *
+   * This is the whole Garmin/WHOOP/Polar story on iOS: their app syncs to
+   * Health and this reads it back, with no vendor integration at either end.
+   */
+  readWorkouts(from: Date, to: Date): Promise<ImportedWorkout[]>;
 }
 
 /** What runs when there is no native framework to talk to. */
@@ -134,6 +142,9 @@ class NoHealthProvider implements HealthProvider {
   }
   async getLatestWeightKg() {
     return null;
+  }
+  async readWorkouts(): Promise<ImportedWorkout[]> {
+    return [];
   }
 }
 
@@ -234,6 +245,60 @@ class HealthKitProvider implements HealthProvider {
       return list
         .map((r) => normaliseQuantity(metric, (r as { quantity?: number }).quantity))
         .filter((n): n is number => n != null);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Workouts written into Health by anything at all.
+   *
+   * Two entry points, because the library exposes both and which one is
+   * present depends on the build: `queryWorkouts({...})` on the iOS wrapper,
+   * and the positional `queryWorkoutSamples(...)` on the raw native module.
+   * The wrapper is preferred; the raw one is the fallback rather than an
+   * assumption, so a build carrying only one of them still works.
+   *
+   * Requesting the workout type first is not optional: this library crashes
+   * the app outright when a type is queried without authorization.
+   */
+  async readWorkouts(from: Date, to: Date): Promise<ImportedWorkout[]> {
+    if (!(await this.ensureRequested('workouts'))) return [];
+
+    try {
+      let rows: unknown;
+
+      if (typeof this.hk.queryWorkouts === 'function') {
+        rows = await this.hk.queryWorkouts({
+          energyUnit: 'kcal',
+          distanceUnit: 'm',
+          ...this.window(from, to),
+          ascending: false,
+        });
+      } else if (typeof this.hk.queryWorkoutSamples === 'function') {
+        rows = await this.hk.queryWorkoutSamples(
+          'kcal',
+          'm',
+          from.toISOString(),
+          to.toISOString(),
+          0,
+          false,
+        );
+      } else {
+        return [];
+      }
+
+      const list = Array.isArray(rows) ? rows : (rows as { samples?: unknown })?.samples;
+      if (!Array.isArray(list)) return [];
+
+      const read = list
+        .map((row) => readWorkout(row as HkWorkout))
+        .filter((w): w is ImportedWorkout => w !== null);
+
+      // Deduping here rather than at the call site: the same session arriving
+      // from two apps is a property of Health, not of any one screen, and
+      // every caller would otherwise have to remember.
+      return dedupe(read);
     } catch {
       return [];
     }
@@ -353,6 +418,15 @@ interface HealthKitModule {
   queryQuantitySamples(identifier: string, options: Record<string, unknown>): Promise<unknown>;
   queryCategorySamples(identifier: string, options: Record<string, unknown>): Promise<unknown>;
   getMostRecentQuantitySample(identifier: string, unit?: string): Promise<{ quantity?: number } | null>;
+  /**
+   * Optional: only the iOS entry point exposes it, so it is checked for at
+   * the call site rather than required at load. Requiring it would make a
+   * module that is otherwise perfectly usable fall back to "unavailable".
+   */
+  queryWorkouts?(options: Record<string, unknown>): Promise<unknown>;
+  queryWorkoutSamples?(
+    energyUnit: string, distanceUnit: string, from: string, to: string, limit: number, ascending: boolean,
+  ): Promise<unknown>;
 }
 
 let provider: HealthProvider = new NoHealthProvider();
@@ -434,6 +508,7 @@ export const health = {
   requestPermissions: (m: HealthMetric[]) => health.provider().requestPermissions(m),
   readDay: (date: string) => health.provider().readDay(date),
   getLatestWeightKg: () => health.provider().getLatestWeightKg(),
+  readWorkouts: (from: Date, to: Date) => health.provider().readWorkouts(from, to),
 };
 
 /** Only for tests: put a provider in and take it out again. */

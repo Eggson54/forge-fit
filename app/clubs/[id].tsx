@@ -100,7 +100,7 @@ export default function ClubDetail() {
         </Text>
       )}
 
-      {state === 'blocked' && <EmptyState icon="rivals" title="Not available" subtitle={reason} />}
+      {state === 'blocked' && <EmptyState icon="people" title="Not available" subtitle={reason} />}
 
       {state === 'ok' && club && (
         <View style={{ gap: spacing.md }}>

@@ -53,13 +53,13 @@ export default function Clubs() {
         </Text>
       )}
 
-      {state === 'blocked' && <EmptyState icon="rivals" title="Not available" subtitle={reason} />}
+      {state === 'blocked' && <EmptyState icon="people" title="Not available" subtitle={reason} />}
 
       {state === 'ok' && (
         <View style={{ gap: spacing.md }}>
           {mine.length === 0 && others.length === 0 && (
             <EmptyState
-              icon="rivals"
+              icon="people"
               title="No clubs yet"
               subtitle="Public clubs you can join will appear here once somebody creates one."
             />

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { uid } from '../lib/uid';
+import type { ImportedWorkout } from '../domain/healthWorkouts';
 import { todayISO } from '../domain/date';
 import { elevationProfile, simplify, trackStats, type ElevationSample, type TrackPoint } from '../domain/track';
 import { bestEffortsIn, type BestEffort } from '../domain/bestEfforts';
@@ -89,6 +90,17 @@ interface ActivityState {
     laps?: RecordedLap[];
     gearId?: string | null;
   }) => StoredActivity | null;
+  /**
+   * Add workouts read out of Apple Health, skipping ones already imported.
+   *
+   * Separate from `save` because these have no GPS trace at all: `save`
+   * refuses anything under five points and twenty metres, which is the right
+   * rule for a recording and the wrong one for a Garmin session that Health
+   * describes only as a distance and a duration.
+   *
+   * Returns how many were genuinely new.
+   */
+  importHealthWorkouts: (workouts: ImportedWorkout[]) => number;
   rename: (id: UUID, name: string) => void;
   annotate: (id: UUID, patch: { notes?: string; effort?: number; gearId?: string | null }) => void;
   remove: (id: UUID) => void;
@@ -173,6 +185,49 @@ export const useActivityStore = create<ActivityState>()(
           segmentEfforts: [...newEfforts, ...s.segmentEfforts],
         }));
         return activity;
+      },
+
+      importHealthWorkouts: (workouts) => {
+        const existing = new Set(get().activities.map((a) => a.id));
+
+        // Keyed on HealthKit's own uuid, which is stable across reads. That
+        // makes re-running an import idempotent rather than duplicating
+        // everything every time somebody taps the button twice.
+        const fresh = workouts
+          .filter((w) => !existing.has(`hk_${w.uuid}`))
+          .map<StoredActivity>((w) => ({
+            id: `hk_${w.uuid}`,
+            date: w.date,
+            startedAt: w.startedAt,
+            type: w.type,
+            name: `${defaultName(w.type, w.date)} (${w.sourceName})`,
+            // No trace: Health keeps a workout's route in a separate object
+            // that most apps never write. Empty rather than invented.
+            points: [],
+            elevation: [],
+            distanceM: w.distanceM ?? 0,
+            elapsedS: w.durationS,
+            // Nothing here distinguishes moving from stopped time, so the two
+            // are equal rather than guessed at.
+            movingS: w.durationS,
+            ascentM: 0,
+            descentM: 0,
+            avgHr: null,
+            maxHr: null,
+            // Best efforts need a trace to find a fast kilometre inside.
+            efforts: [],
+            laps: [],
+            gearId: null,
+          }));
+
+        if (fresh.length > 0) {
+          set((state) => ({
+            activities: [...fresh, ...state.activities].sort((a, b) =>
+              a.startedAt < b.startedAt ? 1 : a.startedAt > b.startedAt ? -1 : 0,
+            ),
+          }));
+        }
+        return fresh.length;
       },
 
       rename: (id, name) =>

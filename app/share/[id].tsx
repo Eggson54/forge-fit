@@ -159,7 +159,7 @@ export default function ShareActivity() {
             <Text variant="caption" color={colors.textDim}>
               You can withdraw it at any time from the activity, and it disappears from everybody&apos;s feed.
             </Text>
-            <Button title="See the feed" onPress={() => router.replace('/feed')} />
+            <Button title="See the feed" onPress={() => router.replace('/social')} />
           </Card>
         ) : (
           <>

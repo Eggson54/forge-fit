@@ -15,6 +15,7 @@ const TABS: { name: TabKey; label: string; icon: IconName }[] = [
   { name: 'workout', label: 'Workout', icon: 'dumbbell' },
   { name: 'nutrition', label: 'Nutrition', icon: 'nutrition' },
   { name: 'progress', label: 'Progress', icon: 'progress' },
+  { name: 'social', label: 'Social', icon: 'people' },
   { name: 'profile', label: 'Profile', icon: 'profile' },
 ];
 

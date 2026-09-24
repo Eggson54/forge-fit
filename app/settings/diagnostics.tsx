@@ -10,6 +10,7 @@ import { isCloudEnabled } from '../../src/services/supabase';
 import { health, healthDialect, healthLoadError } from '../../src/services/health';
 import { strava } from '../../src/services/strava';
 import { watch } from '../../src/services/watch';
+import { SOURCE_LABEL } from '../../src/domain/healthWorkouts';
 
 type Status = 'pass' | 'fail' | 'warn' | 'pending';
 
@@ -110,11 +111,16 @@ export default function Diagnostics() {
     if (Platform.OS === 'ios' && health.hasNativeModule) {
       const w = await watch.detect([todayISO()]);
       out.push({
-        label: 'Apple Watch data',
-        status: w.detected ? 'pass' : 'warn',
-        detail: w.detected
-          ? `Found ${w.signals.join(', ')} — a Watch is paired and has been worn.`
-          : w.reason ?? 'No Watch-written samples found.',
+        label: 'Wearable data in Health',
+        // A Garmin writing to Health is a pass, not a warning — everything
+        // this app reads works the same whoever wrote it.
+        status: w.devices.length > 0 || w.detected ? 'pass' : 'warn',
+        detail:
+          w.devices.length > 0
+            ? `Writing to Health: ${w.devices.map((d) => SOURCE_LABEL[d]).join(', ')}.`
+            : w.detected
+              ? `Found ${w.signals.join(', ')}, which leans Apple Watch.`
+              : (w.reason ?? 'Nothing has written a workout to Health recently.'),
       });
     }
 

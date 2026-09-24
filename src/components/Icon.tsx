@@ -46,6 +46,7 @@ export type IconName =
   | 'map'
   | 'copy'
   | 'rivals'
+  | 'people'
   | 'levels'
   | 'star';
 
@@ -354,6 +355,20 @@ export function Icon({ name, size = 24, color = '#fff', strokeWidth = 2, filled 
           <Rect x="9.2" y="6" width="5.6" height="14" rx="1.2" {...s} />
           <Rect x="2.8" y="11.5" width="5.6" height="8.5" rx="1.2" {...s} />
           <Rect x="15.6" y="14" width="5.6" height="6" rx="1.2" {...s} />
+        </>
+      )}
+
+      {/* Two people, for the social tab.
+          The podium above ('rivals') was doing this job and sat next to the
+          Progress tab's line chart — two adjacent tabs whose glyphs are both
+          made of bars is a discriminability problem at 24px, before anybody's
+          colour vision is even considered. This is unmistakably not a chart. */}
+      {name === 'people' && (
+        <>
+          <Circle cx="9" cy="8" r="3.4" {...s} />
+          <Path d="M3 19.5c0-3.2 2.7-5.2 6-5.2s6 2 6 5.2" {...s} strokeLinecap="round" />
+          <Path d="M16.2 5.1a3.4 3.4 0 0 1 0 6.3" {...s} strokeLinecap="round" opacity={0.75} />
+          <Path d="M17.4 14.7c2.1.6 3.6 2.4 3.6 4.8" {...s} strokeLinecap="round" opacity={0.75} />
         </>
       )}
 

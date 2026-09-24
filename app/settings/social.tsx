@@ -111,7 +111,7 @@ export default function SocialSettings() {
         </Text>
       )}
 
-      {state === 'blocked' && <EmptyState icon="rivals" title="Not available" subtitle={message} />}
+      {state === 'blocked' && <EmptyState icon="people" title="Not available" subtitle={message} />}
 
       {state === 'ok' && athlete && (
         <View style={{ gap: spacing.md }}>

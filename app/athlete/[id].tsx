@@ -108,7 +108,7 @@ export default function AthleteProfile() {
         </Text>
       )}
 
-      {state === 'blocked' && <EmptyState icon="rivals" title="Not available" subtitle={reason} />}
+      {state === 'blocked' && <EmptyState icon="people" title="Not available" subtitle={reason} />}
 
       {state === 'ok' && athlete && (
         <View style={{ gap: spacing.md }}>

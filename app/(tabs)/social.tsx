@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, Card, EmptyState, Pill, Screen, Text } from '../src/components/ui';
-import { ScreenHeader } from '../src/components/ScreenHeader';
-import { Icon } from '../src/components/Icon';
-import { colors, radius, spacing } from '../src/theme';
+import { Button, Card, EmptyState, IconButton, Pill, Screen, Text } from '../../src/components/ui';
+import { Masthead } from '../../src/components/Masthead';
+import { Icon } from '../../src/components/Icon';
+import { colors, radius, spacing } from '../../src/theme';
 import {
   SOCIAL_PRIVACY_NOTE,
   buildFeed,
@@ -14,11 +14,11 @@ import {
   type Follow,
   type Kudos,
   type SharedActivity,
-} from '../src/domain/social';
-import { social, type SocialOutcome } from '../src/services/social';
-import { TraceMap } from '../src/components/TraceMap';
-import { formatDayMonth } from '../src/domain/date';
-import { useAuthStore } from '../src/stores/useAuthStore';
+} from '../../src/domain/social';
+import { social, type SocialOutcome } from '../../src/services/social';
+import { TraceMap } from '../../src/components/TraceMap';
+import { formatDayMonth } from '../../src/domain/date';
+import { useAuthStore } from '../../src/stores/useAuthStore';
 
 /**
  * The feed.
@@ -105,18 +105,16 @@ export default function Feed() {
 
   return (
     <Screen gradient scroll={false}>
-      <ScreenHeader
-        title="Feed"
-        subtitle="People you follow"
+      {/* Masthead, not ScreenHeader: this is a root tab now, and
+          ScreenHeader carries a back chevron that has nowhere to go. */}
+      <Masthead
+        eyebrow="People you follow"
+        title="Social"
+        accent={colors.lime}
         right={
-          <Pressable
-            onPress={() => router.push('/settings/social')}
-            accessibilityRole="button"
-            accessibilityLabel="Social settings"
-            hitSlop={8}
-          >
-            <Icon name="gear" size={20} color={colors.text} />
-          </Pressable>
+          <IconButton size={40} accessibilityLabel="Social settings" onPress={() => router.push('/settings/social')}>
+            <Icon name="gear" size={19} color={colors.text} strokeWidth={1.8} />
+          </IconButton>
         }
       />
 
@@ -143,14 +141,41 @@ export default function Feed() {
           </Text>
         )}
 
+        {/* This is a tab, so it is the first thing a lot of people will see,
+            and "not configured" is a developer's sentence rather than an
+            answer. It says what social is for, then what is in the way. */}
         {state === 'blocked' && (
-          <EmptyState icon="rivals" title="Nothing to show yet" subtitle={reason} />
+          <View style={{ gap: spacing.md }}>
+            <Card style={{ gap: spacing.sm }}>
+              <Text variant="h3">Train with other people</Text>
+              <Text variant="body" color={colors.textDim}>
+                Follow people, give kudos, and put a leaderboard next to the work. Sharing is per activity and off
+                until you turn it on — nothing here goes out by accident.
+              </Text>
+              <View style={{ gap: spacing.xs, marginTop: spacing.xs }}>
+                <Bullet text="Your routes are cut to your privacy zones before they leave the phone." />
+                <Bullet text="Weight, nutrition, sleep and bloodwork are never shared, and the shared database has nowhere to put them." />
+                <Bullet text="Going private applies to the followers you already have." />
+              </View>
+            </Card>
+
+            <Card tone="alt" style={{ gap: spacing.xs }}>
+              <Text variant="label" color={colors.textDim}>
+                Not switched on yet
+              </Text>
+              <Text variant="caption" color={colors.textDim}>
+                {reason}
+              </Text>
+            </Card>
+
+            <Button title="Clubs and leaderboards" variant="secondary" onPress={() => router.push('/clubs')} />
+          </View>
         )}
 
         {state === 'ok' && items.length === 0 && (
           <>
             <EmptyState
-              icon="rivals"
+              icon="people"
               title="Your feed is empty"
               subtitle="Follow someone, or share one of your own activities, and it will show up here."
             />
@@ -253,6 +278,19 @@ function FeedCard({ item, onKudos }: { item: FeedItem; onKudos: () => void }) {
 function kudosLabel(count: number): string {
   if (count <= 0) return 'Kudos';
   return `${count} ${count === 1 ? 'Kudo' : 'Kudos'}`;
+}
+
+function Bullet({ text }: { text: string }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+      <Text variant="caption" color={colors.lime}>
+        •
+      </Text>
+      <Text variant="caption" color={colors.textDim} style={{ flex: 1 }}>
+        {text}
+      </Text>
+    </View>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

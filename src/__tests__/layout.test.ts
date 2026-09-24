@@ -97,13 +97,17 @@ describe('move', () => {
 describe('tabs', () => {
   it('always keeps the way in and the way to settings', () => {
     // Hiding either would leave somebody with no route back.
-    const visible = visibleTabs(['home', 'profile', 'workout', 'nutrition', 'progress']);
+    const visible = visibleTabs(['home', 'profile', 'workout', 'nutrition', 'progress', 'social']);
     expect(visible).toEqual(['home', 'profile']);
     expect(REQUIRED_TABS).toEqual(['home', 'profile']);
   });
 
   it('hides the ones it is allowed to', () => {
-    expect(visibleTabs(['nutrition'])).toEqual(['home', 'workout', 'progress', 'profile']);
+    expect(visibleTabs(['nutrition'])).toEqual(['home', 'workout', 'progress', 'social', 'profile']);
+  });
+
+  it('lets the social tab be hidden, which matters on a six-tab bar', () => {
+    expect(visibleTabs(['social'])).toEqual(['home', 'workout', 'nutrition', 'progress', 'profile']);
   });
 
   it('toggles, except for the required ones', () => {
@@ -113,7 +117,7 @@ describe('tabs', () => {
   });
 
   it('ignores a stored tab key it does not recognise', () => {
-    expect(visibleTabs(['gyms'])).toHaveLength(5);
+    expect(visibleTabs(['gyms'])).toHaveLength(6);
   });
 });
 

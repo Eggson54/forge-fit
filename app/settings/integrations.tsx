@@ -7,6 +7,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
 import { formatDayMonth } from '../../src/domain/date';
+import { SOURCE_LABEL } from '../../src/domain/healthWorkouts';
 import { displayDistance } from '../../src/domain/cardio';
 import {
   PROVIDER_LABEL,
@@ -103,10 +104,18 @@ export default function Integrations() {
                 </Text>
               )}
 
-              {id === 'apple_watch' && watchStatus != null && watchStatus.detected && (
-                <Text variant="caption" color={colors.textFaint}>
-                  Found {watchStatus.signals.join(', ')} in Health
-                  {watchStatus.lastSeenDate ? ` on ${formatDayMonth(watchStatus.lastSeenDate)}` : ''}.
+              {/* Names what is actually writing to Health rather than
+                  assuming a Watch. A Garmin writes resting heart rate too,
+                  and the old copy called that an Apple Watch. */}
+              {id === 'apple_watch' && watchStatus != null && (
+                <Text variant="caption" color={watchStatus.detected ? colors.textFaint : colors.textDim}>
+                  {watchStatus.devices.length > 0
+                    ? `Writing to Health: ${watchStatus.devices.map((d) => SOURCE_LABEL[d]).join(', ')}`
+                    : watchStatus.signals.length > 0
+                      ? `Found ${watchStatus.signals.join(', ')} in Health`
+                      : (watchStatus.reason ?? '')}
+                  {watchStatus.lastSeenDate ? `, last seen ${formatDayMonth(watchStatus.lastSeenDate)}` : ''}
+                  {watchStatus.devices.length > 0 ? '.' : ''}
                 </Text>
               )}
 
