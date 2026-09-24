@@ -80,7 +80,7 @@ export default function GearAndGoals() {
       <SectionHeader title="Goals" />
       {goals.length === 0 ? (
         <EmptyState
-          icon="target"
+          icon="target" compact tint={colors.lime}
           title="No goals set"
           subtitle="A weekly distance is the usual one. The point is knowing on a Wednesday, not on the last day."
         />
@@ -167,7 +167,7 @@ export default function GearAndGoals() {
       <SectionHeader title="Gear" />
       {ordered.length === 0 ? (
         <EmptyState
-          icon="steps"
+          icon="steps" compact tint={colors.lime}
           title="Nothing tracked"
           subtitle="Add the shoes you run in and every recorded run adds to their mileage. Nobody remembers when they bought them."
         />

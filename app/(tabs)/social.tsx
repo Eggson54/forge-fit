@@ -174,7 +174,7 @@ export default function Feed() {
 
         {state === 'ok' && items.length === 0 && (
           <>
-            <EmptyState
+            <EmptyState tint={colors.lime}
               icon="people"
               title="Your feed is empty"
               subtitle="Follow someone, or share one of your own activities, and it will show up here."

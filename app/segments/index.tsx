@@ -30,7 +30,7 @@ export default function Segments() {
       <ScreenHeader title="Segments" subtitle="Your stretches, your times" />
 
       {visible.length === 0 ? (
-        <EmptyState
+        <EmptyState tint={colors.electric}
           icon="map"
           title="No segments yet"
           subtitle="Record a route, open it, and carve out the hill or the loop you keep coming back to. Every later activity through it is timed for you."

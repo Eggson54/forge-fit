@@ -122,7 +122,7 @@ export default function MyFoods() {
       )}
 
       {mine.length === 0 && !adding && (
-        <EmptyState
+        <EmptyState tint={colors.calorie}
           icon="nutrition"
           title="Nothing of your own yet"
           subtitle={`The ${FOOD_DB.length} staples that ship with the app are already searchable. Anything else you eat, add once and it is there forever — and it ranks above the built-in ones.`}

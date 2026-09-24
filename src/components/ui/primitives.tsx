@@ -123,24 +123,53 @@ export function StatTile({
   );
 }
 
+/**
+ * The screen somebody sees before they have done anything.
+ *
+ * Worth more care than it usually gets: for a feature nobody has used yet,
+ * this *is* the feature's whole interface, and a grey glyph adrift in a
+ * screen of nothing reads as something failing to load rather than as
+ * something waiting to be used.
+ *
+ * Two changes carry most of the weight. The icon sits in a tinted ring
+ * rather than a flat grey circle, so it looks placed rather than left over;
+ * and `tint` lets a screen pass its own domain colour through, which is what
+ * the rest of the app already does everywhere else.
+ *
+ * `compact` exists because a screen with two of these stacked — Gear &
+ * Goals has exactly that — spends its whole height on two apologies.
+ */
 export function EmptyState({
   title,
   subtitle,
   icon,
   action,
   onAction,
+  tint = colors.primary,
+  compact = false,
 }: {
   title: string;
   subtitle?: string;
   icon?: IconName;
   action?: string;
   onAction?: () => void;
+  /** The screen's own accent, so an empty state belongs to its screen. */
+  tint?: string;
+  /** Less vertical room, for when more than one shares a screen. */
+  compact?: boolean;
 }) {
   return (
-    <View style={styles.empty}>
+    <View style={[styles.empty, compact && styles.emptyCompact]}>
       {icon && (
-        <View style={styles.emptyIcon}>
-          <Icon name={icon} size={26} color={colors.textDim} strokeWidth={1.7} />
+        <View
+          style={[
+            styles.emptyIcon,
+            // 14% fill and 38% border: enough to read as deliberate on the
+            // dark ground without competing with a real button.
+            { backgroundColor: `${tint}24`, borderColor: `${tint}61` },
+          ]}
+        >
+          <Icon name={icon} size={26} color={tint} strokeWidth={1.7} />
         </View>
       )}
       <Text variant="title" center>
@@ -152,8 +181,13 @@ export function EmptyState({
         </Text>
       )}
       {action && onAction && (
-        <Pressable onPress={onAction} hitSlop={8} style={{ marginTop: spacing.xs }}>
-          <Text variant="bodyStrong" color={colors.primary}>
+        <Pressable
+          onPress={onAction}
+          hitSlop={8}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.emptyAction, { borderColor: `${tint}55` }, pressed && { opacity: 0.7 }]}
+        >
+          <Text variant="bodyStrong" color={tint}>
             {action}
           </Text>
         </Pressable>
@@ -229,16 +263,24 @@ const styles = StyleSheet.create({
   statTile: { flex: 1, minWidth: 0, gap: 2 },
   accentDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxxl, paddingHorizontal: spacing.lg },
+  emptyCompact: { paddingVertical: spacing.lg },
   emptyIcon: {
     width: 56,
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    // A full point rather than a hairline: at 56px a hairline ring reads as
+    // an artefact of the screenshot rather than as a drawn edge.
+    borderWidth: 1,
     marginBottom: spacing.xs,
+  },
+  emptyAction: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
   },
   listRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, gap: spacing.md },
   listRowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },

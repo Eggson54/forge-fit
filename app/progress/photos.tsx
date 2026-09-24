@@ -87,7 +87,7 @@ export default function Photos() {
         onAction={() => router.push({ pathname: '/progress/compare', params: { pose } })}
       />
       {posePhotos.length === 0 ? (
-        <EmptyState
+        <EmptyState tint={colors.lime}
           icon="camera"
           title="No photos yet"
           subtitle={`Add your first ${pose} photo to start a timeline.`}

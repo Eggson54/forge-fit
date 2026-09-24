@@ -53,13 +53,36 @@ export default function Clubs() {
         </Text>
       )}
 
-      {state === 'blocked' && <EmptyState icon="people" title="Not available" subtitle={reason} />}
+      {/* Same treatment as the Social tab: a feature nobody has switched on
+          yet should say what it is, not report a missing environment
+          variable. */}
+      {state === 'blocked' && (
+        <View style={{ gap: spacing.md }}>
+          <Card style={{ gap: spacing.sm }}>
+            <Text variant="h3">Clubs</Text>
+            <Text variant="body" color={colors.textDim}>
+              A club is a group with a leaderboard: distance, climbing, moving time or number of sessions, over a
+              week, a month or a quarter. It counts only what members chose to share, so nobody is ranked on
+              training they kept to themselves.
+            </Text>
+          </Card>
+          <Card tone="alt" style={{ gap: spacing.xs }}>
+            <Text variant="label" color={colors.textDim}>
+              Not switched on yet
+            </Text>
+            <Text variant="caption" color={colors.textDim}>
+              {reason}
+            </Text>
+          </Card>
+        </View>
+      )}
 
       {state === 'ok' && (
         <View style={{ gap: spacing.md }}>
           {mine.length === 0 && others.length === 0 && (
             <EmptyState
               icon="people"
+              tint={colors.amber}
               title="No clubs yet"
               subtitle="Public clubs you can join will appear here once somebody creates one."
             />

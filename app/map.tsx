@@ -65,7 +65,7 @@ export default function MapScreen() {
       <ScreenHeader title="Your map" subtitle="Everywhere you have been" />
 
       {activities.length === 0 ? (
-        <EmptyState
+        <EmptyState tint={colors.electric}
           icon="map"
           title="Nothing recorded yet"
           subtitle="Record a route and it appears here. After a few, this map starts showing the streets you always take and the half of the city you never do."

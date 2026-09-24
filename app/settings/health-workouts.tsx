@@ -96,7 +96,7 @@ export default function HealthWorkouts() {
         </Card>
 
         {phase === 'unavailable' && (
-          <EmptyState
+          <EmptyState tint={colors.info}
             icon="watch"
             title="Needs a development build"
             subtitle="Apple Health is a native framework, so Expo Go cannot reach it. Build with EAS and this works — see BUILDING.md."
@@ -104,7 +104,7 @@ export default function HealthWorkouts() {
         )}
 
         {phase === 'empty' && (
-          <EmptyState
+          <EmptyState tint={colors.info}
             icon="watch"
             title="Nothing in that window"
             subtitle="Either nothing has written a workout to Health, or ForgeFit has not been granted permission to read workouts. Both look the same from here — Apple never tells an app which reads were declined."
