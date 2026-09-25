@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { uid } from '../lib/uid';
 import type { ImportedWorkout } from '../domain/healthWorkouts';
+import {
+  addPhoto,
+  removePhoto,
+  setCaption,
+  type ActivityPhoto,
+} from '../domain/activityPhotos';
 import { todayISO } from '../domain/date';
 import { elevationProfile, simplify, trackStats, type ElevationSample, type TrackPoint } from '../domain/track';
 import { bestEffortsIn, type BestEffort } from '../domain/bestEfforts';
@@ -64,6 +70,11 @@ export interface StoredActivity {
   laps: RecordedLap[];
   /** The shoes or bike this was done in, when the athlete tracks gear. */
   gearId?: string | null;
+  /**
+   * References to photographs on this device, not the images themselves.
+   * See `domain/activityPhotos` for why that distinction matters here.
+   */
+  photos?: ActivityPhoto[];
   notes?: string;
   effort?: number;
 }
@@ -104,6 +115,10 @@ interface ActivityState {
   rename: (id: UUID, name: string) => void;
   annotate: (id: UUID, patch: { notes?: string; effort?: number; gearId?: string | null }) => void;
   remove: (id: UUID) => void;
+
+  addPhoto: (id: UUID, photo: ActivityPhoto) => void;
+  removePhoto: (id: UUID, photoId: string) => void;
+  captionPhoto: (id: UUID, photoId: string, caption: string) => void;
 
   createSegment: (activityId: UUID, startIndex: number, endIndex: number, name: string) => Segment | null;
   hideSegment: (id: UUID, hidden: boolean) => void;
@@ -242,6 +257,27 @@ export const useActivityStore = create<ActivityState>()(
 
       annotate: (id, patch) =>
         set((s) => ({ activities: s.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
+
+      addPhoto: (id, photo) =>
+        set((s) => ({
+          activities: s.activities.map((a) =>
+            a.id === id ? { ...a, photos: addPhoto(a.photos ?? [], photo) } : a,
+          ),
+        })),
+
+      removePhoto: (id, photoId) =>
+        set((s) => ({
+          activities: s.activities.map((a) =>
+            a.id === id ? { ...a, photos: removePhoto(a.photos ?? [], photoId) } : a,
+          ),
+        })),
+
+      captionPhoto: (id, photoId, caption) =>
+        set((s) => ({
+          activities: s.activities.map((a) =>
+            a.id === id ? { ...a, photos: setCaption(a.photos ?? [], photoId, caption) } : a,
+          ),
+        })),
 
       remove: (id) =>
         set((s) => ({

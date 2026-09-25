@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Chip, EmptyState, Input, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
@@ -26,6 +26,13 @@ import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useMapStore } from '../../src/stores/useMapStore';
 import { useGearStore } from '../../src/stores/useGearStore';
 import { gpxFiles } from '../../src/services/gpxFiles';
+import { activityPhoto } from '../../src/services/activityPhoto';
+import {
+  MAX_ACTIVITY_PHOTOS,
+  PHOTO_STORAGE_NOTE,
+  canAddPhoto,
+  usablePhotos,
+} from '../../src/domain/activityPhotos';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 
 export default function ActivityDetail() {
@@ -43,11 +50,45 @@ export default function ActivityDetail() {
   const logUse = useGearStore((s) => s.logUse);
   const forgetActivity = useGearStore((s) => s.forgetActivity);
   const annotate = useActivityStore((s) => s.annotate);
+  const addPhoto = useActivityStore((s) => s.addPhoto);
+  const dropPhoto = useActivityStore((s) => s.removePhoto);
+  const captionPhoto = useActivityStore((s) => s.captionPhoto);
 
   const [highlight, setHighlight] = useState<{ from: number; to: number } | null>(null);
   const [naming, setNaming] = useState(false);
   const [segmentName, setSegmentName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
+  const [captioning, setCaptioning] = useState<string | null>(null);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  // A reference can outlive the file it points at — reinstall the app, or
+  // clear the camera roll, and the URI is still there with nothing behind
+  // it. Rendered as an explanation rather than as a grey rectangle.
+  const [broken, setBroken] = useState<string[]>([]);
+
+  const photos = useMemo(() => usablePhotos(activity?.photos ?? []), [activity]);
+
+  // Reported rather than assumed: where the manipulator is unavailable the
+  // original file is kept, coordinates and all, and saying so is the whole
+  // reason the service returns `stripped`.
+  const attach = async (from: 'camera' | 'library') => {
+    if (!activity) return;
+    setBusy(true);
+    const out = from === 'camera' ? await activityPhoto.fromCamera() : await activityPhoto.fromLibrary();
+    setBusy(false);
+    if (out.kind === 'cancelled') return;
+    if (out.kind !== 'ok') {
+      Alert.alert('No photo added', out.reason);
+      return;
+    }
+    addPhoto(activity.id, out.photo);
+    if (!out.stripped) {
+      Alert.alert(
+        'Location left in the file',
+        'This build could not re-encode the image, so whatever position the camera wrote into it is still there. It stays on this device either way, but bear it in mind before sharing.',
+      );
+    }
+  };
 
   const unitM = units === 'imperial' ? MILE : KM;
   const unitLabel = units === 'imperial' ? 'mi' : 'km';
@@ -348,6 +389,107 @@ export default function ActivityDetail() {
         </>
       )}
 
+      <SectionHeader title="Photos" />
+      <Card style={{ gap: spacing.md }}>
+        {photos.length === 0 && (
+          <EmptyState
+            icon="camera"
+            tint={colors.primary}
+            compact
+            title="No photos on this one"
+            subtitle="The view, the summit, the coffee at the end. They sit alongside the route rather than in your camera roll."
+          />
+        )}
+
+        {photos.map((ph) => (
+          <View key={ph.id} style={{ gap: spacing.xs }}>
+            {broken.includes(ph.id) ? (
+              <View style={[styles.photo, styles.photoGone]}>
+                <Icon name="camera" size={20} color={colors.textFaint} />
+                <Text variant="caption" color={colors.textFaint} center>
+                  This file is no longer on the device. The reference is all that is left.
+                </Text>
+                <Button
+                  title="Remove it"
+                  size="sm"
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={() => dropPhoto(activity.id, ph.id)}
+                />
+              </View>
+            ) : (
+              <Image
+                source={{ uri: ph.uri }}
+                style={styles.photo}
+                resizeMode="cover"
+                onError={() => setBroken((b) => (b.includes(ph.id) ? b : [...b, ph.id]))}
+              />
+            )}
+            {captioning === ph.id ? (
+              <View style={{ gap: spacing.xs }}>
+                <Input
+                  label="Caption"
+                  value={captionDraft}
+                  onChangeText={setCaptionDraft}
+                  placeholder="Halfway up, regretting everything"
+                />
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Button
+                    title="Save"
+                    size="sm"
+                    fullWidth={false}
+                    onPress={() => {
+                      captionPhoto(activity.id, ph.id, captionDraft);
+                      setCaptioning(null);
+                    }}
+                  />
+                  <Button title="Cancel" size="sm" variant="ghost" fullWidth={false} onPress={() => setCaptioning(null)} />
+                </View>
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Pressable
+                  style={{ flex: 1, minWidth: 0 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={ph.caption ? 'Edit caption' : 'Add a caption'}
+                  onPress={() => {
+                    setCaptionDraft(ph.caption ?? '');
+                    setCaptioning(ph.id);
+                  }}
+                >
+                  <Text variant="caption" color={ph.caption ? colors.textDim : colors.textFaint}>
+                    {ph.caption ?? 'Add a caption'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => dropPhoto(activity.id, ph.id)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove photo"
+                >
+                  <Icon name="trash" size={16} color={colors.textFaint} />
+                </Pressable>
+              </View>
+            )}
+          </View>
+        ))}
+
+        {canAddPhoto(photos) ? (
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <Button title="Take one" variant="secondary" disabled={busy} onPress={() => void attach('camera')} />
+            <Button title="Choose one" variant="secondary" disabled={busy} onPress={() => void attach('library')} />
+          </View>
+        ) : (
+          <Text variant="caption" color={colors.textFaint}>
+            {MAX_ACTIVITY_PHOTOS} photos is the limit on one activity.
+          </Text>
+        )}
+
+        <Text variant="caption" color={colors.textFaint}>
+          {PHOTO_STORAGE_NOTE}
+        </Text>
+      </Card>
+
       <SectionHeader title="This activity" />
       <Card style={{ gap: spacing.md }}>
         {/* Sharing is a separate screen rather than a switch here, because the
@@ -408,6 +550,8 @@ function metersBetween(points: { lat: number; lon: number }[], from: number, to:
 }
 
 const styles = StyleSheet.create({
+  photo: { width: '100%', height: 220, borderRadius: 12, backgroundColor: colors.cardAlt },
+  photoGone: { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
   split: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
   barTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceHigh, overflow: 'hidden' },

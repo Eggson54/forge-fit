@@ -16,6 +16,7 @@ import { social } from '../../src/services/social';
 import { TraceMap } from '../../src/components/TraceMap';
 import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useMapStore } from '../../src/stores/useMapStore';
+import { photoPrivacyWarning, usablePhotos } from '../../src/domain/activityPhotos';
 
 /**
  * Publishing one activity.
@@ -64,6 +65,15 @@ export default function ShareActivity() {
   const effect = useMemo(
     () => (activity ? describeEffect(activity.points, zones) : null),
     [activity, zones],
+  );
+
+  const photoWarning = useMemo(
+    () =>
+      photoPrivacyWarning({
+        trimmed: (effect?.hidden ?? 0) > 0,
+        photoCount: usablePhotos(activity?.photos ?? []).length,
+      }),
+    [effect, activity],
   );
 
   if (!activity) {
@@ -128,6 +138,16 @@ export default function ShareActivity() {
               {effect.hidden} of {activity.points.length} points sit inside your privacy zones and will not be
               published, leaving {effect.pieces} {effect.pieces === 1 ? 'piece' : 'pieces'}. The gaps stay gaps on
               purpose — joining them up would draw a line straight through what the zone hides.
+            </Text>
+          )}
+
+          {/* Photos are not published with a shared activity — there is no
+              upload path for them — but an athlete reading "privacy zone"
+              here may assume the pictures were covered by it too. */}
+          {photoWarning && (
+            <Text variant="caption" color={colors.textDim}>
+              The photos on this activity are not published with it — they stay on your device. Worth saying
+              because a zone that hides part of the route does not hide them: {photoWarning}
             </Text>
           )}
 
