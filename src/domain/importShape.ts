@@ -43,6 +43,7 @@ const LABEL: Record<StoreKey, string> = {
   checkIns: 'Check-in schedule and Ghost Mode',
   activities: 'Recorded routes, segments and segment times',
   map: 'Privacy zones and map preferences',
+  routes: 'Routes you planned',
   gear: 'Shoes, bikes and your goals',
   foods: 'Your own foods and scanned barcodes',
 };

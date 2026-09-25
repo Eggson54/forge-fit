@@ -55,6 +55,9 @@ export function MapView({
   units = 'metric',
   style,
   routeColor = colors.primary,
+  center,
+  centerZoom = 15,
+  refit = true,
   onPressPoint,
 }: {
   /** One or more lines. Several, because a privacy zone can cut one in two. */
@@ -69,6 +72,25 @@ export function MapView({
   units?: 'imperial' | 'metric';
   style?: ViewStyle;
   routeColor?: string;
+  /**
+   * Where to look when there is nothing to frame.
+   *
+   * Without this an empty map never gets a viewport, and a viewport is what
+   * every tile, marker and tap is measured against — so an empty map was a
+   * blank rectangle that could not receive its own first tap. The route
+   * planner starts empty by definition, which is how that surfaced.
+   */
+  center?: LatLon;
+  /** Zoom to use with `center`. 15 is roughly a few streets across. */
+  centerZoom?: number;
+  /**
+   * Re-frame when the content changes. True everywhere the content arrives
+   * once and is then read. False where the content is being *built*: a
+   * planner that re-framed on every tap would snap the map out from under
+   * the finger placing the next point, and the first tap would zoom it to
+   * street level on that one point alone.
+   */
+  refit?: boolean;
   onPressPoint?: (p: LatLon) => void;
 }) {
   const source: TileSource = sourceById(sourceId);
@@ -99,10 +121,32 @@ export function MapView({
     if (!bounds) return;
 
     const signature = `${width}x${height}:${points.length}:${heatmap?.cells.length ?? 0}`;
-    if (framedFor.current === signature) return;
+    if (framedFor.current === signature || (!refit && framedFor.current)) return;
     framedFor.current = signature;
     setView(fitBounds(padBounds(bounds, 0.12), width, height, { padding: 16 }));
-  }, [width, height, all, markers, heatmap]);
+  }, [width, height, all, markers, heatmap, refit]);
+
+  // Nothing to frame, but somewhere to look. Runs once: re-centring on every
+  // render would drag the map back under someone panning it.
+  const centred = useRef(false);
+  useEffect(() => {
+    if (!width || centred.current || view) return;
+    if (!center) return;
+    // Only when there is genuinely nothing to frame. Both effects wake on the
+    // same layout pass, and this one runs second, so without this check it
+    // would overwrite a perfectly good fit with a view centred on the first
+    // point — which on a reopened route drew it off the edge of the map.
+    if (all.length > 0 || markers.length > 0 || (heatmap && heatmap.cells.length > 0)) return;
+    centred.current = true;
+    // Counts as a framing, so the first tap does not then re-frame the map
+    // to street level on that single point.
+    framedFor.current = 'centred';
+    setView({ center, zoom: centerZoom, width, height });
+  }, [width, height, center, centerZoom, view, all, markers, heatmap]);
+
+  // The tap surface, and where it sits on screen. See the press handler.
+  const surfaceRef = useRef<View>(null);
+  const origin = useRef<{ x: number; y: number } | null>(null);
 
   const viewRef = useRef<MapViewport | null>(null);
   viewRef.current = view;
@@ -224,10 +268,17 @@ export function MapView({
           </Svg>
 
           {tilesBroken && roomForChrome && (
-            <View style={styles.offline} pointerEvents="none">
+            <View
+              // Clear of the zoom buttons in the top-right corner, which the
+              // text otherwise runs underneath.
+              style={[styles.offline, interactive && { paddingRight: 52 }]}
+              pointerEvents="none"
+            >
               <Icon name="map" size={18} color={colors.textFaint} />
               <Text variant="caption" color={colors.textFaint} center>
-                Map tiles could not load. The route above is drawn from your own recording and is unaffected.
+                {onPressPoint
+                  ? 'Map tiles could not load. Points you tap are still placed correctly — you just cannot see what you are tapping.'
+                  : 'Map tiles could not load. The route above is drawn from your own recording and is unaffected.'}
               </Text>
             </View>
           )}
@@ -254,10 +305,36 @@ export function MapView({
 
           {onPressPoint && interactive && (
             <Pressable
+              ref={surfaceRef}
               style={StyleSheet.absoluteFill}
-              onPress={(e) =>
-                onPressPoint(fromScreen({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY }, view))
+              // `locationX` is the coordinate within the pressed view, and it
+              // is the right one — on the platforms that send it. A mouse
+              // click on the web build arrives without it, and the undefined
+              // went all the way through the projection to plot a waypoint at
+              // NaN, NaN: the map drew nothing and the distance read "NaN mi".
+              // So measure the surface and work from the page coordinate when
+              // the local one is missing.
+              onLayout={() =>
+                surfaceRef.current?.measureInWindow?.((x, y) => {
+                  origin.current = { x, y };
+                })
               }
+              onPress={(e) => {
+                const n = e.nativeEvent;
+                let px = n.locationX;
+                let py = n.locationY;
+                if (!Number.isFinite(px) || !Number.isFinite(py)) {
+                  const o = origin.current;
+                  if (!o || !Number.isFinite(n.pageX) || !Number.isFinite(n.pageY)) return;
+                  px = n.pageX - o.x;
+                  py = n.pageY - o.y;
+                }
+                const at = fromScreen({ x: px, y: py }, view);
+                // Nothing downstream can do anything sensible with a NaN
+                // coordinate, and a dropped tap is far better than a route
+                // that silently stops drawing.
+                if (Number.isFinite(at.lat) && Number.isFinite(at.lon)) onPressPoint(at);
+              }}
             />
           )}
         </>
@@ -299,5 +376,16 @@ const styles = StyleSheet.create({
     position: 'absolute', right: spacing.sm, bottom: spacing.xs, fontSize: 9, opacity: 0.75,
     textShadowColor: 'rgba(0,0,0,0.9)', textShadowRadius: 3,
   },
-  offline: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 6, padding: spacing.lg },
+  // Sat dead centre, which is exactly where the route is: the notice covered
+  // the thing it was reassuring you about. Pinned to the top instead, clear
+  // of the scale bar and attribution along the bottom.
+  offline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: 6,
+    padding: spacing.md,
+  },
 });

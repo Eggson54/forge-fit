@@ -29,7 +29,7 @@ export default function Settings() {
           style: 'destructive',
           onPress: async () => {
             await deleteAccount();
-            resetAllStores();
+            await resetAllStores();
             router.replace('/(auth)/sign-up');
           },
         },

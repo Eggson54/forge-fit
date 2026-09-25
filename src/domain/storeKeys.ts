@@ -26,6 +26,7 @@ export const STORE_KEYS = {
   map: 'forgefit.map',
   gear: 'forgefit.gear',
   foods: 'forgefit.foods',
+  routes: 'forgefit.routes',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;
@@ -37,3 +38,16 @@ export type StoreKey = keyof typeof STORE_KEYS;
  * would hand a copy of their session to wherever the file goes.
  */
 export const UNEXPORTED_STORES: readonly StoreKey[] = ['auth'];
+
+/**
+ * Stores that account deletion must empty.
+ *
+ * Everything except the session itself, which signing out owns — deleting it
+ * from under `deleteAccount` would cut off the request doing the cloud-side
+ * deletion. Derived rather than listed, because the hand-written version of
+ * this had fallen twelve stores behind, and blood results, cycle days and
+ * journal entries survived a deletion that told the user everything was gone.
+ */
+export const CLEARED_ON_DELETE: readonly Exclude<StoreKey, 'auth'>[] = (
+  Object.keys(STORE_KEYS) as StoreKey[]
+).filter((k): k is Exclude<StoreKey, 'auth'> => k !== 'auth');

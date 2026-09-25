@@ -11,6 +11,7 @@ import { useActivityStore } from '../stores/useActivityStore';
 import { useFoodStore } from '../stores/useFoodStore';
 import { useGearStore } from '../stores/useGearStore';
 import { useMapStore } from '../stores/useMapStore';
+import { useRouteStore } from '../stores/useRouteStore';
 import { useJournalStore } from '../stores/useJournalStore';
 import { useGymStore } from '../stores/useGymStore';
 import { useIntegrationStore } from '../stores/useIntegrationStore';
@@ -119,6 +120,7 @@ export function collectUserData(): ExportDocument {
       goals: useGearStore.getState().goals,
     },
     foods: { mine: useFoodStore.getState().mine },
+    routes: { saved: useRouteStore.getState().saved },
     journal: {
       entries: useJournalStore.getState().entries,
       customFactors: useJournalStore.getState().customFactors,

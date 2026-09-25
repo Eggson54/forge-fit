@@ -113,6 +113,26 @@ export const EMPTY_DAY: Omit<DailyHealth, 'date'> = {
   sleepMinutes: null,
 };
 
+/**
+ * A night, broken down.
+ *
+ * Separate from `DailyHealth` because a night is not a property of a day in
+ * the way steps are: it spans two dates, and the reader attributes it to the
+ * morning. Every field but `asleepMinutes` is nullable, because which stages
+ * a device reports varies by device and by how it was worn.
+ */
+export interface SleepBreakdown {
+  date: string;
+  asleepMinutes: number;
+  coreMinutes: number | null;
+  deepMinutes: number | null;
+  remMinutes: number | null;
+  awakeMinutes: number | null;
+  inBedMinutes: number | null;
+  bedtime: string | null;
+  wakeTime: string | null;
+}
+
 export interface HealthProvider {
   readonly name: string;
   isAvailable(): Promise<boolean>;
@@ -126,6 +146,8 @@ export interface HealthProvider {
    * Health and this reads it back, with no vendor integration at either end.
    */
   readWorkouts(from: Date, to: Date): Promise<ImportedWorkout[]>;
+  /** One night with its stages, for the sleep score. Null when nothing was recorded. */
+  readSleep(date: string): Promise<SleepBreakdown | null>;
 }
 
 /** What runs when there is no native framework to talk to. */
@@ -145,6 +167,9 @@ class NoHealthProvider implements HealthProvider {
   }
   async readWorkouts(): Promise<ImportedWorkout[]> {
     return [];
+  }
+  async readSleep(): Promise<SleepBreakdown | null> {
+    return null;
   }
 }
 
@@ -338,6 +363,77 @@ class HealthKitProvider implements HealthProvider {
     };
   }
 
+  /**
+   * One night with its stages.
+   *
+   * The category values are the whole trick: 0 is "in bed", 2 is "awake",
+   * and 1, 3, 4 and 5 are asleep-unspecified, core, deep and REM. The
+   * existing `sleepMinutes` collapses all of those into a total; this keeps
+   * them apart, which is what a sleep score needs.
+   *
+   * Overlapping samples are a real thing here — a phone and a watch both
+   * writing the same night — so time is accumulated per stage rather than
+   * assumed contiguous, and `inBed` is measured from the outer envelope
+   * rather than summed, which would double-count the overlap.
+   */
+  async readSleep(date: string): Promise<SleepBreakdown | null> {
+    if (!(await this.ensureRequested('sleep'))) return null;
+    try {
+      const { start } = dayBounds(date);
+      const from = new Date(start);
+      from.setDate(from.getDate() - 1);
+      from.setHours(18, 0, 0, 0);
+      const to = new Date(start);
+      to.setHours(11, 0, 0, 0);
+
+      const rows = await this.hk.queryCategorySamples(HK_READ.sleep, this.window(from, to));
+      const list = Array.isArray(rows) ? rows : (rows as { samples?: unknown })?.samples;
+      if (!Array.isArray(list) || list.length === 0) return null;
+
+      const samples = (list as { value: number; startDate: string; endDate: string }[])
+        .map((r) => ({ value: r.value, from: new Date(r.startDate).getTime(), to: new Date(r.endDate).getTime() }))
+        .filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to) && r.to > r.from);
+      if (samples.length === 0) return null;
+
+      const minutes = (values: number[]) =>
+        Math.round(
+          samples.filter((r) => values.includes(r.value)).reduce((a, r) => a + (r.to - r.from), 0) / 60000,
+        );
+
+      const asleepMinutes = minutes([1, 3, 4, 5]);
+      if (asleepMinutes <= 0) return null;
+
+      // Stage totals are null when the device reported no samples of that
+      // kind at all — distinct from a night that genuinely had none.
+      const has = (v: number) => samples.some((r) => r.value === v);
+      const asleepSamples = samples.filter((r) => [1, 3, 4, 5].includes(r.value));
+      const envelope = samples.reduce(
+        (acc, r) => ({ from: Math.min(acc.from, r.from), to: Math.max(acc.to, r.to) }),
+        { from: Infinity, to: -Infinity },
+      );
+
+      return {
+        date,
+        asleepMinutes,
+        coreMinutes: has(3) ? minutes([3]) : null,
+        deepMinutes: has(4) ? minutes([4]) : null,
+        remMinutes: has(5) ? minutes([5]) : null,
+        awakeMinutes: has(2) ? minutes([2]) : null,
+        // The outer envelope, not a sum: a phone and a watch both writing the
+        // same night would otherwise report sixteen hours in bed.
+        inBedMinutes: Number.isFinite(envelope.from) ? Math.round((envelope.to - envelope.from) / 60000) : null,
+        bedtime: asleepSamples.length
+          ? new Date(Math.min(...asleepSamples.map((r) => r.from))).toISOString()
+          : null,
+        wakeTime: asleepSamples.length
+          ? new Date(Math.max(...asleepSamples.map((r) => r.to))).toISOString()
+          : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   private async sleepMinutes(date: string): Promise<number | null> {
     if (!(await this.ensureRequested('sleep'))) return null;
     try {
@@ -509,6 +605,7 @@ export const health = {
   readDay: (date: string) => health.provider().readDay(date),
   getLatestWeightKg: () => health.provider().getLatestWeightKg(),
   readWorkouts: (from: Date, to: Date) => health.provider().readWorkouts(from, to),
+  readSleep: (date: string) => health.provider().readSleep(date),
 };
 
 /** Only for tests: put a provider in and take it out again. */

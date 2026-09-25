@@ -12,6 +12,7 @@ import { PRIVACY_NOTE, describeEffect } from '../src/domain/privacy';
 import { TILES_NOTE } from '../src/domain/tiles';
 import { useActivityStore } from '../src/stores/useActivityStore';
 import { useMapStore } from '../src/stores/useMapStore';
+import { useRouteStore } from '../src/stores/useRouteStore';
 import { useProfileStore } from '../src/stores/useProfileStore';
 
 type Window = 30 | 90 | 365 | 0;
@@ -34,6 +35,7 @@ export default function MapScreen() {
   const zones = useMapStore((s) => s.zones);
   const sourceId = useMapStore((s) => s.sourceId);
   const units = useProfileStore((s) => s.profile.units);
+  const savedRoutes = useRouteStore((s) => s.saved);
   const [window, setWindow] = useState<Window>(90);
 
   const chosen = useMemo(() => {
@@ -132,6 +134,24 @@ export default function MapScreen() {
           ))}
         </>
       )}
+
+      <SectionHeader title="Planning" />
+      <Card style={{ gap: spacing.md }} onPress={() => router.push('/routes')}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <Icon name="map" size={18} color={colors.primary} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text variant="bodyStrong">
+              {savedRoutes.length === 0
+                ? 'Plan a route'
+                : `${savedRoutes.length} planned ${savedRoutes.length === 1 ? 'route' : 'routes'}`}
+            </Text>
+            <Text variant="caption" color={colors.textFaint}>
+              Tap out a course, see how far it is, send it to your watch.
+            </Text>
+          </View>
+          <Icon name="chevron_right" size={15} color={colors.textFaint} />
+        </View>
+      </Card>
 
       <SectionHeader title="Privacy" />
       <Card style={{ gap: spacing.md }} onPress={() => router.push('/settings/privacy-zones')}>

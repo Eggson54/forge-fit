@@ -188,6 +188,20 @@ const SCREENS: SearchEntry[] = [
     href: '/social',
   },
   {
+    id: 's_routes',
+    kind: 'screen',
+    title: 'Plan a route',
+    keywords: ['route', 'routes', 'plan', 'planner', 'course', 'map out', 'distance', 'loop', 'out and back', 'gpx'],
+    href: '/routes',
+  },
+  {
+    id: 's_sleep',
+    kind: 'screen',
+    title: 'Sleep score',
+    keywords: ['sleep', 'sleep score', 'deep', 'rem', 'efficiency', 'bedtime', 'consistency', 'rested', 'insomnia', 'night'],
+    href: '/sleep',
+  },
+  {
     id: 's_health_workouts',
     kind: 'screen',
     title: 'Import workouts from Apple Health',

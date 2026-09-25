@@ -1,4 +1,4 @@
-import { STORE_KEYS, UNEXPORTED_STORES, type StoreKey } from '../domain/storeKeys';
+import { CLEARED_ON_DELETE, STORE_KEYS, UNEXPORTED_STORES, type StoreKey } from '../domain/storeKeys';
 import { buildExport, exportFilename, type ExportSnapshots } from '../domain/exportShape';
 
 /** A snapshot per exportable store, each distinguishable in the output. */
@@ -78,5 +78,25 @@ describe('the logs section', () => {
     for (const kind of LOG_RECORD_TYPES) {
       expect(section).toContain(`${kind}:`);
     }
+  });
+});
+
+describe('CLEARED_ON_DELETE', () => {
+  it('covers every store but the session', () => {
+    // The hand-written version of this list had fallen twelve stores behind,
+    // so blood results, cycle days and journal entries survived a deletion
+    // that told the user everything was gone.
+    const expected = (Object.keys(STORE_KEYS) as StoreKey[]).filter((k) => k !== 'auth');
+    expect([...CLEARED_ON_DELETE].sort()).toEqual(expected.sort());
+  });
+
+  it('leaves the session alone', () => {
+    // Deleting it from under deleteAccount() would cut off the request doing
+    // the cloud-side deletion.
+    expect(CLEARED_ON_DELETE).not.toContain('auth');
+  });
+
+  it('names a real storage key for everything it lists', () => {
+    for (const key of CLEARED_ON_DELETE) expect(typeof STORE_KEYS[key]).toBe('string');
   });
 });

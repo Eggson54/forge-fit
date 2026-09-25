@@ -108,6 +108,12 @@ export function StatTile({
   value: string;
   label: string;
   color?: string;
+  /**
+   * A coloured dot above the value.
+   *
+   * All of a row or none of it: the dot takes a line of its own, so a single
+   * accented tile among plain ones sits a dozen pixels lower than the rest.
+   */
   accent?: string;
 }) {
   return (

@@ -2,6 +2,7 @@ import { Platform, Share } from 'react-native';
 import { GPX_NOTE, toGpx, type ImportCandidate } from '../domain/gpx';
 import { candidatesFrom, looksLikeGpx } from '../domain/gpx';
 import type { TrackPoint } from '../domain/track';
+import { planToGpx, type SavedRoute } from '../domain/routePlan';
 
 /**
  * Getting GPX files in and out of the app.
@@ -122,17 +123,34 @@ export const gpxFiles = {
     return looksLikeGpx(text) ? candidatesFrom(text) : [];
   },
 
-  /**
-   * Hand a GPX file to whatever the platform uses for that.
-   *
-   * On a phone that is the share sheet with a real file attached, so it can go
-   * to Files, Strava, a mail draft. `Share.share` with the XML as a message
-   * would technically work and would paste six thousand lines into a text
-   * field, so it is only the last resort.
-   */
   async export(points: TrackPoint[], opts: { name: string; type?: string }): Promise<boolean> {
-    const xml = toGpx(points, { name: opts.name, type: opts.type });
-    const filename = `${opts.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'activity'}.gpx`;
+    return deliver(toGpx(points, { name: opts.name, type: opts.type }), opts.name, 'activity');
+  },
+
+  /**
+   * Hand out a *planned* route rather than a recorded one.
+   *
+   * Separate from `export` above because the two carry different XML — a
+   * `<rte>` against a `<trk>` — and a watch treats them as different things.
+   * Sharing the delivery code and not the document is the point.
+   */
+  async exportRoute(route: SavedRoute): Promise<boolean> {
+    return deliver(planToGpx(route), route.name, 'route');
+  },
+
+  note: GPX_NOTE,
+};
+
+/**
+ * Get a GPX document to wherever the platform puts files.
+ *
+ * On a phone that is the share sheet with a real file attached, so it can go
+ * to Files, a watch's companion app, a mail draft. `Share.share` with the XML
+ * as a message would technically work and would paste six thousand lines into
+ * a text field, so it is only the last resort.
+ */
+async function deliver(xml: string, name: string, fallbackName: string): Promise<boolean> {
+    const filename = `${name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || fallbackName}.gpx`;
 
     if (Platform.OS === 'web') {
       try {
@@ -159,7 +177,7 @@ export const gpxFiles = {
         await sharing.shareAsync(uri, {
           mimeType: 'application/gpx+xml',
           UTI: 'public.xml',
-          dialogTitle: opts.name,
+          dialogTitle: name,
         });
         return true;
       } catch {
@@ -173,7 +191,4 @@ export const gpxFiles = {
     } catch {
       return false;
     }
-  },
-
-  note: GPX_NOTE,
-};
+}
