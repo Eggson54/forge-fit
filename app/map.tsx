@@ -6,7 +6,7 @@ import { ScreenHeader } from '../src/components/ScreenHeader';
 import { MapView } from '../src/components/MapView';
 import { Icon } from '../src/components/Icon';
 import { colors, spacing } from '../src/theme';
-import { formatDistance } from '../src/domain/geo';
+import { formatDistance, formatElevation } from '../src/domain/geo';
 import { HEATMAP_NOTE, buildHeatmap, readHeatmap } from '../src/domain/heatmap';
 import { PRIVACY_NOTE, describeEffect } from '../src/domain/privacy';
 import { TILES_NOTE } from '../src/domain/tiles';
@@ -94,7 +94,7 @@ export default function MapScreen() {
             <View style={{ flexDirection: 'row' }}>
               <StatTile value={`${chosen.length}`} label="Activities" accent={colors.primary} />
               <StatTile value={formatDistance(totalM, units)} label="Distance" accent={colors.steps} />
-              <StatTile value={`${Math.round(totalAscent)} m`} label="Climbed" accent={colors.carbs} />
+              <StatTile value={formatElevation(totalAscent, units)} label="Climbed" accent={colors.carbs} />
             </View>
           </Card>
 

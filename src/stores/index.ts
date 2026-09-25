@@ -3,6 +3,7 @@ import { CLEARED_ON_DELETE, STORE_KEYS, type StoreKey } from '../domain/storeKey
 import { useActivityStore } from './useActivityStore';
 import { useAuthStore } from './useAuthStore';
 import { useBiomarkerStore } from './useBiomarkerStore';
+import { useChallengeStore } from './useChallengeStore';
 import { useCheckInStore } from './useCheckInStore';
 import { useCoachStore } from './useCoachStore';
 import { useCycleStore } from './useCycleStore';
@@ -87,6 +88,7 @@ const CLEARERS: Record<Exclude<StoreKey, 'auth'>, () => void> = {
   gear: () => useGearStore.getState().reset(),
   foods: () => useFoodStore.getState().reset(),
   routes: () => useRouteStore.getState().reset(),
+  challenges: () => useChallengeStore.getState().reset(),
 };
 
 

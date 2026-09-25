@@ -44,6 +44,7 @@ const LABEL: Record<StoreKey, string> = {
   activities: 'Recorded routes, segments and segment times',
   map: 'Privacy zones and map preferences',
   routes: 'Routes you planned',
+  challenges: 'Targets you set yourself',
   gear: 'Shoes, bikes and your goals',
   foods: 'Your own foods and scanned barcodes',
 };

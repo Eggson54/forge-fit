@@ -20,7 +20,7 @@ import {
   typicalPaceSecPerKm,
   type SavedRoute,
 } from '../domain/routePlan';
-import type { LatLon } from '../domain/geo';
+import { formatDistance, formatElevation, type LatLon } from '../domain/geo';
 
 // Greenwich, then points a known distance away. At this latitude 0.001° of
 // latitude is about 111 m, which keeps the arithmetic in the tests legible.
@@ -353,5 +353,23 @@ describe('pace units', () => {
 
   it('offers the same number of choices either way', () => {
     expect(FALLBACK_PACES.imperial).toHaveLength(FALLBACK_PACES.metric.length);
+  });
+});
+
+describe('formatElevation', () => {
+  it('stays in metres rather than being promoted to kilometres', () => {
+    // formatDistance would render this as "2.0 km", which is not a unit
+    // anybody quotes a climb in and reads as a horizontal measurement.
+    expect(formatElevation(2000, 'metric')).toBe('2,000 m');
+    expect(formatDistance(2000, 'metric')).toBe('2.0 km');
+  });
+
+  it('uses feet for an athlete whose distances are in miles', () => {
+    expect(formatElevation(1000, 'imperial')).toBe('3,281 ft');
+  });
+
+  it('rounds to a whole unit', () => {
+    expect(formatElevation(46.4, 'metric')).toBe('46 m');
+    expect(formatElevation(0, 'metric')).toBe('0 m');
   });
 });

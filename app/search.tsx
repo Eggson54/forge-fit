@@ -188,6 +188,13 @@ const SCREENS: SearchEntry[] = [
     href: '/social',
   },
   {
+    id: 's_challenges',
+    kind: 'screen',
+    title: 'Challenges',
+    keywords: ['challenge', 'challenges', 'target', 'goal', 'monthly', 'distance goal', 'streak goal', 'compete'],
+    href: '/challenges',
+  },
+  {
     id: 's_routes',
     kind: 'screen',
     title: 'Plan a route',

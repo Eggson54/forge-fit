@@ -27,6 +27,7 @@ export const STORE_KEYS = {
   gear: 'forgefit.gear',
   foods: 'forgefit.foods',
   routes: 'forgefit.routes',
+  challenges: 'forgefit.challenges',
 } as const;
 
 export type StoreKey = keyof typeof STORE_KEYS;

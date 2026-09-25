@@ -150,6 +150,19 @@ export function fitViewport(bounds: Bounds, width: number, height: number): View
 }
 
 /** Human distance: metres under a kilometre, then one decimal. */
+/**
+ * Climbing, which is not distance and must not be formatted as it.
+ *
+ * `formatDistance` promotes anything over a kilometre, so two thousand
+ * metres of ascent renders as "2.0 km" — a number nobody quotes a climb in
+ * and which reads as a horizontal measurement. Climb stays in metres, or in
+ * feet for an athlete whose other distances are in miles.
+ */
+export function formatElevation(meters: number, units: 'imperial' | 'metric'): string {
+  const value = units === 'imperial' ? meters * 3.280839895 : meters;
+  return `${Math.round(value).toLocaleString()} ${units === 'imperial' ? 'ft' : 'm'}`;
+}
+
 export function formatDistance(meters: number, units: 'imperial' | 'metric'): string {
   if (units === 'imperial') {
     const feet = meters * 3.280839895;

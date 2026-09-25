@@ -6,7 +6,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { MapView } from '../../src/components/MapView';
 import { LineChart } from '../../src/components/ui';
 import { colors, spacing } from '../../src/theme';
-import { formatDistance } from '../../src/domain/geo';
+import { formatDistance, formatElevation } from '../../src/domain/geo';
 import { formatDuration } from '../../src/domain/track';
 import { climbCategory, gradientPct } from '../../src/domain/segments';
 import { formatDayMonth } from '../../src/domain/date';
@@ -53,7 +53,7 @@ export default function SegmentDetail() {
       <Card style={{ marginTop: spacing.md }}>
         <View style={{ flexDirection: 'row' }}>
           <StatTile value={formatDistance(segment.distanceM, units)} label="Length" accent={colors.carbs} />
-          <StatTile value={`${segment.ascentM} m`} label="Climb" accent={colors.steps} />
+          <StatTile value={formatElevation(segment.ascentM, units)} label="Climb" accent={colors.steps} />
           <StatTile value={`${gradientPct(segment)}%`} label="Average" accent={colors.amber} />
         </View>
         {category && (

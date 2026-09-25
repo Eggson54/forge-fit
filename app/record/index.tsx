@@ -9,6 +9,7 @@ import { colors, spacing } from '../../src/theme';
 import { CARDIO_KINDS } from '../../src/domain/cardio';
 import { formatDuration, formatPaceSec, paceFrom } from '../../src/domain/track';
 import { displayDistance } from '../../src/domain/cardio';
+import { formatElevation } from '../../src/domain/geo';
 import { useRecorderStore } from '../../src/stores/useRecorderStore';
 import { crashLog } from '../../src/services/crashLog';
 import { describeRecovery } from '../../src/domain/crashRecovery';
@@ -193,7 +194,7 @@ export default function Record() {
             <View style={{ flexDirection: 'row', gap: spacing.xl }}>
               <Stat label={units === 'imperial' ? 'Miles' : 'Km'} value={distance ? `${distance.value}` : '0.00'} />
               <Stat label="Pace" value={pace ? formatPaceSec(pace, units === 'imperial' ? 'mi' : 'km').split(' ')[0]! : '—'} />
-              <Stat label="Climb" value={`${stats.ascentM} m`} />
+              <Stat label="Climb" value={formatElevation(stats.ascentM, units)} />
             </View>
             {/* Honest about what the receiver is doing. "Searching" beats a
                 zero that looks like standing still. */}

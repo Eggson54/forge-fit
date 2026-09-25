@@ -315,6 +315,7 @@ export default function Progress() {
         <ListRow icon="chart" tint={colors.protein} title="Body Composition" onPress={() => router.push('/progress/body-fat')} />
         <ListRow icon="trophy" tint={colors.amber} title="Personal Records" onPress={() => router.push('/workout/records')} />
         <ListRow icon="shield" tint={colors.lime} title="Achievements & Streaks" onPress={() => router.push('/achievements')} />
+        <ListRow icon="target" tint={colors.primary} title="Challenges" subtitle="A target and a deadline, counted from what you already record" onPress={() => router.push('/challenges')} />
         <ListRow icon="bolt" tint={colors.primary} title="Weekly AI Review" onPress={() => router.push('/weekly-review')} />
       </Card>
     </Screen>
