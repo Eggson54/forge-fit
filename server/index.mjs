@@ -3,7 +3,8 @@
  *
  * Responsibilities:
  *   1. Keep the model provider API key server-side (NEVER in the mobile app).
- *   2. Authenticate the caller with their Supabase JWT (optional but recommended).
+ *   2. Authenticate the caller with their Supabase JWT, and believe a claim only
+ *      when the signature verified.
  *   3. Rate-limit per user (free vs pro) — enforced here, not trusted from the client.
  *   4. Ask the model for STRICT JSON and validate/sanitize before responding.
  *
@@ -14,10 +15,12 @@
  *   PORT                     (default 8787)
  *   ANTHROPIC_API_KEY        (optional) — enables Claude
  *   OPENAI_API_KEY           (optional) — enables OpenAI
- *   SUPABASE_JWT_SECRET      (optional) — if set, requests must carry a valid JWT
+ *   SUPABASE_JWT_SECRET      REQUIRED in production — without it no token can be
+ *                            verified, so every caller is treated as anonymous
+ *                            and free. See server/auth.mjs.
  */
 import express from 'express';
-import crypto from 'node:crypto';
+import { NO_SECRET_WARNING, TIER_CLAIM_WARNING, userFromRequest } from './auth.mjs';
 
 const app = express();
 app.use(express.json({ limit: '8mb' }));
@@ -38,24 +41,12 @@ function rateLimit(userId, key, max, windowMs) {
   return b.count <= max;
 }
 
-// ── Auth (best-effort JWT verification) ──────────────────────
-function getUser(req) {
-  const auth = req.headers.authorization || '';
-  const token = auth.replace('Bearer ', '');
-  if (!token) return { id: 'anon', tier: 'free' };
-  const secret = process.env.SUPABASE_JWT_SECRET;
-  try {
-    const [h, p, s] = token.split('.');
-    if (secret) {
-      const expected = crypto.createHmac('sha256', secret).update(`${h}.${p}`).digest('base64url');
-      if (expected !== s) return null; // invalid signature
-    }
-    const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
-    return { id: payload.sub || 'user', tier: payload.tier || 'free' };
-  } catch {
-    return { id: 'user', tier: 'free' };
-  }
-}
+// ── Auth ─────────────────────────────────────────────────────
+// Claims are believed only when the signature verified. See server/auth.mjs
+// for why, and server/auth.test.mjs for the proof; `getUser` never returns
+// null now, because "we could not verify you" is an anonymous caller rather
+// than an error the routes each had to remember to handle.
+const getUser = (req) => userFromRequest(req);
 
 // ── Model call: strict-JSON prompt, provider-agnostic ────────
 async function callModel(system, user) {
@@ -204,4 +195,16 @@ Shape: {"trend":"up"|"down"|"flat","weeklyRateKg":number,"summary":string,"onTra
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`ForgeFit AI backend on :${PORT} (provider: ${HAS_ANTHROPIC ? 'anthropic' : HAS_OPENAI ? 'openai' : 'fallback'})`);
+
+  // Said at startup rather than left in a README. Running without the secret
+  // is a supported state — it is just one where nobody gets a pro rate limit
+  // and everybody shares a per-address bucket — and the operator should know
+  // which state they are in before the bill arrives.
+  if (!process.env.SUPABASE_JWT_SECRET) {
+    // eslint-disable-next-line no-console
+    console.warn(`\n  ⚠  ${NO_SECRET_WARNING}\n`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`  Verifying tokens. Note: ${TIER_CLAIM_WARNING}`);
+  }
 });

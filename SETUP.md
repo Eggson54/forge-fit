@@ -15,6 +15,31 @@ Two rules the codebase holds to, and you should hold to as well:
   secret, the model provider key and the Supabase service-role key are all
   server-side, and the app talks to your endpoint rather than the vendor.
 
+## Find out where you already are
+
+```
+cd mobile
+npm run doctor
+```
+
+It reads your `.env` files and prints, for each of the integrations below,
+whether it is configured, not configured, or — the one that matters —
+**half** configured. Nothing on this list breaks the app by being absent;
+every one of them falls back to something usable and the report says what
+that fallback is. What does break the app is having two of the three
+variables an integration needs, because nothing degrades gracefully into
+half a Strava connection. It just fails the moment somebody uses it.
+
+The doctor never contacts any of these services. A key can be present and
+wrong, and proving otherwise would need every one of them reachable from
+wherever you happen to be running it. What it can tell you for certain is
+what you have not filled in, and what you have filled in with
+`your-project-here`.
+
+It exits non-zero only for a half-configured integration or a leftover
+placeholder, so it is safe to run in CI without failing every build that
+has not configured AdMob.
+
 ---
 
 ## 1. Supabase — accounts, sync, account deletion
@@ -177,6 +202,32 @@ So the key you need is `ANTHROPIC_API_KEY` (console.anthropic.com) or
 `OPENAI_API_KEY`, set **on that server**, never here. Blank
 `EXPO_PUBLIC_AI_API_URL` leaves the on-device coach running, which is
 rule-based and tells the user so.
+
+### `SUPABASE_JWT_SECRET` — set this before you ship
+
+Also on that server, from Supabase under Project Settings → API → JWT
+Settings. It is what lets the backend check that a token was really issued
+by your Supabase project.
+
+Without it the backend cannot verify anything, so it believes nothing a
+caller tells it about themselves: every request is anonymous, on the free
+rate limit, bucketed by network address. That is a safe state and the
+server prints a warning at startup saying it is in it — but it also means
+no subscriber ever gets their higher limit.
+
+The alternative, which this repo used to do, is worse than it sounds.
+Trusting an unverified token means trusting the `sub` it claims, and `sub`
+is what the rate limiter buckets on — so a caller could send a different
+one on every request and never hit a limit at all. Trusting `tier` on top
+of that meant anybody could write `"tier": "pro"` into an unsigned token
+and help themselves to the thousand-a-day limit on your model bill. Both
+are closed now, and `server/auth.test.mjs` is a set of tests that stay
+closed.
+
+One thing to watch if you add a `tier` claim: populate it from
+`app_metadata`, never `user_metadata`. Supabase lets a user write their own
+`user_metadata`, so a tier taken from there is a self-service upgrade, and
+a correct signature over it does not help.
 
 ---
 

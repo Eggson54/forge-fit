@@ -11,8 +11,10 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
-    "test": "jest",
-    "test:ci": "jest --ci --runInBand"
+    "test": "jest && node --test server/*.test.mjs",
+    "test:ci": "jest --ci --runInBand && node --test server/*.test.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "test:server": "node --test server/*.test.mjs"
   },
   "dependencies": {
     "@babel/runtime": "^7.25.0",
