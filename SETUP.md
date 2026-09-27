@@ -355,11 +355,16 @@ Worth saying explicitly, because these are the ones people expect to need:
 
 1. Supabase URL + anon key, migrations applied → accounts and sync.
 2. Strava client ID + secret on your server → runs and rides.
-3. `expo prebuild && expo run:ios` with HealthKit enabled → the Watch and
-   passive signals.
+3. An Apple Developer account, then `eas build --profile development
+   --platform ios` → HealthKit, which is the Watch, Garmin, sleep and every
+   passive signal. **No Mac needed**: EAS compiles on Apple hardware in the
+   cloud and installs to your iPhone over the air. `BUILDING.md` is the
+   whole procedure.
 
 That is three services, two of them free, and it lights up most of the
 app. Everything after it is monetisation and polish.
+
+Run `npm run doctor` after each step to see what it changed.
 
 If you wear something that is not an Apple Watch, add Open Wearables (§7)
 as a fourth. It is the only route to WHOOP at all, and the only one to
