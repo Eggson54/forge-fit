@@ -49,6 +49,22 @@ async function hash(password: string, salt: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${password}`);
 }
 
+/**
+ * Whether there is an account server at all.
+ *
+ * Without one, an account is a lock on this phone: the password is salted,
+ * hashed and kept in the secure store, and it protects the data here, but
+ * nothing is backed up and nothing follows you to another device. Screens
+ * read this to say so rather than let "Create Account" imply otherwise.
+ */
+export const isLocalOnly = (): boolean => !getSupabase();
+
+export const SOCIAL_NEEDS_BACKEND =
+  'Signing in with Google or Apple needs an account server, and none is connected yet. Use an email and password — it keeps your data locked on this phone.';
+
+export const LOCAL_ACCOUNT_NOTE =
+  'No account server is connected, so this account lives on this phone only. Your password locks it here; nothing is backed up yet.';
+
 export const auth = {
   async getCurrentUser(): Promise<AuthUser | null> {
     const supa = getSupabase();
@@ -101,7 +117,12 @@ export const auth = {
   /** Google OAuth via Supabase (browser redirect). Falls back to a local demo account offline. */
   async signInWithGoogle(): Promise<AuthUser> {
     const supa = getSupabase();
-    if (!supa) return this.demoAccount('google');
+    // No backend means no Google: there is nothing to exchange a Google
+    // sign-in with. This used to invent a device-only account with the
+    // address google-user@forgefit.local and say nothing, so somebody who
+    // tapped "Google" reasonably believed their data was tied to their Google
+    // account and would follow them to a new phone. It would not.
+    if (!supa) throw new Error(SOCIAL_NEEDS_BACKEND);
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const WebBrowser = require('expo-web-browser');
@@ -146,10 +167,10 @@ export const auth = {
   async signInWithApple(): Promise<AuthUser> {
     const supa = getSupabase();
     if (Platform.OS !== 'ios') {
-      if (!supa) return this.demoAccount('apple');
+      if (!supa) throw new Error(SOCIAL_NEEDS_BACKEND);
       throw new Error('Apple Sign In runs on iOS. Use email or Google here.');
     }
-    if (!supa) return this.demoAccount('apple');
+    if (!supa) throw new Error(SOCIAL_NEEDS_BACKEND);
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -210,15 +231,6 @@ export const auth = {
   },
 
   /** Provision a local demo account (offline mode) tagged by provider. */
-  async demoAccount(provider: 'google' | 'apple'): Promise<AuthUser> {
-    const user: AuthUser = {
-      id: `local:${await Crypto.randomUUID()}`,
-      email: `${provider}-user@forgefit.local`,
-      isLocal: true,
-    };
-    await storage.set(LOCAL_USER_KEY, user);
-    return user;
-  },
 
   async resetPassword(email: string): Promise<void> {
     const supa = getSupabase();

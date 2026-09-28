@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, Card, IconButton, ListRow, Screen, SectionHeader, Text } from '../../src/components/ui';
+import { Button, Card, IconButton, ListRow, Pill, Screen, SectionHeader, Text } from '../../src/components/ui';
 import { FadeIn } from '../../src/components/anim';
 import { Avatar } from '../../src/components/Avatar';
 import { Icon } from '../../src/components/Icon';
@@ -58,8 +58,14 @@ export default function Profile() {
         <Avatar initial={(profile.name || 'A').charAt(0).toUpperCase()} accent={rank.tier.color} />
         <Text variant="h3">{profile.name || 'Athlete'}</Text>
         <Text variant="caption" color={colors.textDim}>
-          {user?.email ?? 'Local account'}
+          {/* Accounts made before the fix carry an invented address ending
+              in forgefit.local. It is not an address anybody can use, so it
+              is not shown as one. */}
+          {user?.email && !user.email.endsWith('@forgefit.local') ? user.email : 'Account on this phone'}
         </Text>
+        {user?.isLocal && (
+          <Pill label="On this phone only · not backed up" color={colors.amber} />
+        )}
         <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
           <Stat label="Workouts" value={`${workouts}`} />
           <Stat label="Streak" value={`${streak}`} />

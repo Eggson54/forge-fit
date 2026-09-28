@@ -4,6 +4,7 @@ import { Button, Card, Input, LineChart, Screen, SectionHeader, StatTile, Text }
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { colors, spacing } from '../../src/theme';
 import { displayWeight, kgToLb, round, toKg } from '../../src/domain/units';
+import { weightProblem } from '../../src/domain/bodyInputs';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { formatDateWithWeekday, formatDayMonth, todayISO } from '../../src/domain/date';
@@ -18,7 +19,14 @@ export default function WeightLog() {
   const logWeight = useLogStore((s) => s.logWeight);
   const [value, setValue] = useState('');
 
+  // A weigh-in also becomes the profile weight, and the profile weight sets
+  // every target — so a slipped decimal point (1850 for 185.0) used to
+  // recalculate calories for an 839 kg body. Checked with the same rules as
+  // onboarding, and shown as the typo happens.
+  const issue = value.trim() ? weightProblem(value, units) : null;
+
   const save = () => {
+    if (issue) return;
     const num = parseFloat(value);
     if (isNaN(num)) return;
     const kg = round(toKg(num, units), 1);
@@ -152,9 +160,16 @@ export default function WeightLog() {
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, alignItems: 'flex-end' }}>
         <View style={{ flex: 1 }}>
-          <Input label="Log today's weight" value={value} onChangeText={setValue} keyboardType="decimal-pad" suffix={units === 'imperial' ? 'lb' : 'kg'} />
+          <Input
+            label="Log today's weight"
+            value={value}
+            onChangeText={setValue}
+            keyboardType="decimal-pad"
+            suffix={units === 'imperial' ? 'lb' : 'kg'}
+            error={issue ?? undefined}
+          />
         </View>
-        <Button title="Save" fullWidth={false} onPress={save} style={{ minWidth: 100 }} />
+        <Button title="Save" fullWidth={false} onPress={save} disabled={!!issue || !value.trim()} style={{ minWidth: 100 }} />
       </View>
 
       <SectionHeader title="History" />

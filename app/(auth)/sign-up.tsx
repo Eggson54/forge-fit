@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Screen, Text, Input, Button } from '../../src/components/ui';
 import { SocialAuthButtons } from '../../src/components/SocialAuthButtons';
+import { LocalAccountNote } from '../../src/components/LocalAccountNote';
 import { Wordmark } from '../../src/components/BrandMark';
 import { colors, spacing } from '../../src/theme';
 import { useAuthStore } from '../../src/stores/useAuthStore';
@@ -53,6 +54,7 @@ export default function SignUp() {
                 {error}
               </Text>
             )}
+            <LocalAccountNote />
             <Button title="Create Account" onPress={onSubmit} loading={loading} size="lg" />
             {/* Through the entry router, not straight to onboarding. Tapping
                 Google on this screen is how a *returning* user often signs

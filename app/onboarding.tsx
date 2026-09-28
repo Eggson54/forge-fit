@@ -9,6 +9,7 @@ import { AmbientBackdrop } from '../src/components/AmbientBackdrop';
 import { DEFAULT_PROFILE, useProfileStore } from '../src/stores/useProfileStore';
 import { recommendedTargets } from '../src/domain/nutrition';
 import { ftInToCm, groupThousands, round, toKg } from '../src/domain/units';
+import { ageProblem, heightProblem, weightProblem } from '../src/domain/bodyInputs';
 import type {
   ActivityLevel,
   DietaryPreference,
@@ -153,10 +154,24 @@ export default function Onboarding() {
   const toggleDiet = (d: DietaryPreference) =>
     set({ dietaryPreferences: draft.dietaryPreferences.includes(d) ? draft.dietaryPreferences.filter((x) => x !== d) : [...draft.dietaryPreferences.filter((x) => x !== 'none'), d] });
 
+  // Checked live, so the message appears as the typo is made rather than
+  // after Continue. Weight stays optional here as it always was; what changed
+  // is that a number which cannot be a person no longer goes through.
+  const ageIssue = ageProblem(draft.age ? String(draft.age) : '');
+  const heightIssue = heightProblem(units === 'imperial' ? { ft: heightFt, inches: heightIn } : { cm: heightCm });
+  const weightIssue = weightProblem(weightInput, units, { optional: true });
+  const targetIssue = weightProblem(targetInput, units, { optional: true });
+
   const canNext = (): boolean => {
     switch (step) {
       case 0:
         return draft.name.trim().length > 0;
+      case 1:
+        return !ageIssue;
+      case 2:
+        return !heightIssue && !weightIssue;
+      case 4:
+        return !targetIssue;
       case 9:
         return draft.equipment.length > 0;
       default:
@@ -225,7 +240,7 @@ export default function Onboarding() {
                 <Chip key={s} label={sexLabel(s)} selected={draft.sex === s} onPress={() => set({ sex: s })} />
               ))}
             </View>
-            <Input label="Age" value={draft.age ? String(draft.age) : ''} onChangeText={(t) => set({ age: Number(t) || null })} keyboardType="number-pad" placeholder="30" />
+            <Input label="Age" value={draft.age ? String(draft.age) : ''} onChangeText={(t) => set({ age: Number(t) || null })} keyboardType="number-pad" placeholder="30" error={ageIssue ?? undefined} />
           </StepShell>
         )}
 
@@ -251,6 +266,13 @@ export default function Onboarding() {
             ) : (
               <Input label="Height" value={heightCm} onChangeText={setHeightCm} keyboardType="number-pad" suffix="cm" />
             )}
+            {/* Under both boxes rather than on one: in feet and inches the
+                mistake is usually in the pair, not in either box alone. */}
+            {heightIssue && (
+              <Text variant="caption" color={colors.danger}>
+                {heightIssue}
+              </Text>
+            )}
             <Input
               label="Current weight"
               value={weightInput}
@@ -258,6 +280,7 @@ export default function Onboarding() {
               keyboardType="decimal-pad"
               suffix={units === 'imperial' ? 'lb' : 'kg'}
               placeholder={units === 'imperial' ? '175' : '80'}
+              error={weightIssue ?? undefined}
             />
           </StepShell>
         )}
@@ -281,6 +304,7 @@ export default function Onboarding() {
               keyboardType="decimal-pad"
               suffix={units === 'imperial' ? 'lb' : 'kg'}
               placeholder={weightInput || (units === 'imperial' ? '165' : '75')}
+              error={targetIssue ?? undefined}
             />
           </StepShell>
         )}

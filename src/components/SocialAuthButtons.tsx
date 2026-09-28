@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
 import { useAuthStore } from '../stores/useAuthStore';
+import { isLocalOnly } from '../services/auth';
 import { Text } from './ui/Text';
 
 /**
@@ -63,6 +64,10 @@ export function SocialAuthButtons({ onDone }: { onDone?: () => void }) {
       setBusy(null);
     }
   };
+
+  // Without an account server these buttons cannot do what they say, so
+  // they are not offered. The screen above says why.
+  if (isLocalOnly()) return null;
 
   return (
     <View style={{ gap: spacing.md }}>
