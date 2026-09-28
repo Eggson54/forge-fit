@@ -2,7 +2,10 @@ import { create } from 'zustand';
 import { uid } from '../lib/uid';
 import { todayISO } from '../domain/date';
 import { trackStats, type TrackPoint, type TrackStats } from '../domain/track';
-import { location, type StopWatching } from '../services/location';
+import { location, type StopWatching, type StreamFix } from '../services/location';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { startBackgroundRecording, stopBackgroundRecording } from '../services/backgroundLocation';
+import { acceptFixes, type RecordingMode } from '../domain/fixBatch';
 import { crashLog, type RecoveredRecording } from '../services/crashLog';
 import { decide } from '../domain/autoPause';
 
@@ -53,6 +56,13 @@ interface RecorderStore {
   autoPause: boolean;
   /** True while auto-pause is holding, as opposed to a deliberate pause. */
   autoPaused: boolean;
+  /**
+   * Whether this recording survives a locked screen. 'screen-on' means it
+   * does not, and the screen is being held awake instead — which the record
+   * screen says, because the alternative is finding out two kilometres on.
+   */
+  mode: RecordingMode | null;
+  modeReason: 'expo-go' | 'declined' | 'unsupported' | null;
 
   setType: (type: string) => void;
   /** A recording left behind by a previous run of the app, if there is one. */
@@ -83,6 +93,14 @@ let unwatch: StopWatching | null = null;
  */
 let stillSinceRef: number | null = null;
 
+const KEEP_AWAKE_TAG = 'forgefit-recording';
+
+/** Stop whichever source was feeding the recording, and let the screen sleep. */
+function stopSources(): void {
+  void stopBackgroundRecording();
+  void deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+}
+
 export const useRecorderStore = create<RecorderStore>((set, get) => ({
   state: 'idle',
   points: [],
@@ -96,6 +114,8 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
   lapStartIndex: 0,
   autoPause: true,
   autoPaused: false,
+  mode: null,
+  modeReason: null,
 
   recovered: null,
 
@@ -141,12 +161,16 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
       return;
     }
     if (status !== 'granted') {
-      set({ state: 'unavailable', error: 'This build cannot reach the GPS. Recording needs a development build, not Expo Go.' });
+      set({ state: 'unavailable', error: 'This build cannot reach the GPS, so there is nothing to record a route from.' });
       return;
     }
 
-    unwatch?.();
-    unwatch = await location.watch((fix) => {
+    // One handler for both sources. Foreground fixes arrive one at a time;
+    // background ones arrive in batches that can overlap, repeat or come
+    // newest-first, so everything goes through acceptFixes first — a
+    // repeated fix is a zero-length leg, an out-of-order one is distance
+    // counted twice.
+    const handleFix = (fix: StreamFix) => {
       // Fixes that arrive while paused are dropped rather than stored. Storing
       // them and filtering later would make a pause at a café look like a very
       // slow lap of the café.
@@ -193,7 +217,31 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
       // the two loses nothing that was ever shown on screen.
       crashLog.add([point]);
       set((s) => ({ accuracy: fix.accuracyMeters, points: [...s.points, point] }));
-    });
+    };
+    // Keyed on the last fix *seen*, not the last one stored: during an
+    // auto-pause fixes are read but not kept, and keying on storage would let
+    // an overlapping batch feed the same fixes to the auto-pause logic twice.
+    let lastSeenT: number | null = null;
+    const handleBatch = (fixes: StreamFix[]) => {
+      for (const fix of acceptFixes(lastSeenT, fixes)) {
+        lastSeenT = fix.t;
+        handleFix(fix);
+      }
+    };
+
+    unwatch?.();
+    unwatch = null;
+    const background = await startBackgroundRecording(handleBatch);
+    if (background.mode === 'background') {
+      set({ mode: 'background', modeReason: null });
+    } else {
+      // Foreground location, which iOS stops delivering when the screen
+      // locks — so the screen is held on for the length of the recording,
+      // and the record screen says why.
+      unwatch = await location.watch((fix) => handleBatch([fix]));
+      await activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+      set({ mode: 'screen-on', modeReason: background.reason });
+    }
 
     stillSinceRef = null;
     const id = uid('act_');
@@ -222,15 +270,17 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
   discard: () => {
     unwatch?.();
     unwatch = null;
+    stopSources();
     stillSinceRef = null;
     void crashLog.clear();
-    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, error: null, laps: [], lapStartIndex: 0, autoPaused: false });
+    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, error: null, laps: [], lapStartIndex: 0, autoPaused: false, mode: null, modeReason: null });
   },
 
   finish: () => {
     const { points, type, laps, lapStartIndex } = get();
     unwatch?.();
     unwatch = null;
+    stopSources();
     stillSinceRef = null;
     // Cleared only once the caller has the points in hand. Clearing before
     // this returns would make a crash during the hand-off lose the run.
@@ -250,7 +300,7 @@ export const useRecorderStore = create<RecorderStore>((set, get) => ({
       : laps;
 
     const stats = trackStats(points);
-    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, laps: [], lapStartIndex: 0, autoPaused: false });
+    set({ state: 'idle', points: [], startedAt: null, pausedMs: 0, lastPauseAt: null, accuracy: null, laps: [], lapStartIndex: 0, autoPaused: false, mode: null, modeReason: null });
 
     // A recording with two fixes is a recording of standing up. Returning null
     // rather than saving it keeps the history free of entries nobody made.

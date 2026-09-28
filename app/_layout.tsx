@@ -17,6 +17,9 @@ import { colors } from '../src/theme';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { useProfileStore } from '../src/stores/useProfileStore';
 import { ensureNative } from '../src/services/health';
+// Imported for its side effect: the background recording task has to be
+// defined when the bundle loads, because that is when iOS looks for it.
+import '../src/services/backgroundLocation';
 import { notifications } from '../src/services/notifications';
 import { setRestAlerts } from '../src/stores/restAlerts';
 import { RestTimer } from '../src/components/RestTimer';

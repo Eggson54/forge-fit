@@ -13,6 +13,7 @@ import { formatElevation } from '../../src/domain/geo';
 import { useRecorderStore } from '../../src/stores/useRecorderStore';
 import { crashLog } from '../../src/services/crashLog';
 import { describeRecovery } from '../../src/domain/crashRecovery';
+import { recordingModeNote } from '../../src/domain/fixBatch';
 import { useActivityStore } from '../../src/stores/useActivityStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
 import { useMapStore } from '../../src/stores/useMapStore';
@@ -35,6 +36,9 @@ export default function Record() {
   const finish = useRecorderStore((s) => s.finish);
   const save = useActivityStore((s) => s.save);
   const laps = useRecorderStore((s) => s.laps);
+  const mode = useRecorderStore((s) => s.mode);
+  const modeReason = useRecorderStore((s) => s.modeReason);
+  const modeNote = recordingModeNote(mode, modeReason);
   const takeLap = useRecorderStore((s) => s.lap);
   const autoPause = useRecorderStore((s) => s.autoPause);
   const autoPaused = useRecorderStore((s) => s.autoPaused);
@@ -181,6 +185,18 @@ export default function Record() {
 
       {live && (
         <>
+          {/* Said at the start of the run, not discovered at the end of it.
+              Without background location a locked screen stops the GPS, and
+              the route simply ends wherever the phone went into a pocket. */}
+          {modeNote && (
+            <Card style={{ marginBottom: spacing.md, flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' }}>
+              <Icon name="lock" size={16} color={colors.amber} />
+              <Text variant="caption" color={colors.textDim} style={{ flex: 1 }}>
+                {modeNote}
+              </Text>
+            </Card>
+          )}
+
           {autoPaused && (
             <Card style={{ marginBottom: spacing.md, borderColor: colors.amber, borderWidth: StyleSheet.hairlineWidth }}>
               <Text variant="caption" color={colors.amber}>
