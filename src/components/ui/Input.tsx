@@ -3,6 +3,7 @@ import { StyleSheet, TextInput, View, type TextInputProps, type ViewStyle } from
 import { colors, noOutline, radius, spacing, typography } from '../../theme';
 import { Text } from './Text';
 import { Icon, type IconName } from '../Icon';
+import { doneAccessory } from '../KeyboardDone';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -37,6 +38,7 @@ export function Input({ label, suffix, error, icon, style, onFocus, onBlur, ...r
           // own outline on web rather than stacking two rings.
           style={[styles.input, noOutline, style]}
           selectionColor={colors.primary}
+          {...doneAccessory(rest.keyboardType)}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Chip, Input, LinearProgress, SegmentedControl, Text } from '../src/components/ui';
@@ -218,171 +218,178 @@ export default function Onboarding() {
         <LinearProgress progress={(step + 1) / TOTAL_STEPS} />
       </View>
 
-      {/* Centred rather than top-aligned: most steps are one question and two
-          controls, and pinned to the top they sat above half a phone screen of
-          nothing. flexGrow keeps a long step (equipment, dietary) scrolling
-          from its own top, since justifyContent only distributes free space. */}
-      <ScrollView
-        contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl, flexGrow: 1, justifyContent: 'center' }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {step === 0 && (
-          <StepShell title="What should we call you?" icon="profile" subtitle="Your coach keeps it personal.">
-            <Input label="First name" value={draft.name} onChangeText={(name) => set({ name })} placeholder="Alex" autoFocus />
-          </StepShell>
-        )}
+      {/* The keyboard used to come up over Continue. The number pads iOS uses
+          for age, height and weight have no return key either, so there was
+          no obvious way out: this lifts the footer above the keyboard, and
+          dragging the step down puts the keyboard away. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* Centred rather than top-aligned: most steps are one question and two
+            controls, and pinned to the top they sat above half a phone screen of
+            nothing. flexGrow keeps a long step (equipment, dietary) scrolling
+            from its own top, since justifyContent only distributes free space. */}
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl, flexGrow: 1, justifyContent: 'center' }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
+          {step === 0 && (
+            <StepShell title="What should we call you?" icon="profile" subtitle="Your coach keeps it personal.">
+              <Input label="First name" value={draft.name} onChangeText={(name) => set({ name })} placeholder="Alex" autoFocus />
+            </StepShell>
+          )}
 
-        {step === 1 && (
-          <StepShell title="The basics" icon="scale" subtitle="Used to personalize your targets. Optional.">
-            <Text variant="label" color={colors.textDim}>Sex</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {(['male', 'female', 'other', 'prefer_not_say'] as Sex[]).map((s) => (
-                <Chip key={s} label={sexLabel(s)} selected={draft.sex === s} onPress={() => set({ sex: s })} />
-              ))}
-            </View>
-            <Input label="Age" value={draft.age ? String(draft.age) : ''} onChangeText={(t) => set({ age: Number(t) || null })} keyboardType="number-pad" placeholder="30" error={ageIssue ?? undefined} />
-          </StepShell>
-        )}
-
-        {step === 2 && (
-          <StepShell title="Height & weight" icon="scale" subtitle="You can change units any time.">
-            <SegmentedControl
-              options={[
-                { label: 'Imperial (lb/ft)', value: 'imperial' },
-                { label: 'Metric (kg/cm)', value: 'metric' },
-              ]}
-              value={units}
-              onChange={(u) => setUnits(u as Units)}
-            />
-            {units === 'imperial' ? (
-              <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                <View style={{ flex: 1 }}>
-                  <Input label="Height (ft)" value={heightFt} onChangeText={setHeightFt} keyboardType="number-pad" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Input label="Height (in)" value={heightIn} onChangeText={setHeightIn} keyboardType="number-pad" />
-                </View>
+          {step === 1 && (
+            <StepShell title="The basics" icon="scale" subtitle="Used to personalize your targets. Optional.">
+              <Text variant="label" color={colors.textDim}>Sex</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {(['male', 'female', 'other', 'prefer_not_say'] as Sex[]).map((s) => (
+                  <Chip key={s} label={sexLabel(s)} selected={draft.sex === s} onPress={() => set({ sex: s })} />
+                ))}
               </View>
-            ) : (
-              <Input label="Height" value={heightCm} onChangeText={setHeightCm} keyboardType="number-pad" suffix="cm" />
-            )}
-            {/* Under both boxes rather than on one: in feet and inches the
-                mistake is usually in the pair, not in either box alone. */}
-            {heightIssue && (
-              <Text variant="caption" color={colors.danger}>
-                {heightIssue}
-              </Text>
-            )}
-            <Input
-              label="Current weight"
-              value={weightInput}
-              onChangeText={setWeightInput}
-              keyboardType="decimal-pad"
-              suffix={units === 'imperial' ? 'lb' : 'kg'}
-              placeholder={units === 'imperial' ? '175' : '80'}
-              error={weightIssue ?? undefined}
-            />
-          </StepShell>
-        )}
+              <Input label="Age" value={draft.age ? String(draft.age) : ''} onChangeText={(t) => set({ age: Number(t) || null })} keyboardType="number-pad" placeholder="30" error={ageIssue ?? undefined} />
+            </StepShell>
+          )}
 
-        {step === 3 && (
-          <StepShell title="What's your goal?" icon="target" subtitle="This shapes your calories, macros and training.">
-            <View style={{ gap: spacing.sm }}>
-              {GOALS.map((g) => (
-                <GoalRow key={g.value} label={g.label} sub={g.sub} selected={draft.goal === g.value} onPress={() => set({ goal: g.value })} />
-              ))}
-            </View>
-          </StepShell>
-        )}
+          {step === 2 && (
+            <StepShell title="Height & weight" icon="scale" subtitle="You can change units any time.">
+              <SegmentedControl
+                options={[
+                  { label: 'Imperial (lb/ft)', value: 'imperial' },
+                  { label: 'Metric (kg/cm)', value: 'metric' },
+                ]}
+                value={units}
+                onChange={(u) => setUnits(u as Units)}
+              />
+              {units === 'imperial' ? (
+                <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                  <View style={{ flex: 1 }}>
+                    <Input label="Height (ft)" value={heightFt} onChangeText={setHeightFt} keyboardType="number-pad" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Input label="Height (in)" value={heightIn} onChangeText={setHeightIn} keyboardType="number-pad" />
+                  </View>
+                </View>
+              ) : (
+                <Input label="Height" value={heightCm} onChangeText={setHeightCm} keyboardType="number-pad" suffix="cm" />
+              )}
+              {/* Under both boxes rather than on one: in feet and inches the
+                  mistake is usually in the pair, not in either box alone. */}
+              {heightIssue && (
+                <Text variant="caption" color={colors.danger}>
+                  {heightIssue}
+                </Text>
+              )}
+              <Input
+                label="Current weight"
+                value={weightInput}
+                onChangeText={setWeightInput}
+                keyboardType="decimal-pad"
+                suffix={units === 'imperial' ? 'lb' : 'kg'}
+                placeholder={units === 'imperial' ? '175' : '80'}
+                error={weightIssue ?? undefined}
+              />
+            </StepShell>
+          )}
 
-        {step === 4 && (
-          <StepShell title="Target weight" icon="target" subtitle="Optional — a direction, not a deadline.">
-            <Input
-              label="Target weight"
-              value={targetInput}
-              onChangeText={setTargetInput}
-              keyboardType="decimal-pad"
-              suffix={units === 'imperial' ? 'lb' : 'kg'}
-              placeholder={weightInput || (units === 'imperial' ? '165' : '75')}
-              error={targetIssue ?? undefined}
-            />
-          </StepShell>
-        )}
+          {step === 3 && (
+            <StepShell title="What's your goal?" icon="target" subtitle="This shapes your calories, macros and training.">
+              <View style={{ gap: spacing.sm }}>
+                {GOALS.map((g) => (
+                  <GoalRow key={g.value} label={g.label} sub={g.sub} selected={draft.goal === g.value} onPress={() => set({ goal: g.value })} />
+                ))}
+              </View>
+            </StepShell>
+          )}
 
-        {step === 5 && (
-          <StepShell title="How active are you?" icon="steps" subtitle="Outside of training.">
-            <View style={{ gap: spacing.sm }}>
-              {ACTIVITY.map((a) => (
-                <GoalRow key={a.value} label={a.label} selected={draft.activityLevel === a.value} onPress={() => set({ activityLevel: a.value })} />
-              ))}
-            </View>
-          </StepShell>
-        )}
+          {step === 4 && (
+            <StepShell title="Target weight" icon="target" subtitle="Optional — a direction, not a deadline.">
+              <Input
+                label="Target weight"
+                value={targetInput}
+                onChangeText={setTargetInput}
+                keyboardType="decimal-pad"
+                suffix={units === 'imperial' ? 'lb' : 'kg'}
+                placeholder={weightInput || (units === 'imperial' ? '165' : '75')}
+                error={targetIssue ?? undefined}
+              />
+            </StepShell>
+          )}
 
-        {step === 6 && (
-          <StepShell title="Training experience" icon="dumbbell">
-            <View style={{ gap: spacing.sm }}>
-              {(['beginner', 'intermediate', 'advanced'] as Experience[]).map((e) => (
-                <GoalRow key={e} label={cap(e)} selected={draft.experience === e} onPress={() => set({ experience: e })} />
-              ))}
-            </View>
-          </StepShell>
-        )}
+          {step === 5 && (
+            <StepShell title="How active are you?" icon="steps" subtitle="Outside of training.">
+              <View style={{ gap: spacing.sm }}>
+                {ACTIVITY.map((a) => (
+                  <GoalRow key={a.value} label={a.label} selected={draft.activityLevel === a.value} onPress={() => set({ activityLevel: a.value })} />
+                ))}
+              </View>
+            </StepShell>
+          )}
 
-        {step === 7 && (
-          <StepShell title="Weekly commitment" icon="clock">
-            <Text variant="label" color={colors.textDim}>Training days per week: {draft.trainingDaysPerWeek}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {[2, 3, 4, 5, 6].map((n) => (
-                <Chip key={n} label={`${n} days`} selected={draft.trainingDaysPerWeek === n} onPress={() => set({ trainingDaysPerWeek: n })} />
-              ))}
-            </View>
-            <Text variant="label" color={colors.textDim} style={{ marginTop: spacing.md }}>Preferred session length</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {[30, 45, 60, 75, 90].map((n) => (
-                <Chip key={n} label={`${n} min`} selected={draft.preferredWorkoutMinutes === n} onPress={() => set({ preferredWorkoutMinutes: n })} />
-              ))}
-            </View>
-          </StepShell>
-        )}
+          {step === 6 && (
+            <StepShell title="Training experience" icon="dumbbell">
+              <View style={{ gap: spacing.sm }}>
+                {(['beginner', 'intermediate', 'advanced'] as Experience[]).map((e) => (
+                  <GoalRow key={e} label={cap(e)} selected={draft.experience === e} onPress={() => set({ experience: e })} />
+                ))}
+              </View>
+            </StepShell>
+          )}
 
-        {step === 8 && (
-          <StepShell title="What can you train with?" icon="dumbbell" subtitle="Select all that apply.">
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {EQUIPMENT.map((e) => (
-                <Chip key={e.value} label={e.label} selected={draft.equipment.includes(e.value)} onPress={() => toggleEquipment(e.value)} />
-              ))}
-            </View>
-          </StepShell>
-        )}
+          {step === 7 && (
+            <StepShell title="Weekly commitment" icon="clock">
+              <Text variant="label" color={colors.textDim}>Training days per week: {draft.trainingDaysPerWeek}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {[2, 3, 4, 5, 6].map((n) => (
+                  <Chip key={n} label={`${n} days`} selected={draft.trainingDaysPerWeek === n} onPress={() => set({ trainingDaysPerWeek: n })} />
+                ))}
+              </View>
+              <Text variant="label" color={colors.textDim} style={{ marginTop: spacing.md }}>Preferred session length</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {[30, 45, 60, 75, 90].map((n) => (
+                  <Chip key={n} label={`${n} min`} selected={draft.preferredWorkoutMinutes === n} onPress={() => set({ preferredWorkoutMinutes: n })} />
+                ))}
+              </View>
+            </StepShell>
+          )}
 
-        {step === 9 && (
-          <StepShell title="Any dietary preferences?" icon="nutrition" subtitle="Optional. Select all that apply.">
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {DIETS.map((d) => (
-                <Chip key={d.value} label={d.label} selected={draft.dietaryPreferences.includes(d.value)} onPress={() => toggleDiet(d.value)} />
-              ))}
-            </View>
-          </StepShell>
-        )}
+          {step === 8 && (
+            <StepShell title="What can you train with?" icon="dumbbell" subtitle="Select all that apply.">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {EQUIPMENT.map((e) => (
+                  <Chip key={e.value} label={e.label} selected={draft.equipment.includes(e.value)} onPress={() => toggleEquipment(e.value)} />
+                ))}
+              </View>
+            </StepShell>
+          )}
 
-        {step === 10 && (
-          <StepShell title="Your starting targets" icon="trophy" subtitle="Estimates you can fine-tune any time. Not medical advice.">
-            <TargetRow label="Daily calories" value={groupThousands(previewTargets.calories)} unit="kcal" />
-            <TargetRow label="Protein" value={`${previewTargets.proteinG}`} unit="g" />
-            <TargetRow label="Carbs" value={`${previewTargets.carbsG}`} unit="g" />
-            <TargetRow label="Fat" value={`${previewTargets.fatG}`} unit="g" />
-            <TargetRow label="Water" value={`${previewTargets.waterOz}`} unit="oz" />
-            <TargetRow label="Steps" value={`${groupThousands(previewTargets.steps)}`} unit="" />
-            <TargetRow label="Sleep" value={`${Math.round(previewTargets.sleepMinutes / 60)}`} unit="hrs" />
-          </StepShell>
-        )}
-      </ScrollView>
+          {step === 9 && (
+            <StepShell title="Any dietary preferences?" icon="nutrition" subtitle="Optional. Select all that apply.">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {DIETS.map((d) => (
+                  <Chip key={d.value} label={d.label} selected={draft.dietaryPreferences.includes(d.value)} onPress={() => toggleDiet(d.value)} />
+                ))}
+              </View>
+            </StepShell>
+          )}
 
-      <View style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.xl, paddingBottom: insets.bottom + spacing.md }}>
-        {step > 0 && <Button title="Back" variant="ghost" fullWidth={false} onPress={() => setStep((s) => s - 1)} style={{ flex: 1 }} />}
-        <Button title={step === TOTAL_STEPS - 1 ? "Start training" : 'Continue'} onPress={next} disabled={!canNext()} style={{ flex: 2 }} />
-      </View>
+          {step === 10 && (
+            <StepShell title="Your starting targets" icon="trophy" subtitle="Estimates you can fine-tune any time. Not medical advice.">
+              <TargetRow label="Daily calories" value={groupThousands(previewTargets.calories)} unit="kcal" />
+              <TargetRow label="Protein" value={`${previewTargets.proteinG}`} unit="g" />
+              <TargetRow label="Carbs" value={`${previewTargets.carbsG}`} unit="g" />
+              <TargetRow label="Fat" value={`${previewTargets.fatG}`} unit="g" />
+              <TargetRow label="Water" value={`${previewTargets.waterOz}`} unit="oz" />
+              <TargetRow label="Steps" value={`${groupThousands(previewTargets.steps)}`} unit="" />
+              <TargetRow label="Sleep" value={`${Math.round(previewTargets.sleepMinutes / 60)}`} unit="hrs" />
+            </StepShell>
+          )}
+        </ScrollView>
+
+        <View style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.xl, paddingBottom: insets.bottom + spacing.md }}>
+          {step > 0 && <Button title="Back" variant="ghost" fullWidth={false} onPress={() => setStep((s) => s - 1)} style={{ flex: 1 }} />}
+          <Button title={step === TOTAL_STEPS - 1 ? "Start training" : 'Continue'} onPress={next} disabled={!canNext()} style={{ flex: 2 }} />
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

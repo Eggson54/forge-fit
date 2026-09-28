@@ -27,6 +27,7 @@ import { useGymStore } from '../../src/stores/useGymStore';
 import { useRestStore } from '../../src/stores/useRestStore';
 import { claimableNow } from '../../src/domain/gyms';
 import { programById } from '../../src/data/programs';
+import { doneAccessory } from '../../src/components/KeyboardDone';
 
 export default function ActiveWorkout() {
   const insets = useSafeAreaInsets();
@@ -770,6 +771,7 @@ function Cell({
       value={value}
       onChangeText={onChange}
       keyboardType={keyboard}
+      {...doneAccessory(keyboard)}
       placeholder={placeholder}
       placeholderTextColor={colors.textFaint}
       accessibilityLabel={label}

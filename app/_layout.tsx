@@ -23,6 +23,7 @@ import '../src/services/backgroundLocation';
 import { notifications } from '../src/services/notifications';
 import { setRestAlerts } from '../src/stores/restAlerts';
 import { RestTimer } from '../src/components/RestTimer';
+import { KeyboardDoneBar } from '../src/components/KeyboardDone';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -78,6 +79,8 @@ export default function RootLayout() {
           {/* Above the navigator, so a rest started in a session keeps running
               while the user wanders off to the food log or the gym map. */}
           <RestTimer />
+          {/* Mounted once; every number field on every screen points at it. */}
+          <KeyboardDoneBar />
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>

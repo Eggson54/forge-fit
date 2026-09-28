@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { colors, noOutline, radius, spacing } from '../theme';
 import { Text, Well } from './ui';
 import { Icon, type IconName } from './Icon';
+import { doneAccessory } from './KeyboardDone';
 
 /**
  * A number you log, shown against what it is meant to be.
@@ -82,6 +83,7 @@ export function MetricField({
                 value={value}
                 onChangeText={onChangeValue}
                 keyboardType={keyboardType}
+                {...doneAccessory(keyboardType)}
                 placeholder={placeholder ?? '0'}
                 placeholderTextColor={colors.textFaint}
                 autoFocus={autoFocus}

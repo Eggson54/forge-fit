@@ -21,6 +21,7 @@ import {
 } from '../../src/domain/cardio';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { doneAccessory } from '../../src/components/KeyboardDone';
 
 /**
  * Conditioning, logged by hand.
@@ -218,6 +219,7 @@ function Field({
           placeholder={placeholder}
           placeholderTextColor={colors.textFaint}
           keyboardType="decimal-pad"
+          {...doneAccessory('decimal-pad')}
           accessibilityLabel={`${label} in ${unit}`}
           style={[styles.input, noOutline]}
           selectionColor={colors.primary}

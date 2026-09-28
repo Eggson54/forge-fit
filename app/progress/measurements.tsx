@@ -11,6 +11,7 @@ import { MEASUREMENT_SITES, changeVerdict, latestBySite, siteChange, siteSeries,
 import type { Goal, MeasurementLog } from '../../src/domain/types';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useProfileStore } from '../../src/stores/useProfileStore';
+import { doneAccessory } from '../../src/components/KeyboardDone';
 
 export default function Measurements() {
   const { width } = useWindowDimensions();
@@ -159,6 +160,7 @@ export default function Measurements() {
                       onChangeText={(t) => setVals((v) => ({ ...v, [site.key]: t }))}
                       onFocus={() => setFocused(site.key)}
                       keyboardType="decimal-pad"
+                      {...doneAccessory('decimal-pad')}
                       placeholder={last ? String(toDisplay(last.cm)) : '—'}
                       suffix={unit}
                     />
@@ -270,6 +272,7 @@ export default function Measurements() {
                 onBlur={() => commitTarget(site.key)}
                 onSubmitEditing={() => commitTarget(site.key)}
                 keyboardType="decimal-pad"
+                {...doneAccessory('decimal-pad')}
                 placeholder="—"
                 placeholderTextColor={colors.textFaint}
                 accessibilityLabel={`Target ${site.label} in ${unit}`}
