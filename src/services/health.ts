@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import { dedupe, readWorkout, type HkWorkout, type ImportedWorkout } from '../domain/healthWorkouts';
 
 /**
@@ -538,6 +538,24 @@ export function ensureNative(): void {
   if (resolved) return;
   resolved = true;
   if (Platform.OS !== 'ios') return;
+
+  // Look for the native half *before* loading the JavaScript half.
+  //
+  // The try/catch below looks as though it makes a failed load safe, and in
+  // development it does not. The library builds a NativeEventEmitter over
+  // NativeModules.ReactNativeHealthkit the moment it is evaluated, which
+  // throws when that module is absent — as it always is in Expo Go. And a
+  // require made outside another module's load goes through Metro's
+  // guardedLoadModule, which catches the error, reports it to the global
+  // handler as *fatal*, and returns undefined. The catch here never ran. The
+  // red screen said "Your JavaScript code tried to access a native module
+  // that doesn't exist", which is Expo rewording that same throw.
+  //
+  // Checking the exact lookup the library itself makes means the two cannot
+  // disagree: if it would find the module, so do we, and if it would throw,
+  // we never ask it to.
+  if (!NativeModules.ReactNativeHealthkit) return;
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('@kingstinct/react-native-healthkit');
