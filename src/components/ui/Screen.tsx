@@ -1,5 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
+import type { RefreshControlProps } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, layout, spacing } from '../../theme';
@@ -14,7 +15,7 @@ interface Props {
   ambient?: boolean;
   contentStyle?: ViewStyle;
   footer?: React.ReactNode;
-  refreshControl?: React.ReactElement;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 /** Standard screen wrapper: safe-area aware, dark ground, optional scroll. */
