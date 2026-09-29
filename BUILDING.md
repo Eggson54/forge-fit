@@ -20,7 +20,7 @@ What you need:
 
 ```bash
 npm install -g eas-cli
-cd mobile
+cd forge-fit
 
 eas login          # your Expo account
 eas init           # creates the project, writes extra.eas.projectId into app.json

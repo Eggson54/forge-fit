@@ -65,9 +65,9 @@ mobile/
 ## Running the app
 
 ```bash
-cd mobile
+cd forge-fit
 npm install
-npx expo start           # then press i / a, or scan the QR with Expo Go
+npm run phone            # QR code for Expo Go — see PHONE.md
 ```
 
 The app runs **fully offline** out of the box (local accounts, mock AI, mock subscriptions,
@@ -84,9 +84,9 @@ fnm install 20 && fnm use 20
 # 2. Install and start with a tunnel. @expo/ngrok is already a devDependency,
 #    so this needs no extra install and works when the phone is on mobile data
 #    or a different VLAN from the laptop.
-cd mobile
+cd forge-fit
 npm install
-npx expo start --tunnel
+npm run phone            # Expo Go, through a tunnel
 ```
 
 Scan the QR with **Expo Go** (Android) or the **Camera app** (iOS).

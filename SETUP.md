@@ -18,7 +18,7 @@ Two rules the codebase holds to, and you should hold to as well:
 ## Find out where you already are
 
 ```
-cd mobile
+cd forge-fit
 npm run doctor
 ```
 
@@ -369,12 +369,3 @@ Run `npm run doctor` after each step to see what it changed.
 If you wear something that is not an Apple Watch, add Open Wearables (§7)
 as a fourth. It is the only route to WHOOP at all, and the only one to
 Garmin and Oura that does not mean writing each integration yourself.
-
----
-
-## A note about this repository
-
-The root of this repo (`server.js`, `src/`) is a **different project** and
-has its own unrelated variables — Neo4j, Groq, Cal.com, LemonSqueezy,
-Gmail. None of them belong to ForgeFit, and ForgeFit does not read any of
-them. Everything ForgeFit needs is under `mobile/`.

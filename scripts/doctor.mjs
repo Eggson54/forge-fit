@@ -18,7 +18,6 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
-const repo = resolve(root, '..');
 
 // The list lives in src/domain/setupCheck.ts, where it is under test, and
 // is read from there rather than copied here — two copies of a checklist
@@ -39,18 +38,17 @@ const { REQUIREMENTS, NEEDS_NOTHING, checkSetup, summarise, parseEnvFile, placeh
 
 // ---------------------------------------------------------------- reading --
 
-const FILES = [
-  join(root, '.env'),
-  join(root, '.env.local'),
-  join(repo, '.env'),
-  join(repo, '.env.production'),
-];
+// This repository's own files only. The app used to live inside another
+// project and read that project's .env files too; from the repository root,
+// one level up is somebody's home directory, whose .env is none of our
+// business and could put unrelated secrets into this report.
+const FILES = [join(root, '.env'), join(root, '.env.local')];
 
 const found = [];
 let fileEnv = {};
 for (const file of FILES) {
   if (!existsSync(file)) continue;
-  found.push(file.replace(repo + '/', ''));
+  found.push(file.replace(root + '/', ''));
   fileEnv = { ...fileEnv, ...parseEnvFile(readFileSync(file, 'utf8')) };
 }
 
@@ -129,7 +127,7 @@ if (summary.partial > 0) {
 console.log(dim('  Works already, with none of the above:'));
 for (const line of NEEDS_NOTHING) console.log(dim(`    · ${line}`));
 console.log('');
-console.log(dim('  Full instructions for each: mobile/SETUP.md'));
+console.log(dim('  Full instructions for each: SETUP.md'));
 console.log('');
 
 // A half-configured integration is a real error; an unconfigured one is a

@@ -12,7 +12,8 @@ Five minutes, free, no Apple Developer account, no Mac.
 ## Once
 
 ```
-cd mobile
+gh repo clone Eggson54/forge-fit
+cd forge-fit
 npm install
 ```
 
