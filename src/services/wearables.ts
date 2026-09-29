@@ -9,6 +9,7 @@ import {
   type OwSleepSummary,
 } from '../domain/wearables';
 import type { VitalsDay } from '../domain/vitals';
+import { getSupabase } from './supabase';
 
 /**
  * Talking to an Open Wearables deployment.
@@ -31,16 +32,61 @@ export type WearablesOutcome<T> =
   | { kind: 'ok'; data: T }
   | { kind: 'not_configured'; reason: string }
   | { kind: 'auth'; reason: string }
+  | { kind: 'not_linked'; reason: string }
   | { kind: 'unreachable'; reason: string };
 
 interface Config {
-  /** Our own proxy endpoint. Never the Open Wearables deployment itself. */
+  /** Our own proxy endpoints. Never the Open Wearables deployment itself. */
   summaryUrl: string;
+  linkUrl: string;
+  connectUrl: string;
 }
 
 function envConfig(): Config | null {
   const summaryUrl = process.env.EXPO_PUBLIC_OPEN_WEARABLES_SUMMARY_URL ?? '';
-  return summaryUrl ? { summaryUrl } : null;
+  if (!summaryUrl) return null;
+  // One setting, three endpoints side by side: …/wearables/{summary,link,connect}.
+  const dir = summaryUrl.replace(/\/summary\/?$/, '');
+  return { summaryUrl, linkUrl: `${dir}/link`, connectUrl: `${dir}/connect` };
+}
+
+/**
+ * The signed-in session, which is how the backend knows whose data to read.
+ *
+ * This used to be a user id the athlete typed in — and the backend read
+ * whatever account that id named, with a key that reads everybody's. Now
+ * there is no id on this side at all: the backend works out the account from
+ * the session, and a request cannot name a different one.
+ */
+async function sessionHeader(): Promise<Record<string, string> | null> {
+  const supa = getSupabase();
+  const token = supa ? (await supa.auth.getSession()).data.session?.access_token : undefined;
+  return token ? { Authorization: `Bearer ${token}` } : null;
+}
+
+const SIGN_IN = 'Wearables need an account: sign in, so the backend knows whose data to read.';
+
+async function post(url: string, body: unknown): Promise<{ status: number; json: Record<string, unknown> | null } | { kind: 'auth' | 'unreachable'; reason: string }> {
+  const auth = await sessionHeader();
+  if (!auth) return { kind: 'auth', reason: SIGN_IN };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, json: (await res.json().catch(() => null)) as Record<string, unknown> | null };
+  } catch (e) {
+    return { kind: 'unreachable', reason: (e as Error).message || 'Could not reach the backend.' };
+  }
+}
+
+function failure(status: number, json: Record<string, unknown> | null): Exclude<WearablesOutcome<never>, { kind: 'ok' }> {
+  const error = json?.error;
+  if (error === 'not_configured') return { kind: 'not_configured', reason: String(json?.detail ?? 'The backend has no Open Wearables settings.') };
+  if (status === 401) return { kind: 'auth', reason: SIGN_IN };
+  if (error === 'not_linked') return { kind: 'not_linked', reason: 'Set up wearables first, then connect a device.' };
+  return { kind: 'unreachable', reason: `The backend answered ${status}.` };
 }
 
 export const wearables = {
@@ -48,21 +94,39 @@ export const wearables = {
     return envConfig() !== null;
   },
 
-  async sleep(userId: string, from: string, to: string): Promise<WearablesOutcome<NormalisedSleep[]>> {
-    return this.fetchSummary<OwSleepSummary, NormalisedSleep[]>(userId, 'sleep', from, to, normaliseSleep);
+  /** Create this account's wearables profile. Safe to call more than once. */
+  async link(): Promise<WearablesOutcome<{ created: boolean }>> {
+    const config = envConfig();
+    if (!config) return { kind: 'not_configured', reason: 'No Open Wearables deployment is set for this build.' };
+    const r = await post(config.linkUrl, {});
+    if ('kind' in r) return r;
+    if (r.status === 200 || r.status === 201) return { kind: 'ok', data: { created: r.json?.created === true } };
+    return failure(r.status, r.json);
   },
 
-  async activity(userId: string, from: string, to: string): Promise<WearablesOutcome<NormalisedDay[]>> {
-    return this.fetchSummary<OwActivitySummary, NormalisedDay[]>(userId, 'activity', from, to, normaliseActivity);
+  /** The provider's sign-in page for this account, to open in a browser. */
+  async connect(provider: string, redirectUri?: string): Promise<WearablesOutcome<{ authorizationUrl: string }>> {
+    const config = envConfig();
+    if (!config) return { kind: 'not_configured', reason: 'No Open Wearables deployment is set for this build.' };
+    const r = await post(config.connectUrl, { provider, redirectUri });
+    if ('kind' in r) return r;
+    if (r.status === 200 && typeof r.json?.authorizationUrl === 'string') {
+      return { kind: 'ok', data: { authorizationUrl: r.json.authorizationUrl } };
+    }
+    return failure(r.status, r.json);
   },
 
-  async recovery(
-    userId: string,
-    from: string,
-    to: string,
-  ): Promise<WearablesOutcome<(VitalsDay & { hrvKind: 'sdnn' | 'rmssd' | null })[]>> {
+  async sleep(from: string, to: string): Promise<WearablesOutcome<NormalisedSleep[]>> {
+    return this.fetchSummary<OwSleepSummary, NormalisedSleep[]>('sleep', from, to, normaliseSleep);
+  },
+
+  async activity(from: string, to: string): Promise<WearablesOutcome<NormalisedDay[]>> {
+    return this.fetchSummary<OwActivitySummary, NormalisedDay[]>('activity', from, to, normaliseActivity);
+  },
+
+  async recovery(from: string, to: string): Promise<WearablesOutcome<(VitalsDay & { hrvKind: 'sdnn' | 'rmssd' | null })[]>> {
     return this.fetchSummary<OwRecoverySummary, (VitalsDay & { hrvKind: 'sdnn' | 'rmssd' | null })[]>(
-      userId, 'recovery', from, to, normaliseRecovery,
+      'recovery', from, to, normaliseRecovery,
     );
   },
 
@@ -74,7 +138,6 @@ export const wearables = {
    * whatever connection the athlete has.
    */
   async fetchSummary<Row, Out>(
-    userId: string,
     kind: 'sleep' | 'activity' | 'recovery',
     from: string,
     to: string,
@@ -87,29 +150,10 @@ export const wearables = {
         reason: 'No Open Wearables deployment is set for this build. It is a service you run yourself.',
       };
     }
-
-    try {
-      const response = await fetch(config.summaryUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, userId, from, to }),
-      });
-
-      if (!response.ok) {
-        const detail = (await response.json().catch(() => null)) as { error?: string; detail?: string } | null;
-        if (detail?.error === 'not_configured') {
-          return { kind: 'not_configured', reason: detail.detail ?? 'The backend has no Open Wearables settings.' };
-        }
-        if (detail?.error === 'bad_user_id') {
-          return { kind: 'auth', reason: 'That does not look like an Open Wearables user id. It is a UUID.' };
-        }
-        return { kind: 'unreachable', reason: detail?.detail ?? `The backend answered ${response.status}.` };
-      }
-
-      const body = (await response.json()) as { data?: Row[] };
-      return { kind: 'ok', data: normalise(body.data ?? []) };
-    } catch (e) {
-      return { kind: 'unreachable', reason: (e as Error).message || 'Could not reach the backend.' };
-    }
+    const r = await post(config.summaryUrl, { kind, from, to });
+    if ('kind' in r) return r;
+    if (r.status !== 200) return failure(r.status, r.json);
+    const rows = (r.json?.data as Row[] | undefined) ?? [];
+    return { kind: 'ok', data: normalise(rows) };
   },
 };

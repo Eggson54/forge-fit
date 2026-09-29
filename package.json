@@ -11,10 +11,10 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
-    "test": "jest && node --test server/*.test.mjs",
-    "test:ci": "jest --ci --runInBand && node --test server/*.test.mjs",
+    "test": "jest && node --test server/*.test.mjs tests/*.test.mjs",
+    "test:ci": "jest --ci --runInBand && node --test server/*.test.mjs tests/*.test.mjs",
     "doctor": "node scripts/doctor.mjs",
-    "test:server": "node --test server/*.test.mjs",
+    "test:server": "node --test server/*.test.mjs tests/*.test.mjs",
     "phone": "expo start --go --tunnel",
     "phone:wifi": "expo start --go"
   },

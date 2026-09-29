@@ -96,7 +96,7 @@ export const useAuthStore = create<AuthState>()(
 
       deleteAccount: async () => {
         const u = get().user;
-        if (u) await auth.deleteAccount(u.id);
+        if (u) await auth.deleteAccount();
         analytics.track('subscription_cancelled', { result: 'account_deleted' });
         // Deleting the account really does return the device to first-run, so
         // this flag goes with it rather than lingering as a trace.

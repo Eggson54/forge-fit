@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, EmptyState, Input, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
+import * as WebBrowser from 'expo-web-browser';
+import { Button, Card, Chip, EmptyState, Screen, SectionHeader, StatTile, Text } from '../../src/components/ui';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { Icon } from '../../src/components/Icon';
 import { colors, spacing } from '../../src/theme';
@@ -14,6 +15,17 @@ import {
 import { wearables } from '../../src/services/wearables';
 import { useLogStore } from '../../src/stores/useLogStore';
 import { useVitalsStore } from '../../src/stores/useVitalsStore';
+
+/** The OAuth providers the backend will start a connection for. */
+const DEVICES = [
+  { id: 'garmin', label: 'Garmin' },
+  { id: 'whoop', label: 'WHOOP' },
+  { id: 'oura', label: 'Oura' },
+  { id: 'polar', label: 'Polar' },
+  { id: 'suunto', label: 'Suunto' },
+  { id: 'fitbit', label: 'Fitbit' },
+  { id: 'withings', label: 'Withings' },
+];
 
 type Phase = 'idle' | 'working' | 'done' | 'failed';
 
@@ -31,13 +43,38 @@ export default function Wearables() {
   const logSteps = useLogStore((s) => s.logSteps);
   const recordVitals = useVitalsStore((s) => s.record);
 
-  const [userId, setUserId] = useState('');
+  const [linking, setLinking] = useState<string | null>(null);
   const [days, setDays] = useState(90);
   const [phase, setPhase] = useState<Phase>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<{ sleep: number; activity: number; recovery: number; providers: ReturnType<typeof coverageOf> } | null>(null);
 
   const configured = wearables.configured();
+
+  const connectDevice = async (provider: string) => {
+    setLinking(provider);
+    setMessage(null);
+    // Idempotent: the first time it creates the wearables account, after
+    // that it confirms the link exists.
+    const linked = await wearables.link();
+    if (linked.kind !== 'ok') {
+      setLinking(null);
+      setPhase('failed');
+      setMessage(linked.reason);
+      return;
+    }
+    const started = await wearables.connect(provider);
+    setLinking(null);
+    if (started.kind !== 'ok') {
+      setPhase('failed');
+      setMessage(started.reason);
+      return;
+    }
+    await WebBrowser.openBrowserAsync(started.data.authorizationUrl).catch(() => {
+      setPhase('failed');
+      setMessage('Could not open the sign-in page.');
+    });
+  };
 
   const pull = async () => {
     setPhase('working');
@@ -46,9 +83,9 @@ export default function Wearables() {
     const from = addDaysISO(to, -days);
 
     const [sleep, activity, recovery] = await Promise.all([
-      wearables.sleep(userId, from, to),
-      wearables.activity(userId, from, to),
-      wearables.recovery(userId, from, to),
+      wearables.sleep(from, to),
+      wearables.activity(from, to),
+      wearables.recovery(from, to),
     ]);
 
     if (sleep.kind !== 'ok' || activity.kind !== 'ok' || recovery.kind !== 'ok') {
@@ -117,18 +154,25 @@ export default function Wearables() {
         </>
       ) : (
         <>
-          <SectionHeader title="Your account there" />
+          <SectionHeader title="Connect a device" />
           <Card style={{ gap: spacing.md }}>
-            <Input
-              value={userId}
-              onChangeText={setUserId}
-              placeholder="User ID from your deployment"
-              autoCapitalize="none"
-            />
-            <Text variant="caption" color={colors.textFaint}>
-              The UUID the service gave your account. It is in the developer portal under Users.
+            {/* There used to be a text box here for a user id, and the backend
+                read whichever account it named with a key that reads every
+                account. Now the backend works out your account from your
+                sign-in, and there is nothing to type. */}
+            <Text variant="caption" color={colors.textDim}>
+              Pick your device and sign in to it. Your wearables account is created for you the first time, and only
+              your ForgeFit sign-in can read it.
             </Text>
+            <View style={styles.chips}>
+              {DEVICES.map((d) => (
+                <Chip key={d.id} label={linking === d.id ? 'Opening…' : d.label} onPress={() => void connectDevice(d.id)} />
+              ))}
+            </View>
+          </Card>
 
+          <SectionHeader title="Bring in your history" />
+          <Card style={{ gap: spacing.md }}>
             <View style={styles.chips}>
               {[30, 90, 365].map((d) => (
                 <Chip key={d} label={d === 365 ? 'A year' : `${d} days`} selected={days === d} onPress={() => setDays(d)} />
@@ -137,7 +181,7 @@ export default function Wearables() {
 
             <Button
               title={phase === 'working' ? 'Pulling…' : 'Pull my history'}
-              disabled={phase === 'working' || userId.trim().length < 8}
+              disabled={phase === 'working'}
               onPress={() => void pull()}
             />
           </Card>

@@ -16,7 +16,9 @@ export function applyCors(req, res) {
   if (ALLOWED.length === 0 || ALLOWED.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Authorization, so the web build can send a session to the endpoints
+    // that check one.
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     return true;
   }

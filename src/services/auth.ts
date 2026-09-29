@@ -250,11 +250,29 @@ export const auth = {
   },
 
   /** Permanently delete the account and all associated data. */
-  async deleteAccount(userId: string): Promise<void> {
+  async deleteAccount(): Promise<void> {
     const supa = getSupabase();
     if (supa && isCloudEnabled()) {
-      // Server-side: an edge function `delete-account` removes all rows + auth user.
-      await supa.functions.invoke('delete-account', { body: { userId } }).catch(() => undefined);
+      // Server-side: the `delete-account` function removes photos, wearables
+      // data, every row and the account itself.
+      //
+      // Its answer is checked. It used to be ignored — `invoke` reports a
+      // failure in its return value rather than by throwing, and the catch
+      // swallowed the rest — so the app signed out, wiped the phone and said
+      // everything was deleted even when the server had kept the account, or
+      // the function had never been deployed. Now a failure stops here, with
+      // the account and the local data intact, and the reason goes on screen.
+      const { error } = await supa.functions.invoke('delete-account', { body: {} });
+      if (error) {
+        let reason = 'The server could not delete your account. Nothing was deleted; try again.';
+        try {
+          const body = await (error as { context?: Response }).context?.json?.();
+          if (body?.error) reason = String(body.error);
+        } catch {
+          /* keep the general reason */
+        }
+        throw new Error(reason);
+      }
       await supa.auth.signOut();
     }
     await storage.remove(LOCAL_USER_KEY);

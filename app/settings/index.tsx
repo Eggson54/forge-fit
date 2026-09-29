@@ -28,7 +28,15 @@ export default function Settings() {
           text: 'Delete everything',
           style: 'destructive',
           onPress: async () => {
-            await deleteAccount();
+            try {
+              await deleteAccount();
+            } catch (e) {
+              // Nothing local is wiped when the server kept the account: the
+              // data on this phone is still the person's, and still theirs to
+              // delete once the server can.
+              Alert.alert('Account not deleted', (e as Error).message);
+              return;
+            }
             await resetAllStores();
             router.replace('/(auth)/sign-up');
           },
