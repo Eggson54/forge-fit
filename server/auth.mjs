@@ -29,7 +29,7 @@ export const TIER_CLAIM_WARNING =
   'A `tier` claim must come from app_metadata, never user_metadata: the latter is writable by the user it describes, so a tier taken from it is a self-service upgrade.';
 
 export const NO_SECRET_WARNING =
-  'SUPABASE_JWT_SECRET is not set. Tokens cannot be verified, so every request is treated as anonymous and free. Do not run like this in production: the alternative is trusting whatever a caller claims about themselves.';
+  'Neither SUPABASE_URL nor SUPABASE_JWT_SECRET is set. Tokens cannot be verified, so every request is treated as anonymous and free. Do not run like this in production: the alternative is trusting whatever a caller claims about themselves.';
 
 /** Base64url without throwing on the malformed input this will certainly meet. */
 function decodeSegment(segment) {
@@ -81,6 +81,131 @@ export function verifyToken(token, secret, now = Date.now()) {
   if (typeof payload.nbf === 'number' && seconds < payload.nbf) return null;
 
   return payload;
+}
+
+/**
+ * Supabase's newer signing keys, fetched and cached.
+ *
+ * Projects created on Supabase's current key system sign sessions with an
+ * asymmetric key (ES256, or RS256) rather than the shared secret, and publish
+ * the public half at /auth/v1/.well-known/jwks.json — the same place
+ * supabase-js's own getClaims() reads it. A server that only checks the
+ * shared secret treats every one of those sessions as anonymous: nobody gets
+ * a pro limit, and signed-in users share a bucket by address. Both kinds are
+ * accepted now; the secret remains for projects still on it.
+ *
+ * Keys are cached, and refetched when a token names a key id not in the
+ * cache (a rotation) — but at most every 30 seconds, so a stream of tokens
+ * with made-up key ids cannot turn this server into a JWKS fetch loop.
+ */
+export function createJwks(supabaseUrl, { fetchImpl = fetch, ttlMs = 10 * 60_000, minRefetchMs = 30_000, now = () => Date.now() } = {}) {
+  const url = `${String(supabaseUrl).replace(/\/+$/, '')}/auth/v1/.well-known/jwks.json`;
+  let keys = [];
+  let fetchedAt = -Infinity;
+  let inflight = null;
+
+  async function refresh() {
+    if (now() - fetchedAt < minRefetchMs) return;
+    inflight ??= (async () => {
+      try {
+        const res = await fetchImpl(url, { signal: AbortSignal.timeout(5_000) });
+        if (res.ok) {
+          const body = await res.json();
+          if (Array.isArray(body?.keys)) keys = body.keys;
+        }
+      } catch {
+        /* keep what we had */
+      } finally {
+        fetchedAt = now();
+        inflight = null;
+      }
+    })();
+    await inflight;
+  }
+
+  return {
+    async key(kid) {
+      if (now() - fetchedAt > ttlMs) await refresh();
+      let jwk = keys.find((k) => k.kid === kid);
+      if (!jwk) {
+        await refresh();
+        jwk = keys.find((k) => k.kid === kid);
+      }
+      return jwk ?? null;
+    },
+  };
+}
+
+const ASYMMETRIC = {
+  ES256: { kty: 'EC', verify: (data, key, sig) => crypto.verify('sha256', data, { key, dsaEncoding: 'ieee-p1363' }, sig) },
+  RS256: { kty: 'RSA', verify: (data, key, sig) => crypto.verify('sha256', data, key, sig) },
+};
+
+/**
+ * Verify a Supabase session token signed either way, and return its claims.
+ *
+ * Same contract as verifyToken: null means "do not trust this". The key type
+ * must match the algorithm the token claims, or a token could ask to be
+ * checked with the wrong kind of key.
+ */
+export async function verifyAnyToken(token, { secret, jwks, now = Date.now() } = {}) {
+  if (typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const header = decodeSegment(parts[0]);
+  if (!header) return null;
+
+  if (header.alg === 'HS256') return verifyToken(token, secret, now);
+
+  const scheme = ASYMMETRIC[header.alg];
+  if (!scheme || !jwks || typeof header.kid !== 'string') return null;
+  const jwk = await jwks.key(header.kid);
+  if (!jwk || jwk.kty !== scheme.kty || (jwk.alg && jwk.alg !== header.alg)) return null;
+
+  let ok = false;
+  try {
+    const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+    ok = scheme.verify(Buffer.from(`${parts[0]}.${parts[1]}`), key, Buffer.from(parts[2], 'base64url'));
+  } catch {
+    return null;
+  }
+  if (!ok) return null;
+
+  const payload = decodeSegment(parts[1]);
+  if (!payload) return null;
+  const seconds = Math.floor(now / 1000);
+  if (typeof payload.exp === 'number' && seconds >= payload.exp) return null;
+  if (typeof payload.nbf === 'number' && seconds < payload.nbf) return null;
+  return payload;
+}
+
+let defaultJwks = null;
+function jwksFromEnv() {
+  if (!process.env.SUPABASE_URL) return null;
+  defaultJwks ??= createJwks(process.env.SUPABASE_URL);
+  return defaultJwks;
+}
+
+/**
+ * The caller, from a request, accepting either kind of Supabase key.
+ *
+ * A verified token without a `sub` — Supabase's own anon or service keys are
+ * JWTs signed the same way — identifies nobody, so it is treated as
+ * anonymous rather than as a signed-in person with no id.
+ */
+export async function userFromRequestAsync(req, {
+  secret = process.env.SUPABASE_JWT_SECRET,
+  jwks = jwksFromEnv(),
+  now = Date.now(),
+} = {}) {
+  const header = req?.headers?.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const fallbackId = addressOf(req);
+  if (!token) return { ...ANONYMOUS, id: fallbackId };
+
+  const payload = await verifyAnyToken(token, { secret, jwks, now });
+  if (!payload || typeof payload.sub !== 'string' || !payload.sub) return { ...ANONYMOUS, id: fallbackId };
+  return { id: payload.sub, tier: payload.tier === 'pro' ? 'pro' : 'free', verified: true };
 }
 
 /**

@@ -242,13 +242,21 @@ costs nothing.
 Blank `EXPO_PUBLIC_AI_API_URL` leaves the on-device coach running, which is
 rule-based and tells the user so.
 
-### `SUPABASE_JWT_SECRET` — set this before you ship
+### Checking sessions — set this before you ship
 
-Also on that server, from Supabase under Project Settings → API → JWT
-Settings. It is what lets the backend check that a token was really issued
-by your Supabase project.
+Set `SUPABASE_URL` on that server (the same value as
+`EXPO_PUBLIC_SUPABASE_URL`). It is how the backend checks that a session
+was really issued by your Supabase project: it reads the project's public
+signing keys from `/auth/v1/.well-known/jwks.json`, which is where newer
+Supabase projects publish them.
 
-Without it the backend cannot verify anything, so it believes nothing a
+If your project is on Supabase's older shared-secret keys, also set
+`SUPABASE_JWT_SECRET` (Project Settings → API → JWT Settings). Setting the
+secret alone is not enough on a newer project: its sessions are signed with
+an asymmetric key, and a server that only knows the secret treats every one
+of them as anonymous.
+
+With neither, the backend cannot verify anything, so it believes nothing a
 caller tells it about themselves: every request is anonymous, on the free
 rate limit, bucketed by network address. That is a safe state and the
 server prints a warning at startup saying it is in it — but it also means
@@ -296,6 +304,15 @@ it does and does not save you:
 | `EXPO_PUBLIC_OPEN_WEARABLES_SUMMARY_URL` | app bundle — `https://<your-deployment>/api/wearables/summary` |
 | `OPEN_WEARABLES_URL` | **server only** — your Open Wearables deployment |
 | `OPEN_WEARABLES_API_KEY` | **server only** — from its developer portal |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | **server only** — so the functions can ask Supabase who is calling |
+| `SUPABASE_SERVICE_ROLE_KEY` | **server only** — the `/link` function writes the account link with it |
+
+Apply `supabase/migrations/0004_wearable_links.sql` too. Nobody types an id
+anywhere: the first time someone taps a device, the backend creates their
+wearables profile, records which account it belongs to, and from then on
+reads only that one — worked out from their session, never from anything
+the app sends. Wearables therefore need a real Supabase account, not a
+phone-only one.
 
 The split is forced, not stylistic. Their SDK endpoint mints a user-scoped
 token that looks like the thing a mobile app should use — but their summary

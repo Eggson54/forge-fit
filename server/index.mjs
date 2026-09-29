@@ -21,12 +21,14 @@
  *   PORT                  default 8787
  *   ANTHROPIC_API_KEY     the model provider (or OPENAI_API_KEY, text only)
  *   AI_MODEL              default claude-opus-5-5
- *   SUPABASE_JWT_SECRET   REQUIRED in production; see auth.mjs
+ *   SUPABASE_URL          verifies sessions with the project's signing keys
+ *   SUPABASE_JWT_SECRET   the older shared secret, for projects still on it
+ *                         (one of the two is REQUIRED in production)
  *   TRUST_PROXY_HOPS      proxies in front of this server; see auth.mjs
  */
 import express from 'express';
 import { fileURLToPath } from 'node:url';
-import { NO_SECRET_WARNING, TIER_CLAIM_WARNING, userFromRequest } from './auth.mjs';
+import { NO_SECRET_WARNING, TIER_CLAIM_WARNING, userFromRequestAsync } from './auth.mjs';
 import { createLimiter } from './limits.mjs';
 import { MODEL, ModelUnavailable, generateJson, provider } from './model.mjs';
 import {
@@ -114,8 +116,8 @@ export function createApp({ generate = generateJson, limiter = createLimiter(), 
   const photo = express.json({ limit: '2500kb' });
 
   const guard = (route, handler) => async (req, res) => {
-    const user = userFromRequest(req);
     try {
+      const user = await userFromRequestAsync(req);
       const out = await handler(req, user);
       res.json(out);
     } catch (e) {
@@ -239,7 +241,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (provider() === 'none') {
       console.warn('\n  ⚠  No model provider key is set. Every AI route answers 503 and the app uses its on-device coach.\n');
     }
-    if (!process.env.SUPABASE_JWT_SECRET) {
+    if (!process.env.SUPABASE_JWT_SECRET && !process.env.SUPABASE_URL) {
       console.warn(`\n  ⚠  ${NO_SECRET_WARNING}\n`);
     } else {
       console.log(`  Verifying tokens. Note: ${TIER_CLAIM_WARNING}`);

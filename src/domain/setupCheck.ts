@@ -56,10 +56,16 @@ export const REQUIREMENTS: Requirement[] = [
       { name: 'EXPO_PUBLIC_SUPABASE_URL', where: 'app', required: true },
       { name: 'EXPO_PUBLIC_SUPABASE_ANON_KEY', where: 'app', required: true },
       {
-        name: 'SUPABASE_JWT_SECRET',
+        name: 'SUPABASE_URL',
         where: 'server',
         required: true,
-        note: 'How the backend knows a request is from a signed-in user.',
+        note: 'How the backends check a session: the AI server reads the project\'s signing keys from it, and the wearables functions ask it who is calling.',
+      },
+      {
+        name: 'SUPABASE_JWT_SECRET',
+        where: 'server',
+        required: false,
+        note: 'Only for projects still on the older shared-secret keys. Newer projects need just SUPABASE_URL.',
       },
     ],
   },
@@ -126,6 +132,13 @@ export const REQUIREMENTS: Requirement[] = [
       { name: 'EXPO_PUBLIC_OPEN_WEARABLES_SUMMARY_URL', where: 'app', required: true },
       { name: 'OPEN_WEARABLES_URL', where: 'server', required: true },
       { name: 'OPEN_WEARABLES_API_KEY', where: 'server', required: true },
+      {
+        name: 'SUPABASE_SERVICE_ROLE_KEY',
+        where: 'server',
+        required: true,
+        note: 'Creates the link between an account and its wearables profile — the one write no client is allowed to make.',
+      },
+      { name: 'SUPABASE_ANON_KEY', where: 'server', required: true },
     ],
   },
   {
