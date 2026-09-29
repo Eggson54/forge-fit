@@ -120,8 +120,28 @@ test('ignores an Authorization header that is not a Bearer token', () => {
   assert.equal(u.verified, false);
 });
 
-test('buckets on the client end of a forwarding chain', () => {
-  assert.equal(addressOf({ headers: { 'x-forwarded-for': '198.51.100.9, 10.0.0.1' } }), 'ip:198.51.100.9');
+test('ignores X-Forwarded-For unless told how many proxies to trust', () => {
+  // With no proxy configured the header is whatever the caller typed.
+  const req = { headers: { 'x-forwarded-for': '1.2.3.4' }, socket: { remoteAddress: '203.0.113.7' } };
+  assert.equal(addressOf(req, 0), 'ip:203.0.113.7');
+});
+
+test('cannot be steered by a forged X-Forwarded-For entry', () => {
+  // The hole: proxies append, so the caller controls the first entry. Each
+  // made-up value used to be a brand-new free-tier bucket.
+  const forged = (fake) => ({ headers: { 'x-forwarded-for': `${fake}, 198.51.100.9` }, socket: { remoteAddress: '10.0.0.1' } });
+  assert.equal(addressOf(forged('1.1.1.1'), 1), 'ip:198.51.100.9');
+  assert.equal(addressOf(forged('2.2.2.2'), 1), 'ip:198.51.100.9');
+});
+
+test('counts trusted hops from the right', () => {
+  const req = { headers: { 'x-forwarded-for': 'forged, 198.51.100.9, 10.0.0.2' }, socket: { remoteAddress: '10.0.0.3' } };
+  assert.equal(addressOf(req, 2), 'ip:198.51.100.9');
+});
+
+test('falls back to the socket when the chain is shorter than the hops claimed', () => {
+  const req = { headers: { 'x-forwarded-for': '198.51.100.9' }, socket: { remoteAddress: '203.0.113.7' } };
+  assert.equal(addressOf(req, 3), 'ip:203.0.113.7');
 });
 
 test('falls back to the socket, then to something bucketable', () => {

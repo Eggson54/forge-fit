@@ -109,14 +109,35 @@ export function userFromRequest(req, { secret = process.env.SUPABASE_JWT_SECRET,
   };
 }
 
-/** Something stable to bucket an anonymous caller on. */
-export function addressOf(req) {
+/**
+ * Something stable to bucket an anonymous caller on.
+ *
+ * X-Forwarded-For is only as trustworthy as the proxy that wrote it, and a
+ * proxy *appends* to it: a caller who sends `X-Forwarded-For: 1.2.3.4`
+ * arrives as "1.2.3.4, <their real address>". An earlier version took the
+ * first entry — the one the caller wrote — so a different made-up address on
+ * every request was a fresh free-tier bucket every time, which is the
+ * rotating-bucket hole the JWT fix had just closed, reopened one header over.
+ *
+ * The address worth trusting is the one your own proxy added, which is
+ * counted from the right: with one proxy in front it is the last entry.
+ * How many proxies there are is a fact about the deployment that this code
+ * cannot see, so it is configured — TRUST_PROXY_HOPS — and defaults to
+ * zero, which ignores the header entirely. Wrong in the safe direction:
+ * behind a proxy with no setting, anonymous callers share one bucket, which
+ * is strict, instead of each choosing their own, which is free.
+ */
+export function addressOf(req, hops = Number(process.env.TRUST_PROXY_HOPS ?? 0)) {
+  const trusted = Number.isInteger(hops) && hops > 0 ? hops : 0;
   const forwarded = req?.headers?.['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.length > 0) {
-    // The first entry is the client; the rest are proxies. Only trustworthy
-    // behind a proxy you control, which is the usual deployment.
-    return `ip:${forwarded.split(',')[0].trim()}`;
+  if (trusted > 0 && typeof forwarded === 'string' && forwarded.length > 0) {
+    const chain = forwarded.split(',').map((s) => s.trim()).filter(Boolean);
+    // The entry written by the outermost trusted proxy. If the chain is
+    // shorter than the configured hops, the request did not come through
+    // the proxies it claims to have, so fall through to the socket.
+    const candidate = chain[chain.length - trusted];
+    if (candidate) return `ip:${candidate}`;
   }
-  const direct = req?.ip || req?.socket?.remoteAddress;
+  const direct = req?.socket?.remoteAddress || req?.ip;
   return direct ? `ip:${direct}` : 'ip:unknown';
 }

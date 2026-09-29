@@ -7,9 +7,11 @@
   "main": "index.mjs",
   "scripts": {
     "start": "node index.mjs",
-    "dev": "node --watch index.mjs"
+    "dev": "node --watch index.mjs",
+    "test": "node --test *.test.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
     "express": "^4.19.2"
   }
 }

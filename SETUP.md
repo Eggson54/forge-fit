@@ -192,15 +192,54 @@ data is ever used for targeting**. Blank ids render inert placeholders.
 
 ## 6. Your AI backend — the coach
 
-`EXPO_PUBLIC_AI_API_URL` is the base URL of a server **you** run that
-holds the model key and forwards requests. It is deliberately not a model
-provider key: an `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` compiled into an
-app bundle is a stranger's bill, and there is no way to rotate out of it
-quickly.
+The `server/` folder is a small Express app that holds the model key and
+answers five routes: food estimates (including from a photo), coach
+messages, generated workouts, the weekly review and the weight-trend
+summary. The app talks to it; the app never holds a model key.
 
-So the key you need is `ANTHROPIC_API_KEY` (console.anthropic.com) or
-`OPENAI_API_KEY`, set **on that server**, never here. Blank
-`EXPO_PUBLIC_AI_API_URL` leaves the on-device coach running, which is
+**To run it**, anywhere that runs Node 20+ — Render, Railway and Fly all
+host this kind of app; check their current pricing:
+
+```
+cd server
+npm install
+npm start          # or set the host's start command to this
+```
+
+Then set `EXPO_PUBLIC_AI_API_URL` in the app to wherever it is running.
+`npm test` in `server/` runs its tests without calling any model, so it
+costs nothing.
+
+**What it needs, on the server:**
+
+- `ANTHROPIC_API_KEY` from console.anthropic.com. This is the only one that
+  costs money, and the only one that does photo estimates. (`OPENAI_API_KEY`
+  still works for the text routes if you prefer it.)
+- `SUPABASE_JWT_SECRET` — below. Set it before anybody else uses the app.
+- `TRUST_PROXY_HOPS=1` on Render, Railway, Fly or Heroku. It tells the
+  server which address in `X-Forwarded-For` your host wrote, as opposed to
+  one a caller made up. Without it, everyone who is not signed in shares a
+  single rate-limit bucket: safe, but strict.
+- `AI_MODEL`, optionally. Blank means `claude-opus-5-5`, Anthropic's current
+  default. `claude-sonnet-5-5` costs half as much per token and is a
+  reasonable fit for short structured answers like these — that is your
+  call to make, which is why it is a setting rather than a default.
+
+**What it will not do**, by design:
+
+- Answer a dosing, sourcing, medical or injury question, or tell anybody
+  about a compound. The app handles all of those on the phone and never
+  sends them; the server only ever receives an *intent* like "push me" or
+  "where am I weakest", never the athlete's own words.
+- Pass off a failure as an answer. A bad key, a rate limit, an overloaded
+  API or a refused request is a 503, and the app falls back to its
+  on-device coach — which is rule-based and says so.
+- Let one caller run up the bill. Every route has a daily budget per
+  person, and there is a per-minute cap across all of them. The numbers are
+  in `server/limits.mjs`. They live in memory, so they are per server
+  process: run several copies and each one counts separately.
+
+Blank `EXPO_PUBLIC_AI_API_URL` leaves the on-device coach running, which is
 rule-based and tells the user so.
 
 ### `SUPABASE_JWT_SECRET` — set this before you ship

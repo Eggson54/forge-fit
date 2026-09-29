@@ -1,7 +1,5 @@
 import { answerCoachQuestion, weeklyReviewSummary } from '../../domain/coach';
-import { UNKNOWN_TEXT, classifyQuestion, refusalText } from '../../domain/coachQuestions';
-import { compoundAnswer, compoundById, findCompound } from '../../domain/peptides';
-import { readingAnswer } from '../../domain/coachReadings';
+import { routeCoachRequest } from '../../domain/coachRouting';
 import { sanitizeMacros } from '../../domain/nutrition';
 import { EXERCISE_LIBRARY } from '../../data/exercises';
 import { FOOD_DB } from '../../data/foods';
@@ -94,51 +92,11 @@ export class MockAIService implements AIService {
 
   async coachMessage(req: CoachMessageRequest): Promise<CoachMessageResult> {
     await delay(250);
-
-    // A typed question routes to one of the same branches a prompt chip uses,
-    // or to a refusal. The branches read the logged numbers either way, so a
-    // question never changes what the coach is allowed to claim.
-    if (!req.intent && req.question) {
-      const route = classifyQuestion(req.question);
-
-      if (route.kind === 'compound') {
-        const compound = compoundById(route.compoundId);
-        // The id came from the same reference, so the lookup cannot miss — but
-        // a miss must not fall through into a coaching branch about a drug.
-        if (!compound) return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };
-        return {
-          text: compoundAnswer(compound, route.ask),
-          tone: 'reflect',
-          reference: { compoundId: compound.id, title: compound.name },
-        };
-      }
-
-      if (route.kind === 'refuse') {
-        // Name the compound in the refusal when one was mentioned, so "ask me
-        // what it is instead" points at something concrete.
-        const named = findCompound(req.question);
-        return {
-          text: refusalText(route.topic, named?.name),
-          tone: 'reflect',
-          declined: route.topic,
-        };
-      }
-      if (route.kind === 'unknown') {
-        return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };
-      }
-
-      // Computed, not generated. Without the numbers the coach says it cannot
-      // read that yet rather than falling through to a coaching branch that
-      // would answer a different question than the one asked.
-      if (route.kind === 'reading') {
-        if (!req.readings) return { text: UNKNOWN_TEXT, tone: 'reflect', declined: 'unknown' };
-        return { text: readingAnswer(route.reading, req.readings), tone: 'reflect' };
-      }
-      const answer = answerCoachQuestion(req.context, req.settings, route.intent);
-      return { text: answer.text, tone: answer.tone };
-    }
-
-    const m = answerCoachQuestion(req.context, req.settings, req.intent ?? 'daily');
+    // Routing is shared with the server client, so refusals and computed
+    // answers are identical whichever one is in use. See coachRouting.
+    const route = routeCoachRequest(req);
+    if (route.kind === 'answered') return route.result;
+    const m = answerCoachQuestion(req.context, req.settings, route.intent);
     return { text: m.text, tone: m.tone };
   }
 
